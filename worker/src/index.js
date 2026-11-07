@@ -76,7 +76,10 @@ function summary(S) {
   const lines = [`# DUAL Planner · ${td} · W${wk}`, `역할: ${(S.roles || []).join(' / ')}`, ''];
   ['urgent', 'important', 'light', 'nice'].forEach(b => { lines.push(`## ${names[b]}`); openI.filter(r => (r.bucket || 'nice') === b).forEach(r => lines.push(`- id=${r.id} (${r.role}) ${r.title}${r.due ? ' — ' + r.due + '까지만' : ''}${r.routine ? ' — 주 ' + r.routine + '회, 이번 주 ' + Object.keys(r.checks || {}).filter(k => ds.includes(k)).length : ''}`)); lines.push(''); });
   const day = S.days[td]; if (day) { lines.push('## 오늘', `의도: ${day.intent || '-'}`, `오늘 고른 것: ${(day.picks || []).map(id => (live.find(r => r.id === id) || {}).title).filter(Boolean).join(', ') || '-'}`, `저녁 한 줄: ${day.note || '-'}`, ''); const inbox = (day.inbox || []).filter(x => !x.moved); if (inbox.length) { lines.push('## 인박스(아직 안 옮긴 것)'); inbox.forEach(x => lines.push(`- ${x.kind}: ${x.text}`)); lines.push(''); } }
-  const doneW = live.filter(r => r.done && ds.includes(r.doneAt || '')); if (doneW.length) { lines.push('## 이번 주 완료'); doneW.forEach(r => lines.push(`- ${r.title} (${r.doneAt})`)); lines.push(''); }
+  lines.push('## 이번 주 일별 기록 (달력)');
+  ds.forEach((d, i) => { if (d > td) return; const dy = S.days[d] || {}; const done = live.filter(r => (r.checks && r.checks[d]) || r.doneAt === d).map(r => r.title); const notes = (dy.inbox || []).filter(x => x.kind === 'note').map(x => x.text);
+    lines.push(`- ${d.slice(5)} ${DOW[i]} · 의도: ${dy.intent || '-'} · 한 일(${done.length}): ${done.join(', ') || '-'}${notes.length ? ' · 메모: ' + notes.join(' / ') : ''} · 한 줄: ${dy.note || '-'}`); });
+  lines.push('');
   const cut = dstr(new Date(nowKST().getTime() - 14 * 86400000));
   const stale = openI.filter(r => !r.routine && (Object.keys(r.checks || {}).sort().pop() || r.week || '') < cut); if (stale.length) { lines.push('## 2주 넘게 안 건드린 것'); stale.forEach(r => lines.push(`- id=${r.id} ${r.title}`)); }
   return lines.join('\n');
