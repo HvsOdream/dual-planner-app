@@ -14,15 +14,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - name: KV namespace (create once, then reuse)
-        working-directory: worker
-        run: |
-          ID=$(npx -y wrangler@3 kv namespace list | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const m=s.match(/\[[\s\S]*\]/);const a=m?JSON.parse(m[0]):[];const x=a.find(n=>n.title==="dual-planner-api-PLANNER"||n.title==="PLANNER");process.stdout.write(x?x.id:"")})')
-          if [ -z "$ID" ]; then
-            ID=$(npx -y wrangler@3 kv namespace create PLANNER | grep -oE 'id = "[^"]+"' | head -1 | cut -d'"' -f2)
-          fi
-          echo "KV id: $ID"
-          sed -i "s/__KV_ID__/$ID/" wrangler.toml
       - name: Deploy
         working-directory: worker
         run: npx -y wrangler@3 deploy
