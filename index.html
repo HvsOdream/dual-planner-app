@@ -186,8 +186,6 @@ a { color: inherit; }
     <div id="connBox" style="font-size:13px;line-height:1.8;margin:8px 0"></div>
     <div class="sp"></div>
     <button class="cta" style="margin-left:0;width:100%" onclick="copyText(mcpUrl(),'MCP 주소 복사됨')">MCP 주소 복사</button>
-    <div style="height:10px"></div>
-    <button class="cta ghost" style="margin-left:0;width:100%" onclick="copyText(agentGuide(),'비서 지침 복사됨')">비서 지침 복사</button>
     <div style="height:14px"></div>
     <button class="line sub" style="padding-left:0;width:100%;text-align:center" onclick="closeMore()">닫기</button>
   </div>
@@ -294,7 +292,7 @@ function renderToday() {
   h += `<div class="sp"></div>
   <div class="postit"><div class="ph"><span>비서 메모 · ${inbox.length}</span><button onclick="openPaste()">붙여넣기 ›</button></div>`;
   if (!inbox.length) h += `<div class="pl" style="color:var(--postit-muted)">비서가 남긴 결정·메모가 여기 붙어요</div>`;
-  inbox.slice(0,6).forEach(x => { h += `<div class="pl"><span>${x.kind==='note'?'*':'[ ]'}</span><span class="tx">${esc(x.text)}</span>${x.kind!=='note'?`<button onclick="moveToRock('${x.id}')">옮겨 적기</button>`:''}<button onclick="dropInbox('${x.id}')">✕</button></div>`; });
+  inbox.forEach(x => { h += `<div class="pl" style="align-items:flex-start;padding:4px 0"><span>${x.kind==='note'?'*':'[ ]'}</span><span class="tx" style="white-space:normal;overflow:visible;line-height:20px">${esc(x.text)}</span>${x.kind!=='note'?`<button onclick="moveToRock('${x.id}')">옮겨 적기</button>`:''}<button onclick="dropInbox('${x.id}')">✕</button></div>`; });
   h += `<div id="pasteBox" style="display:none"><textarea id="pasteTa" placeholder="한 줄에 하나. '- '는 할 일, '* '는 메모"></textarea><div class="pbtns"><button class="pbtn fill" onclick="doPaste()">넣기</button><button class="pbtn" onclick="document.getElementById('pasteBox').style.display='none'">취소</button></div></div></div>
   <div class="sp"></div>
   <div class="lbl">저녁 한 줄</div>
@@ -449,10 +447,7 @@ function reviewSection(wk, nwk, rv, stale) {
   if (rv.summary) {
     h += `<div class="postit"><div class="ph"><span>${esc(agentLabel(rv.summaryBy||(D.agent||{}).name))} · W${weekNo(new Date(wk))} REVIEW</span></div><div style="line-height:var(--row);white-space:pre-wrap;padding-bottom:6px">${esc(rv.summary)}</div></div><div class="sp"></div>`;
   } else if (agentOn()) {
-    h += `<div class="postit"><div class="ph"><span>비서에게 리뷰 맡기기</span></div>
-      <div class="pl">달력을 보고, 비서에게 이렇게 말하세요:</div>
-      <div class="pl" style="font-weight:600">"듀얼플래너 주간 리뷰 해줘"</div>
-      <div class="pbtns"><button class="pbtn fill" onclick="copyText('듀얼플래너 주간 리뷰 해줘','복사됨 — 에이전트에 붙여넣기')">문장 복사</button><button class="pbtn" onclick="pullState(true)">비서가 적은 것 가져오기</button></div></div><div class="sp"></div>`;
+    h += `<div class="line sub ruled" style="white-space:normal;height:auto;min-height:var(--row)">비서에게 "주간 리뷰 해줘"라고 하면 여기에 리뷰와 다음 주 후보가 채워져요</div><div class="sp"></div>`;
   } else {
     h += `<div class="postit"><div class="ph"><span>비서 없이 리뷰하기</span></div>
       <div class="pl" style="color:var(--postit-muted)">이번 주 기록을 복사해 아무 AI에 붙여넣고, 답을 아래에 붙여넣어요</div>

@@ -86,8 +86,14 @@ function summary(S) {
 }
 
 // ── MCP ──
+const INSTRUCTIONS = `DUAL Planner — 사용자의 노트형 플래너. 앱은 사용자의 정리 양식이고, 정리는 비서(너)가 한다.
+1) 플래너 관련 대화나 일을 시작하면 planner_read로 먼저 읽는다(역할, A/B/C/D 할 일, 오늘, 이번 주 일별 기록, 방치 항목).
+2) 대화 중 생긴 할 일·결정은 대화 끝에 한 번에 planner_add로 적는다. 분류해서 적어라: kind=item + bucket A(급하고 꼭) | B(꼭 해야 하는 장기 일, due 필수) | C(급하지만 가벼운) | D(하면 좋은 일). role은 사용자 역할 중 하나, 루틴은 routine=주당 횟수. 결정·메모는 kind=note.
+3) 끝난 일은 planner_update로 done=true. 2주 넘게 방치된 것은 분할·묘비를 제안만 하고, 사용자 허락 없이 tomb 하지 않는다.
+4) "주간 리뷰" 요청이나 일요일: planner_read의 일별 기록을 근거로 3~5문장 리뷰를 kind=review로 적고, 다음 주 B 후보를 kind=candidate(due 필수)로 최대 4개 적는다. 채택은 사용자가 앱에서 한다.
+5) 적은 뒤엔 무엇을 어느 칸에 적었는지 한 줄로 알려 준다.`;
 const TOOLS = [
-  { name: 'planner_read', description: '플래너 현재 상태 요약(역할, A/B/C/D 할 일 목록과 id, 오늘 의도·고른 것·한 줄, 인박스, 이번 주 완료, 2주 방치 항목). 정리·제안 전에 먼저 읽는다.', inputSchema: { type: 'object', properties: {} } },
+  { name: 'planner_read', description: '(플래너 일을 시작할 때 먼저 호출) 플래너 현재 상태 요약(역할, A/B/C/D 할 일 목록과 id, 오늘 의도·고른 것·한 줄, 인박스, 이번 주 완료, 2주 방치 항목). 정리·제안 전에 먼저 읽는다.', inputSchema: { type: 'object', properties: {} } },
   { name: 'planner_add', description: '비서가 플래너에 적는다. items 배열. 각 항목: text(필수), kind = item(할 일 목록에 바로 적음, bucket 필수: A|B|C|D) | todo(오늘 인박스 할 일) | note(오늘 인박스 메모) | candidate(일요일 리뷰용 다음 주 B 후보) | review(이번 주 리뷰 3~5문장, text에). role(역할명), due(YYYY-MM-DD, B는 필수), routine(주 N회 숫자).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, kind: { type: 'string', enum: ['item', 'todo', 'note', 'candidate', 'review'] }, bucket: { type: 'string', description: 'A|B|C|D' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' } }, required: ['text'] } } }, required: ['items'] } },
   { name: 'planner_update', description: '기존 할 일 항목 수정. items 배열, 각 항목 id 필수. 바꿀 필드만: title, bucket(A|B|C|D), role, due, routine, done(true/false), tomb(true=묘비·목록에서 치움).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, bucket: { type: 'string' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' }, done: { type: 'boolean' }, tomb: { type: 'boolean' } }, required: ['id'] } } }, required: ['items'] } },
 ];
@@ -101,7 +107,7 @@ async function mcp(req, env, token) {
     const reply = r => out.push({ jsonrpc: '2.0', id: m.id, result: r });
     try {
       if (m.method === 'initialize') { const ci = (m.params && m.params.clientInfo) || {}; const S0 = Object.assign(empty(), JSON.parse(await env.PLANNER.get('u:' + token) || 'null') || {}); S0.agent = { name: ci.name || 'agent', version: ci.version || '', at: new Date().toISOString(), via: 'mcp' }; await env.PLANNER.put('u:' + token, JSON.stringify(S0)); }
-      if (m.method === 'initialize') reply({ protocolVersion: m.params && m.params.protocolVersion || '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'dual-planner', version: '0.1' } });
+      if (m.method === 'initialize') reply({ protocolVersion: m.params && m.params.protocolVersion || '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'dual-planner', version: '0.2' }, instructions: INSTRUCTIONS });
       else if (m.method === 'ping') reply({});
       else if (m.method === 'tools/list') reply({ tools: TOOLS });
       else if (m.method === 'tools/call') {
