@@ -173,6 +173,10 @@ a { color: inherit; }
   <div class="box">
     <h3>역할</h3>
     <div class="roles-ed" id="rolesEd"></div>
+    <h3>에이전트 연동 · 구글 시트</h3>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">에이전트가 시트에 행을 쓰면 인박스·리뷰 후보로 들어와요. 시트는 "링크가 있는 모든 사용자: 뷰어"로.</div>
+    <input class="wr" id="sheetIdIn" style="padding-left:0;font-family:var(--mono);font-size:13px" placeholder="스프레드시트 ID (URL의 /d/ 와 /edit 사이)" value="" onchange="D.sheetId=this.value.trim();save();syncSheet(true)">
+    <div style="display:flex;gap:8px;margin:10px 0 14px"><button class="cta ghost" style="margin-left:0;width:auto;flex:1" onclick="syncSheet(true)">지금 가져오기</button><button class="cta ghost" style="margin-left:0;width:auto;flex:1" onclick="copyAgentGuide()">에이전트 안내문 복사</button></div>
     <h3>데이터</h3>
     <button class="mi" onclick="exportData()">내보내기 (JSON)<span>복사</span></button>
     <button class="mi" onclick="importData()">가져오기 (JSON)<span>붙여넣기</span></button>
@@ -196,7 +200,7 @@ function empty() {
     rocks: [],      // {id, week, role, title, due:'YYYY-MM-DD'|null, routine:n|null, done:bool, carry:n, checks:{date:true}, from:'inbox'|null}
     days: {},       // {date: {intent, note, picks:[rockId], inbox:[{id, text, src, at, moved}]}}
     reviews: {},    // {week: {sealed:true, packetAt, candidates:[{id, role, title, due, state:'y'|'edit'|'n'}]}}
-    streakFreeze: {} };
+    sheetId: '', seen: {}, streakFreeze: {} };
 }
 let D = load();
 function load() { try { const r = localStorage.getItem(KEY); if (r) return Object.assign(empty(), JSON.parse(r)); } catch(e) {} return empty(); }
@@ -221,7 +225,7 @@ function toast(m) { const t = document.getElementById('toast'); t.textContent = 
 // ── 네비 ──
 let tab = 'today', curWeek = weekKey(new Date()), addOpen = false, addRole = null, addRoutine = false;
 function go(t) { tab = t; if (t==='week') curWeek = weekKey(new Date()); document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on', p.id==='p-'+t)); document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.tab===t)); window.scrollTo(0,0); render(); }
-function openMore() { renderRoles(); document.getElementById('more').classList.add('on'); }
+function openMore() { renderRoles(); const si = document.getElementById('sheetIdIn'); if (si) si.value = D.sheetId || ''; document.getElementById('more').classList.add('on'); }
 function closeMore() { document.getElementById('more').classList.remove('on'); }
 function render() { renderCover(); if (tab==='today') renderToday(); else if (tab==='week') renderWeek(); else renderReview(); }
 
@@ -262,7 +266,7 @@ function renderToday() {
   h += `<div class="sp"></div>
   <div class="postit"><div class="ph"><span>AGENT INBOX · ${inbox.length}</span><button onclick="openPaste()">PASTE ›</button></div>`;
   if (!inbox.length) h += `<div class="pl" style="color:var(--postit-muted)">에이전트가 준 할 일·결정을 붙여넣기</div>`;
-  inbox.slice(0,6).forEach(x => { h += `<div class="pl"><span>${x.kind==='note'?'*':'[ ]'}</span><span class="tx">${esc(x.text)}</span>${x.kind!=='note'?`<button onclick="moveToRock('${x.id}')">옮겨 적기</button>`:''}<button onclick="dropInbox('${x.id}')">✕</button></div>`; });
+  inbox.slice(0,6).forEach(x => { h += `<div class="pl"><span>${x.kind==='note'?'*':'[ ]'}</span><span class="tx">${esc(x.text)}</span>${x.src?`<span style="color:var(--postit-muted);font-size:10px">${esc(x.src)}</span>`:''}${x.kind!=='note'?`<button onclick="moveToRock('${x.id}')">옮겨 적기</button>`:''}<button onclick="dropInbox('${x.id}')">✕</button></div>`; });
   h += `<div id="pasteBox" style="display:none"><textarea id="pasteTa" placeholder="여기에 붙여넣기 — 한 줄에 하나. '- ' 나 '[ ] '로 시작하면 할 일, '* '로 시작하면 메모"></textarea><div class="pbtns"><button class="pbtn fill" onclick="doPaste()">넣기</button><button class="pbtn" onclick="document.getElementById('pasteBox').style.display='none'">취소</button></div></div>
   <div class="pf">${inbox.length?('최근 '+(inbox[0].at||'')+' · 탭하여 주간 빅록으로 옮겨 적기'):'claude · chatgpt · gemini 어느 것이든'}</div></div>
   <div class="sp"></div>
@@ -411,6 +415,51 @@ function startNext(wk, nwk) {
   rv.sealed = true; rv.candidates = rv.candidates.filter(c=>c.state!=='y'); save(); curWeek = nwk; toast('봉인 — 다음 주 시작'); go('week'); curWeek = nwk; render();
 }
 
+
+// ── 에이전트 연동: 구글 시트 인박스 ──
+// 시트 열: id | at | src | kind(todo|note|candidate) | text | role | due | routine
+function csvParse(t) { const rows = []; let row = [], cur = '', q = false; for (let i = 0; i < t.length; i++) { const c = t[i]; if (q) { if (c === '"') { if (t[i+1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; } else if (c === '"') q = true; else if (c === ',') { row.push(cur); cur = ''; } else if (c === '\n' || c === '\r') { if (c === '\r' && t[i+1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; } else cur += c; } if (cur !== '' || row.length) { row.push(cur); rows.push(row); } return rows; }
+async function syncSheet(manual) {
+  const id = (D.sheetId || '').trim(); if (!id) { if (manual) toast('시트 ID를 먼저 넣어 주세요'); return; }
+  try {
+    const res = await fetch(`https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/gviz/tq?tqx=out:csv&headers=1&_=${Date.now()}`);
+    if (!res.ok) throw new Error(res.status);
+    const rows = csvParse(await res.text()); if (!rows.length) return;
+    const head = rows[0].map(h => h.trim().toLowerCase()); const col = n => head.indexOf(n);
+    const ci = col('id'), ca = col('at'), cs = col('src'), ck = col('kind'), ct = col('text'), cr = col('role'), cd = col('due'), cn = col('routine');
+    let added = 0; const td = today(); D.seen = D.seen || {};
+    rows.slice(1).forEach(r => {
+      const text = (r[ct] || '').trim(); if (!text) return;
+      const rid = (r[ci] || '').trim() || ('s_' + (r[ca] || '') + '_' + text).slice(0, 80);
+      if (D.seen[rid]) return; D.seen[rid] = 1; added++;
+      const kind = (r[ck] || 'todo').trim().toLowerCase(), src = (r[cs] || 'agent').trim(), at = (r[ca] || '').trim();
+      if (kind === 'candidate') {
+        const wk = reviewWeek(); const rv = D.reviews[wk] || (D.reviews[wk] = { candidates: [] });
+        const c = { id: 'c_' + rid, role: (r[cr] || D.roles[0] || '').trim(), title: text, state: null, src };
+        const n = Number(r[cn] || 0); if (n) c.routine = n; else c.due = (r[cd] || '').trim() || weekDates(new Date(wk)).map(x=>x)[6];
+        rv.candidates.unshift(c);
+      } else {
+        const day = dayOf(td); day.inbox = day.inbox || [];
+        day.inbox.unshift({ id: 'i_' + rid, text, kind: kind === 'note' ? 'note' : 'todo', src, at: at.slice(11, 16) || at.slice(0, 5) || '', role: (r[cr] || '').trim() });
+      }
+    });
+    if (added) { save(); render(); toast(added + '건 들어왔어요'); } else if (manual) toast('새 항목 없음');
+  } catch (e) { if (manual) toast('시트를 못 읽었어요 — 공유 설정(링크 뷰어) 확인'); }
+}
+function agentGuide() {
+  const id = (D.sheetId || '').trim();
+  return `# DUAL Planner 에이전트 연동 안내
+나는 DUAL Planner(노트형 플래너 앱)를 씁니다. 세션에서 생긴 할 일·결정·다음 주 빅록 제안은 아래 구글 시트에 행으로 추가해 주세요.
+스프레드시트 ID: ${id || '(아직 없음)'}
+시트 열(1행 헤더 고정): id | at | src | kind | text | role | due | routine
+- id: 고유값 (예: 세션id_순번)  - at: ISO 시각  - src: 에이전트 이름(claude 등)
+- kind: todo(할 일) | note(결정·메모) | candidate(다음 주 빅록 제안)
+- text: 한 줄  - role: 내 역할 중 하나 (${D.roles.join(' / ')})
+- due: candidate일 때 YYYY-MM-DD 끝 날짜  - routine: 루틴이면 주당 횟수(숫자), 아니면 비움
+세션 끝에 한 번에 추가하면 됩니다. 앱은 열릴 때마다 시트를 읽어 오늘 포스트잇(todo/note)과 리뷰 후보(candidate)에 넣습니다.`;
+}
+async function copyAgentGuide() { const t = agentGuide(); try { await navigator.clipboard.writeText(t); toast('안내문 복사됨 — 에이전트에 붙여넣기'); } catch(e) { prompt('복사하세요', t); } }
+
 // ── 더보기 ──
 function renderRoles() { document.getElementById('rolesEd').innerHTML = D.roles.map(r=>`<span class="tag">${esc(r)} <button onclick="delRole('${esc(r)}')" style="color:var(--muted)">✕</button></span>`).join('') + `<button class="tag" style="border-style:dashed" onclick="addRole2()">+ 역할</button>`; }
 function addRole2() { const n = prompt('역할 이름'); if (n && n.trim() && !D.roles.includes(n.trim())) { D.roles.push(n.trim()); save(); renderRoles(); } }
@@ -420,6 +469,8 @@ function importData() { const t = prompt('JSON 붙여넣기'); if (!t) return; t
 
 // ── 시작 ──
 render();
+syncSheet(false);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) syncSheet(false); });
 if (location.hash === '#week') go('week'); else if (location.hash === '#review') go('review');
 </script>
 </body>
