@@ -12,7 +12,7 @@ const dstr = d => d.toISOString().slice(0, 10);
 const today = () => dstr(nowKST());
 function weekKey(d) { const x = new Date(d); x.setUTCDate(x.getUTCDate() - (x.getUTCDay() + 6) % 7); return dstr(x); }
 const uid = p => (p || 'r_') + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-const empty = () => ({ v: 1, roles: [], rocks: [], days: {}, reviews: {}, seen: {}, _modified: '' });
+const empty = () => ({ v: 1, roles: [], rocks: [], days: {}, reviews: {}, seen: {}, agent: null, _modified: '' });
 
 // ── 병합: rocks는 id별 u(수정시각) 최신, days/reviews는 키별 u 최신, roles는 최신 쪽, seen은 합집합 ──
 function merge(a, b) {
@@ -24,6 +24,7 @@ function merge(a, b) {
   for (const k of new Set([...Object.keys(a.reviews), ...Object.keys(b.reviews)])) { const x = a.reviews[k], y = b.reviews[k]; out.reviews[k] = !x ? y : !y ? x : ((y.u || '') >= (x.u || '') ? y : x); }
   out.roles = ((b._modified || '') >= (a._modified || '') ? b : a).roles || [];
   out.seen = Object.assign({}, a.seen, b.seen);
+  out.agent = [a.agent, b.agent].filter(Boolean).sort((x, y) => (x.at || '') < (y.at || '') ? -1 : 1).pop() || null;
   out._modified = [a._modified, b._modified].sort().pop() || '';
   return out;
 }
@@ -47,6 +48,8 @@ function applyItems(S, items, src) {
       const day = S.days[td] || (S.days[td] = { intent: '', note: '', picks: [], inbox: [] });
       day.inbox = day.inbox || []; const id = it.id || uid('i_');
       day.inbox.unshift({ id, text, kind, src, at: nowKST().toISOString().slice(11, 16), role: it.role || '' }); day.u = now; added.push(id);
+    } else if (kind === 'review') {
+      const rv = S.reviews[wk] || (S.reviews[wk] = { candidates: [] }); rv.summary = text; rv.summaryBy = src; rv.u = now; added.push('review');
     } else if (kind === 'candidate') {
       const rv = S.reviews[wk] || (S.reviews[wk] = { candidates: [] }); rv.candidates = rv.candidates || [];
       const id = it.id || uid('c_'); const c = { id, role: it.role || '', title: text, state: null, src };
@@ -82,7 +85,7 @@ function summary(S) {
 // ── MCP ──
 const TOOLS = [
   { name: 'planner_read', description: '플래너 현재 상태 요약(역할, A/B/C/D 할 일 목록과 id, 오늘 의도·고른 것·한 줄, 인박스, 이번 주 완료, 2주 방치 항목). 정리·제안 전에 먼저 읽는다.', inputSchema: { type: 'object', properties: {} } },
-  { name: 'planner_add', description: '비서가 플래너에 적는다. items 배열. 각 항목: text(필수), kind = item(할 일 목록에 바로 적음, bucket 필수: A|B|C|D) | todo(오늘 인박스 할 일) | note(오늘 인박스 메모) | candidate(일요일 리뷰용 다음 주 B 후보). role(역할명), due(YYYY-MM-DD, B는 필수), routine(주 N회 숫자).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, kind: { type: 'string', enum: ['item', 'todo', 'note', 'candidate'] }, bucket: { type: 'string', description: 'A|B|C|D' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' } }, required: ['text'] } } }, required: ['items'] } },
+  { name: 'planner_add', description: '비서가 플래너에 적는다. items 배열. 각 항목: text(필수), kind = item(할 일 목록에 바로 적음, bucket 필수: A|B|C|D) | todo(오늘 인박스 할 일) | note(오늘 인박스 메모) | candidate(일요일 리뷰용 다음 주 B 후보) | review(이번 주 리뷰 3~5문장, text에). role(역할명), due(YYYY-MM-DD, B는 필수), routine(주 N회 숫자).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, kind: { type: 'string', enum: ['item', 'todo', 'note', 'candidate', 'review'] }, bucket: { type: 'string', description: 'A|B|C|D' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' } }, required: ['text'] } } }, required: ['items'] } },
   { name: 'planner_update', description: '기존 할 일 항목 수정. items 배열, 각 항목 id 필수. 바꿀 필드만: title, bucket(A|B|C|D), role, due, routine, done(true/false), tomb(true=묘비·목록에서 치움).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, bucket: { type: 'string' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' }, done: { type: 'boolean' }, tomb: { type: 'boolean' } }, required: ['id'] } } }, required: ['items'] } },
 ];
 async function mcp(req, env, token) {
@@ -94,6 +97,7 @@ async function mcp(req, env, token) {
     if (!m || m.id === undefined) continue; // notifications
     const reply = r => out.push({ jsonrpc: '2.0', id: m.id, result: r });
     try {
+      if (m.method === 'initialize') { const ci = (m.params && m.params.clientInfo) || {}; const S0 = Object.assign(empty(), JSON.parse(await env.PLANNER.get('u:' + token) || 'null') || {}); S0.agent = { name: ci.name || 'agent', version: ci.version || '', at: new Date().toISOString(), via: 'mcp' }; await env.PLANNER.put('u:' + token, JSON.stringify(S0)); }
       if (m.method === 'initialize') reply({ protocolVersion: m.params && m.params.protocolVersion || '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'dual-planner', version: '0.1' } });
       else if (m.method === 'ping') reply({});
       else if (m.method === 'tools/list') reply({ tools: TOOLS });
@@ -101,6 +105,8 @@ async function mcp(req, env, token) {
         const name = m.params && m.params.name, args = (m.params && m.params.arguments) || {};
         const S = Object.assign(empty(), JSON.parse(await env.PLANNER.get('u:' + token) || 'null') || {});
         let text;
+        S.agent = Object.assign({}, S.agent || { name: 'agent', via: 'mcp' }, { at: new Date().toISOString(), last: name });
+        if (name === 'planner_read') { await env.PLANNER.put('u:' + token, JSON.stringify(S)); }
         if (name === 'planner_read') text = summary(S);
         else if (name === 'planner_add' || name === 'planner_update') { const items = (args.items || []).map(x => name === 'planner_update' ? Object.assign({ op: 'update' }, x) : x); const r = applyItems(S, items, 'mcp'); await env.PLANNER.put('u:' + token, JSON.stringify(S)); text = `적었어요 — 추가 ${r.added.length}, 수정 ${r.updated.length}`; }
         else { out.push({ jsonrpc: '2.0', id: m.id, error: { code: -32602, message: 'unknown tool' } }); continue; }
@@ -130,6 +136,7 @@ export default {
       if (req.method !== 'POST') return json({ error: 'method' }, 405);
       let body; try { body = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
       const r = applyItems(cur, Array.isArray(body) ? body : (body.items || []), body.src || 'api');
+      cur.agent = { name: body.src || 'api', at: new Date().toISOString(), via: 'http' };
       await env.PLANNER.put(key, JSON.stringify(cur)); return json({ ok: true, ...r });
     }
     return json({ error: 'not found' }, 404);

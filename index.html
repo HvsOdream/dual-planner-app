@@ -148,6 +148,8 @@ a { color: inherit; }
 .addrock .sel button.on { border-color: var(--cover); color: var(--cover); }
 .addrock input[type=date] { font-family: var(--mono); font-size: 13px; }
 
+.banner { display:flex; align-items:center; gap:10px; width:calc(100% - 52px); margin:10px 0 0 52px; padding:10px 12px; background:var(--postit); color:var(--postit-ink); border-top:6px solid var(--postit-edge); box-shadow:0 2px 5px rgba(60,50,0,.18); font-size:13px; text-align:left; line-height:1.4; }
+.banner span { flex:1; } .banner b { font-family:var(--mono); font-size:12px; white-space:nowrap; }
 @media (min-width: 768px) {
   .sheet { max-width: 720px; }
 }
@@ -173,7 +175,7 @@ a { color: inherit; }
   <div class="box">
     <div class="lbl" style="padding-left:0">비서 연결</div>
     <input class="wr" id="apiIn" style="padding-left:0;font-family:var(--mono);font-size:13px" placeholder="서버 주소 붙여넣기" onchange="D.api=this.value.trim().replace(/\/+$/,'');save();pullState(true)">
-    <div class="line sub" id="connBox" style="padding-left:0"></div>
+    <div id="connBox" style="font-size:13px;line-height:1.8;margin:8px 0"></div>
     <div class="sp"></div>
     <button class="cta" style="margin-left:0;width:100%" onclick="copyText(mcpUrl(),'MCP 주소 복사됨')">MCP 주소 복사</button>
     <div style="height:10px"></div>
@@ -231,7 +233,7 @@ function toast(m) { const t = document.getElementById('toast'); t.textContent = 
 // ── 네비 ──
 let tab = 'today', curWeek = weekKey(new Date()), addOpen = false, addRole = null, addRoutine = false;
 function go(t) { tab = t; document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on', p.id==='p-'+t)); document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.tab===t)); window.scrollTo(0,0); render(); }
-function openMore() { const ai = document.getElementById('apiIn'); if (ai) ai.value = D.api || ''; setConn(baseUrl() ? '연결됨' : '주소를 넣으면 비서가 이 플래너에 적을 수 있어요'); document.getElementById('more').classList.add('on'); }
+function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); const ai = document.getElementById('apiIn'); if (ai) ai.value = D.api || ''; setConn(''); document.getElementById('more').classList.add('on'); }
 function closeMore() { document.getElementById('more').classList.remove('on'); }
 function render() { renderCover(); if (tab==='today') renderToday(); else if (tab==='week') renderWeek(); else renderReview(); }
 
@@ -261,7 +263,7 @@ function renderToday() {
   const ds = today(), day = dayOf(ds), wk = weekKey(new Date());
   const picks = (day.picks||[]).map(rock).filter(r => r && !r._deleted);
   const inbox = (day.inbox||[]).filter(x => !x.moved);
-  let h = `<div class="sp"></div>
+  let h = `${connBanner()}<div class="sp"></div>
   <div class="lbl">오늘의 의도</div>
   <input class="wr" placeholder="한 줄로 — 오늘은 이것." value="${esc(day.intent)}" onchange="dayOf('${ds}').intent=this.value;save()">
   <div class="sp"></div>
@@ -312,7 +314,7 @@ function itemRow(r, n) {
 }
 function renderWeek() {
   const items = openItems();
-  let h = `<div class="sp"></div>`;
+  let h = `${connBanner()}<div class="sp"></div>`;
   let n = 0;
   BUCKETS.forEach(([b, name]) => {
     const list = items.filter(r => (r.bucket||'nice') === b);
@@ -391,27 +393,48 @@ function parseReply(txt) {
 function renderReview() {
   const wk = reviewWeek(), rv = D.reviews[wk] || (D.reviews[wk] = { candidates: [] });
   const nd = new Date(wk); nd.setDate(nd.getDate()+7); const nwk = weekKey(nd);
-  let h = `<div class="sp"></div>
-  <div class="item"><div class="mg"><span class="num">1</span></div><div class="bd"><div class="t">리뷰 패킷 내보내기</div></div></div>
-  <div class="postit"><div class="ph"><span>REVIEW PACKET · W${weekNo(new Date(wk))}</span></div>
-    <div class="pl" style="color:var(--postit-muted)">빅록 · 일별 체크 · 인박스 · 리뷰 프롬프트</div>
-    <div class="pbtns"><button class="pbtn fill" onclick="copyPacket('${wk}')">COPY</button><button class="pbtn" onclick="sharePacket('${wk}')">SHARE…</button></div></div>
-  <div class="sp"></div>
-  <div class="item"><div class="mg"><span class="num">2</span></div><div class="bd"><div class="t">내 에이전트에 붙여넣기</div><div class="m">Claude · ChatGPT · Gemini · 무료 에이전트 아무거나</div></div></div>
-  <div class="sp"></div>
-  <div class="item"><div class="mg"><span class="num">3</span></div><div class="bd"><div class="t">답 가져오기</div></div></div>
-  <div class="postit"><div class="ph"><span>AGENT REPLY</span></div><textarea id="replyTa" placeholder="에이전트 답을 그대로 붙여넣기"></textarea>
-    <div class="pbtns"><button class="pbtn" onclick="parseReplyBox('${wk}')">PARSE → 빅록 후보</button></div></div>
-  <div class="sp"></div>
-  <div class="lbl">다음 주 B 후보 · 채택 / 버리기</div>`;
-  if (!rv.candidates.length) h += `<div class="line faint ruled">답을 파싱하면 여기 쌓여요</div>`;
-  rv.candidates.forEach(c => {
+  const ds = weekDates(new Date(wk));
+  const doneW = live().filter(r => r.done && ds.includes(r.doneAt||''));
+  const stale = staleItems();
+  let h = connBanner() + `<div class="sp"></div>`;
+  // 이번 주 한눈에
+  h += `<div class="lbl">이번 주 한 일 <span class="mono" style="letter-spacing:0">${doneW.length}</span></div>`;
+  if (!doneW.length) h += `<div class="line faint ruled">아직 체크한 게 없어요</div>`;
+  doneW.forEach(r => { h += `<div class="item done"><div class="mg"><span class="chk on">${CHECK}</span></div><div class="bd"><div class="t"><span class="tx" style="text-decoration:none;color:var(--ink)">${esc(r.title)}</span></div><div class="m"><span>${esc(r.role)}</span><span>·</span><span>${md(r.doneAt)}</span></div></div></div>`; });
+  h += `<div class="sp"></div>`;
+  // 비서 리뷰
+  if (rv.summary) {
+    h += `<div class="postit"><div class="ph"><span>${esc(agentLabel(rv.summaryBy||(D.agent||{}).name))} · W${weekNo(new Date(wk))} REVIEW</span></div><div style="line-height:var(--row);white-space:pre-wrap;padding-bottom:6px">${esc(rv.summary)}</div></div><div class="sp"></div>`;
+  } else if (agentOn()) {
+    h += `<div class="postit"><div class="ph"><span>비서에게 리뷰 맡기기</span></div>
+      <div class="pl">내 에이전트에게 이렇게 말하세요:</div>
+      <div class="pl" style="font-weight:600">"듀얼플래너 주간 리뷰 해줘"</div>
+      <div class="pbtns"><button class="pbtn fill" onclick="copyText('듀얼플래너 주간 리뷰 해줘','복사됨 — 에이전트에 붙여넣기')">문장 복사</button><button class="pbtn" onclick="pullState(true)">비서가 적은 것 가져오기</button></div></div><div class="sp"></div>`;
+  } else {
+    h += `<div class="postit"><div class="ph"><span>비서 없이 리뷰하기</span></div>
+      <div class="pl" style="color:var(--postit-muted)">이번 주 기록을 복사해 아무 AI에 붙여넣고, 답을 아래에 붙여넣어요</div>
+      <div class="pbtns"><button class="pbtn fill" onclick="copyPacket('${wk}')">기록 복사</button><button class="pbtn" onclick="sharePacket('${wk}')">공유…</button></div>
+      <textarea id="replyTa" placeholder="AI 답을 그대로 붙여넣기"></textarea>
+      <div class="pbtns"><button class="pbtn" onclick="parseReplyBox('${wk}')">후보로 만들기</button></div></div><div class="sp"></div>`;
+  }
+  // 방치
+  if (stale.length) {
+    h += `<div class="lbl">2주 넘게 안 건드린 것 <span class="mono" style="letter-spacing:0">${stale.length}</span></div>`;
+    stale.forEach(r => { h += `<div class="item"><div class="mg"><span class="num">⟳</span></div><div class="bd"><div class="t"><span class="tx">${esc(r.title)}</span></div><div class="m"><span>${esc(r.role)}</span><span class="sp1"></span><button onclick="splitRock('${r.id}')">분할</button><button onclick="tombRock('${r.id}')">묘비</button></div></div></div>`; });
+    h += `<div class="sp"></div>`;
+  }
+  // 후보
+  const cands = rv.candidates || [];
+  h += `<div class="lbl">다음 주 B 후보 <span class="mono" style="letter-spacing:0">${cands.length}</span></div>`;
+  if (!cands.length) h += `<div class="line faint ruled">${agentOn() ? '비서가 리뷰하면 여기 후보가 쌓여요' : '리뷰 답을 넣으면 여기 쌓여요'}</div>`;
+  cands.forEach(c => {
     h += `<div class="item ${c.state==='n'?'done':''}"><div class="mg"><button class="chk ${c.state==='y'?'on':''}" aria-label="채택" onclick="cand('${wk}','${c.id}','y')">${CHECK}</button></div>
-      <div class="bd"><div class="t"><span class="tx">${esc(c.title)}</span><button onclick="cand('${wk}','${c.id}','n')">버림</button></div>
-      <div class="m"><span>${esc(c.role)}</span><span>·</span><span>${c.routine?'주 '+c.routine+'회':md(c.due)+'까지만'}</span></div></div></div>`;
+      <div class="bd"><div class="t"><span class="tx">${esc(c.title)}</span><button onclick="cand('${wk}','${c.id}','n')">${c.state==='n'?'되살림':'버림'}</button></div>
+      <div class="m"><span>${esc(c.role)}</span><span>·</span><span>${c.routine?'주 '+c.routine+'회':(c.due?md(c.due)+'까지만':'')}</span>${c.src?`<span class="sp1"></span><span>${esc(agentLabel(c.src))}</span>`:''}</div></div></div>`;
   });
-  const yes = rv.candidates.filter(c=>c.state==='y').length;
-  h += `<div class="sp"></div><a class="cta" onclick="startNext('${wk}','${nwk}')">채택 ${yes}개를 B에 넣고 봉인 ›</a><div class="sp"></div>`;
+  const yes = cands.filter(c=>c.state==='y').length;
+  if (cands.length) h += `<div class="sp"></div><a class="cta" onclick="startNext('${wk}','${nwk}')">${yes ? `채택 ${yes}개를 B에 넣고 이번 주 마감 ›` : '마감할 후보를 체크하세요'}</a>`;
+  h += `<div class="sp"></div>`;
   document.getElementById('review').innerHTML = h;
 }
 async function copyPacket(wk) { const t = packetText(wk); try { await navigator.clipboard.writeText(t); toast('복사됨 — 에이전트에 붙여넣기'); } catch(e) { prompt('복사하세요', t); } D.reviews[wk].packetAt = new Date().toISOString(); save(); }
@@ -451,10 +474,21 @@ _sig = sigOf();
 const _save0 = save;
 save = function() { const ch = stamp(); _save0(); if (ch && baseUrl()) { clearTimeout(save._t); save._t = setTimeout(pushState, 1500); } };
 function pickState() { return { v: 1, roles: D.roles, rocks: D.rocks, days: D.days, reviews: D.reviews, seen: D.seen, _modified: D._modified }; }
-function applyState(S) { const m = mergeState(pickState(), S); D.roles = m.roles.length ? m.roles : D.roles; D.rocks = m.rocks; D.days = m.days; D.reviews = m.reviews; D.seen = m.seen; D._modified = m._modified; _sig = sigOf(); _save0(); }
-async function pushState() { if (!baseUrl()) return; try { const r = await fetch(stateUrl(), { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pickState()) }); if (r.ok) { applyState(await r.json()); render(); setConn('동기화됨 ' + new Date().toTimeString().slice(0,5)); } } catch(e) { setConn('오프라인 — 나중에 다시'); } }
-async function pullState(manual) { if (!baseUrl()) { if (manual) toast('서버 주소를 먼저 넣어 주세요'); return; } try { const r = await fetch(stateUrl() + '?_=' + Date.now()); if (!r.ok) throw 0; const before = JSON.stringify(pickState()); applyState(await r.json()); if (JSON.stringify(pickState()) !== before) { render(); if (manual) toast('비서가 적은 게 들어왔어요'); } else if (manual) toast('새 항목 없음'); setConn('동기화됨 ' + new Date().toTimeString().slice(0,5)); } catch(e) { if (manual) toast('연결 실패 — 주소 확인'); setConn('연결 안 됨'); } }
-function setConn(t) { const el = document.getElementById('connBox'); if (el) el.textContent = t; }
+function applyState(S) { if (S && S.agent) D.agent = S.agent; const m = mergeState(pickState(), S); D.roles = m.roles.length ? m.roles : D.roles; D.rocks = m.rocks; D.days = m.days; D.reviews = m.reviews; D.seen = m.seen; D._modified = m._modified; _sig = sigOf(); _save0(); }
+async function pushState() { if (!baseUrl()) return; try { const r = await fetch(stateUrl(), { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pickState()) }); if (r.ok) { applyState(await r.json()); render(); setConn(''); } } catch(e) { setConn(''); } }
+async function pullState(manual) { if (!baseUrl()) { if (manual) toast('서버 주소를 먼저 넣어 주세요'); return; } try { const r = await fetch(stateUrl() + '?_=' + Date.now()); if (!r.ok) throw 0; const before = JSON.stringify(pickState()); applyState(await r.json()); if (JSON.stringify(pickState()) !== before) { render(); if (manual) toast('비서가 적은 게 들어왔어요'); } else if (manual) toast('새 항목 없음'); setConn(''); } catch(e) { if (manual) toast('연결 실패 — 주소 확인'); setConn(''); } }
+function agentAgo() { const a = D.agent; if (!a || !a.at) return ''; const m = Math.round((Date.now() - new Date(a.at)) / 60000); return m < 1 ? '방금' : m < 60 ? m + '분 전' : m < 1440 ? Math.round(m/60) + '시간 전' : Math.round(m/1440) + '일 전'; }
+function agentOn() { return !!(baseUrl() && D.agent && D.agent.at); }
+function agentLabel(n) { n = String(n||'agent'); return /claude/i.test(n) ? 'Claude' : /chatgpt|openai/i.test(n) ? 'ChatGPT' : /gemini/i.test(n) ? 'Gemini' : n; }
+function connBanner() {
+  if (agentOn()) return '';
+  const msg = !baseUrl() ? '비서(에이전트)를 연결해 주세요 — 연결하면 비서가 이 플래너에 직접 적어요' : '서버는 연결됐어요. 이제 내 에이전트에 MCP를 붙여 주세요';
+  return `<button class="banner" onclick="openMore()"><span>${msg}</span><b>연결 ›</b></button>`;
+}
+function setConn(t) { const el = document.getElementById('connBox'); if (!el) return;
+  const srv = baseUrl() ? '● 서버 연결됨' : '○ 서버 미연결';
+  const ag = agentOn() ? `● 비서 연결됨 — ${agentLabel(D.agent.name)} · 마지막 ${agentAgo()}` : '○ 비서 미연결 — 아래 MCP 주소를 에이전트에 붙여 주세요';
+  el.innerHTML = `<div style="color:${baseUrl()?'var(--ink)':'var(--muted)'}">${srv}</div><div style="color:${agentOn()?'var(--check)':'var(--muted)'}">${esc(ag)}</div>`; }
 async function copyText(t, msg) { try { await navigator.clipboard.writeText(t); toast(msg || '복사됨'); } catch(e) { prompt('복사하세요', t); } }
 function agentGuide() {
   return `# DUAL Planner 비서 지침
@@ -469,7 +503,7 @@ MCP: ${mcpUrl()}
    - role은 내 역할 중 하나. 루틴은 routine=주당 횟수.
    - 결정·메모·인사이트는 kind=note.
 3. 끝난 일을 알게 되면 planner_update로 done=true. 2주 넘게 방치된 것은 나눠서(새 item 2개 + 원본 tomb=true) 적거나 묘비(tomb=true)를 제안한다.
-4. 일요일(또는 내가 "주간 리뷰"라고 하면): planner_read → 이번 주 3~5문장 리뷰 → 다음 주 B 후보를 kind=candidate(due 필수)로 최대 4개 적는다. 내가 앱에서 채택/버림을 고른다.
+4. 일요일(또는 내가 "주간 리뷰"라고 하면): planner_read → 이번 주 리뷰 3~5문장을 kind=review로 적고 → 다음 주 B 후보를 kind=candidate(due 필수)로 최대 4개 적는다. 내가 앱에서 채택/버림을 고른다.
 5. 적은 뒤엔 무엇을 어디에 적었는지 한 줄로 알려 준다. 내 허락 없이 항목을 지우지(tomb) 않는다.`;
 }
 // ── 더보기 ──
