@@ -148,6 +148,14 @@ a { color: inherit; }
 .addrock .sel button.on { border-color: var(--cover); color: var(--cover); }
 .addrock input[type=date] { font-family: var(--mono); font-size: 13px; }
 
+#p-week .item .t { font-size: 15px; font-weight: 400; }
+.cal { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); padding-left:52px; gap:2px; }
+.cal .cw { text-align:center; font-size:11px; color:var(--muted); height:22px; line-height:22px; }
+.cal .cd { height:48px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:5px; border-radius:6px; font-size:14px; color:var(--ink); }
+.cal .cd i { font-style:normal; font-size:10px; color:var(--check); height:14px; line-height:14px; letter-spacing:-1px; }
+.cal .cd.out { color:var(--faint); }
+.cal .cd.td span { background:var(--check); color:var(--paper); border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-weight:700; margin-top:-3px; }
+.cal .cd.sel { background:var(--paper-2); outline:1.5px solid var(--cover); }
 .banner { display:flex; align-items:center; gap:10px; width:calc(100% - 52px); margin:10px 0 0 52px; padding:10px 12px; background:var(--postit); color:var(--postit-ink); border-top:6px solid var(--postit-edge); box-shadow:0 2px 5px rgba(60,50,0,.18); font-size:13px; text-align:left; line-height:1.4; }
 .banner span { flex:1; } .banner b { font-family:var(--mono); font-size:12px; white-space:nowrap; }
 @media (min-width: 768px) {
@@ -161,14 +169,14 @@ a { color: inherit; }
 
 <main>
   <section class="page on" id="p-today"><div class="sheet" id="today"></div></section>
-  <section class="page" id="p-week"><div class="sheet" id="week" style="padding:0"></div></section>
+  <section class="page" id="p-week"><div class="sheet" id="week"></div></section>
   <section class="page" id="p-review"><div class="sheet" id="review"></div></section>
 </main>
 
 <nav class="tabbar">
   <button data-tab="today" class="on" onclick="go('today')"><i></i>오늘</button>
   <button data-tab="week" onclick="go('week')"><i></i>할 일</button>
-  <button data-tab="review" onclick="go('review')"><i></i>리뷰</button>
+  <button data-tab="review" onclick="go('review')"><i></i>기록</button>
 </nav>
 
 <div class="more" id="more" onclick="if(event.target===this)closeMore()">
@@ -222,7 +230,7 @@ function bucketName(b) { return (BUCKETS.find(x=>x[0]===b)||BUCKETS[2])[1]; }
 function live() { return D.rocks.filter(r => r && !r._deleted && !r.tomb); }
 function openItems() { return live().filter(r => !r.done); }
 function rocksOf(wk) { return live().filter(r => (r.week||'') <= wk); } // 리뷰용: 그 주까지 살아 있던 항목
-function lastTouched(r) { const ks = Object.keys(r.checks||{}).sort(); return ks.length ? ks[ks.length-1] : (r.week||''); }
+function lastTouched(r) { const ks = Object.keys(r.checks||{}).sort(); return ks.length ? ks[ks.length-1] : (r.week || today()); }
 function staleItems() { const cut = new Date(); cut.setDate(cut.getDate()-14); const c = dstr(cut); return openItems().filter(r => !r.routine && lastTouched(r) < c); }
 function rock(id) { return D.rocks.find(r => r.id === id); }
 function fmtDue(r) { return r.routine ? ('주 '+r.routine+'회') : r.due ? (md(r.due)+'까지만') : ''; }
@@ -242,7 +250,7 @@ function renderCover() {
   let t1, t2, left = '';
   if (tab==='today') { t1 = `${now.getMonth()+1}월 ${now.getDate()}일 ${DOW[(now.getDay()+6)%7]}요일`; t2 = `${now.getFullYear()} · W${weekNo(now)}`; }
   else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${now.getFullYear()} · W${weekNo(now)} · A${o.filter(r=>r.bucket==='urgent').length} B${o.filter(r=>r.bucket==='important').length} C${o.filter(r=>r.bucket==='light').length} D${o.filter(r=>r.bucket==='nice').length}`; }
-  else { t1 = '주간 리뷰'; const wk = reviewWeek(); const ds = weekDates(new Date(wk)); const doneW = live().filter(r => r.done && ds.includes(r.doneAt||'')).length; t2 = `W${weekNo(new Date(wk))} · 이번 주 완료 ${doneW} · 남은 ${openItems().length}`; }
+  else { t1 = '기록'; const wk = reviewWeek(); const ds = weekDates(new Date(wk)); const doneW = live().filter(r => r.done && ds.includes(r.doneAt||'')).length; t2 = `W${weekNo(new Date(wk))} · 이번 주 완료 ${doneW} · 남은 ${openItems().length}`; }
   const dots = Math.min(s,3);
   document.getElementById('cover').innerHTML = `
     <div class="nav">${left}<div><div class="t1">${t1}</div><div class="t2">${t2}</div></div></div>
@@ -256,26 +264,38 @@ function itemHtml(r, ds, opts) {
   const right = opts.right || '';
   return `<div class="item ${on?'done':''}">
     <div class="mg"><button class="chk ${on?'on':''}" aria-label="완료" onclick="toggleCheck('${r.id}','${ds}')">${CHECK}</button></div>
-    <div class="bd"><div class="t"><span class="tx">${esc(r.title)}</span>${right}</div>
-    <div class="m"><span>${esc(r.role)}</span><span>·</span><span>${esc(fmtDue(r))}</span>${r.carry?`<span class="mono" style="color:var(--check)">⟳${r.carry}</span>`:''}<span class="sp1"></span>${opts.meta||''}</div></div></div>`;
+    <div class="bd"><div class="t" ${opts.big?'style="font-size:18px;font-weight:600"':''}><span class="tx">${esc(r.title)}</span>${right}</div>
+    <div class="m"><span>${[esc(r.role), esc(fmtDue(r))].filter(Boolean).join(' · ')}</span>${r.carry?`<span class="mono" style="color:var(--check)">⟳${r.carry}</span>`:''}<span class="sp1"></span>${opts.meta||''}</div></div></div>`;
+}
+function doneOn(ds) { return live().filter(r => (r.checks && r.checks[ds]) || r.doneAt === ds); }
+function addToday() {
+  const el = document.getElementById('quickIn'); const t = (el.value||'').trim(); if (!t) return;
+  const r = { id: uid(), week: weekKey(new Date()), bucket: 'light', role: '', title: t, done: false, carry: 0, checks: {} };
+  D.rocks.push(r); dayOf(today()).picks.push(r.id); save(); render(); setTimeout(()=>{ const e=document.getElementById('quickIn'); if (e) e.focus(); }, 30);
 }
 function renderToday() {
-  const ds = today(), day = dayOf(ds), wk = weekKey(new Date());
+  const ds = today(), day = dayOf(ds);
   const picks = (day.picks||[]).map(rock).filter(r => r && !r._deleted);
   const inbox = (day.inbox||[]).filter(x => !x.moved);
+  const doneN = picks.filter(r=>r.checks&&r.checks[ds]).length;
+  // 오늘 고를 만한 것: A 전부 + 3일 안에 끝나는 B (아직 안 고른 것)
+  const soon = dstr(new Date(Date.now()+3*86400000));
+  const sugg = openItems().filter(r => !(day.picks||[]).includes(r.id) && (r.bucket==='urgent' || (r.bucket==='important' && r.due && r.due <= soon) || (r.routine && checkedCount(r) < r.routine)));
   let h = `${connBanner()}<div class="sp"></div>
-  <div class="lbl">오늘의 의도</div>
-  <input class="wr" placeholder="한 줄로 — 오늘은 이것." value="${esc(day.intent)}" onchange="dayOf('${ds}').intent=this.value;save()">
+  <input class="wr" style="font-size:18px;font-weight:600" placeholder="오늘의 의도 — 한 줄로" value="${esc(day.intent)}" onchange="dayOf('${ds}').intent=this.value;save()">
   <div class="sp"></div>
-  <div class="lbl"><span>오늘 할 것 <span class="mono" style="letter-spacing:0">${picks.filter(r=>r.checks&&r.checks[ds]).length}/${picks.length}</span></span><button onclick="go('week')">할 일에서 끌어오기 ›</button></div>`;
-  if (!picks.length) h += `<div class="line faint ruled">할 일 목록에서 끌어오세요</div>`;
-  picks.forEach(r => { h += itemHtml(r, ds, { meta: `<button onclick="unpick('${r.id}')">빼기</button>` }); });
+  <div class="lbl"><span>오늘 할 것 <span class="mono" style="letter-spacing:0">${doneN}/${picks.length}</span></span></div>`;
+  picks.forEach(r => { h += itemHtml(r, ds, { meta: `<button onclick="unpick('${r.id}')">빼기</button>`, big: true }); });
+  h += `<div class="item"><div class="mg"><span class="chk" style="border-style:dashed"></span></div><div class="bd"><input class="wr" id="quickIn" style="padding-left:12px;font-size:17px" placeholder="오늘 할 것 적기" onkeydown="if(event.key==='Enter')addToday()"></div></div>`;
+  if (sugg.length) {
+    h += `<div class="sp"></div><div class="lbl"><span>고를 만한 것</span><button onclick="go('week')">할 일 전체 ›</button></div>`;
+    sugg.slice(0,5).forEach(r => { h += `<div class="row ruled" style="padding-left:52px;gap:8px;font-size:14px;color:var(--ink-2)"><span class="tag" style="font-size:10px;height:18px;line-height:16px">${r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</span><button style="font-size:12px;color:var(--muted);text-decoration:underline" onclick="pick('${r.id}')">오늘로</button></div>`; });
+  }
   h += `<div class="sp"></div>
-  <div class="postit"><div class="ph"><span>AGENT INBOX · ${inbox.length}</span><button onclick="openPaste()">PASTE ›</button></div>`;
-  if (!inbox.length) h += `<div class="pl" style="color:var(--postit-muted)">에이전트가 준 할 일·결정을 붙여넣기</div>`;
-  inbox.slice(0,6).forEach(x => { h += `<div class="pl"><span>${x.kind==='note'?'*':'[ ]'}</span><span class="tx">${esc(x.text)}</span>${x.src?`<span style="color:var(--postit-muted);font-size:10px">${esc(x.src)}</span>`:''}${x.kind!=='note'?`<button onclick="moveToRock('${x.id}')">옮겨 적기</button>`:''}<button onclick="dropInbox('${x.id}')">✕</button></div>`; });
-  h += `<div id="pasteBox" style="display:none"><textarea id="pasteTa" placeholder="여기에 붙여넣기 — 한 줄에 하나. '- ' 나 '[ ] '로 시작하면 할 일, '* '로 시작하면 메모"></textarea><div class="pbtns"><button class="pbtn fill" onclick="doPaste()">넣기</button><button class="pbtn" onclick="document.getElementById('pasteBox').style.display='none'">취소</button></div></div>
-  <div class="pf">${inbox.length?('최근 '+(inbox[0].at||'')+' · 탭하여 주간 빅록으로 옮겨 적기'):'claude · chatgpt · gemini 어느 것이든'}</div></div>
+  <div class="postit"><div class="ph"><span>비서 메모 · ${inbox.length}</span><button onclick="openPaste()">붙여넣기 ›</button></div>`;
+  if (!inbox.length) h += `<div class="pl" style="color:var(--postit-muted)">비서가 남긴 결정·메모가 여기 붙어요</div>`;
+  inbox.slice(0,6).forEach(x => { h += `<div class="pl"><span>${x.kind==='note'?'*':'[ ]'}</span><span class="tx">${esc(x.text)}</span>${x.kind!=='note'?`<button onclick="moveToRock('${x.id}')">옮겨 적기</button>`:''}<button onclick="dropInbox('${x.id}')">✕</button></div>`; });
+  h += `<div id="pasteBox" style="display:none"><textarea id="pasteTa" placeholder="한 줄에 하나. '- '는 할 일, '* '는 메모"></textarea><div class="pbtns"><button class="pbtn fill" onclick="doPaste()">넣기</button><button class="pbtn" onclick="document.getElementById('pasteBox').style.display='none'">취소</button></div></div></div>
   <div class="sp"></div>
   <div class="lbl">저녁 한 줄</div>
   <input class="wr" placeholder="오늘은…" value="${esc(day.note)}" onchange="dayOf('${ds}').note=this.value;save()">
@@ -284,7 +304,7 @@ function renderToday() {
 }
 function toggleCheck(id, ds) { const r = rock(id); if (!r) return; r.checks = r.checks||{}; if (r.checks[ds]) { delete r.checks[ds]; if (!r.routine) { r.done = false; r.doneAt = null; } } else { r.checks[ds] = true; if (navigator.vibrate) navigator.vibrate(12); if (!r.routine) { r.done = true; r.doneAt = ds; } } if (r.routine && checkedCount(r) >= r.routine) { r.done = true; r.doneAt = ds; } save(); render(); }
 function unpick(id) { const day = dayOf(today()); day.picks = day.picks.filter(x=>x!==id); save(); render(); }
-function pick(id) { const day = dayOf(today()); if (day.picks.includes(id)) { toast('이미 오늘에 있어요'); return; } if (day.picks.length>=3) { toast('오늘은 3개까지만'); return; } day.picks.push(id); save(); toast('오늘로 옮겨 적었어요'); go('today'); }
+function pick(id) { const day = dayOf(today()); if (day.picks.includes(id)) { toast('이미 오늘에 있어요'); return; } day.picks.push(id); save(); toast('오늘로 옮겨 적었어요'); go('today'); }
 function openPaste() { const b = document.getElementById('pasteBox'); b.style.display = 'block'; document.getElementById('pasteTa').focus(); }
 function parseLines(txt) {
   return String(txt||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(s => {
@@ -299,7 +319,7 @@ function dropInbox(id) { const day = dayOf(today()); day.inbox = (day.inbox||[])
 function moveToRock(id) { const day = dayOf(today()); const x = (day.inbox||[]).find(i=>i.id===id); if (!x) return; x.moved = true; save(); addOpen = true; addPrefill = x.text; if (x.role && D.roles.includes(x.role)) addRole = x.role; go('week'); }
 
 // ── 할 일 (상시 목록: 급한 일 · 중요한 일 · 하면 좋은 일) ──
-let addPrefill = '', addBucket = 'important';
+let addPrefill = '', addBucket = 'important', showD = false;
 function moveWeek(n) {}
 function itemRow(r, n) {
   const td = today(), picked = (dayOf(td).picks||[]).includes(r.id);
@@ -318,6 +338,7 @@ function renderWeek() {
   let n = 0;
   BUCKETS.forEach(([b, name]) => {
     const list = items.filter(r => (r.bucket||'nice') === b);
+    if (b === 'nice' && !showD && !(addOpen && addBucket==='nice')) { h += `<div class="lbl"><span>${name} <span class="mono" style="letter-spacing:0">${list.length}</span></span><button onclick="showD=true;renderWeek()">펼치기 ›</button></div><div class="sp"></div>`; return; }
     h += `<div class="lbl"><span>${name} <span class="mono" style="letter-spacing:0">${list.length}</span></span><button onclick="openAdd('${b}')">+ 추가</button></div>`;
     if (!list.length) h += `<div class="line faint ruled">${b==='urgent'?'지금 당장 — 비어 있으면 좋은 상태':b==='important'?'장기적으로 꼭 — 끝 조건과 함께':b==='light'?'빨리 쳐낼 것':'여유 있을 때'}</div>`;
     list.forEach(r => { n++; h += itemRow(r, n); });
@@ -390,24 +411,46 @@ function parseReply(txt) {
   });
   return out;
 }
+let calMonth = null, calSel = null;
+function moveMonth(n) { const d = new Date(calMonth); d.setMonth(d.getMonth()+n); calMonth = dstr(d).slice(0,7)+'-01'; renderReview(); }
+function selDay(ds) { calSel = ds; renderReview(); }
+function calendarHtml() {
+  const td = today(); if (!calMonth) calMonth = td.slice(0,7)+'-01'; if (!calSel) calSel = td;
+  const first = new Date(calMonth); const y = first.getFullYear(), m = first.getMonth();
+  const start = weekStart(first); const cells = [];
+  for (let i = 0; i < 42; i++) { const d = new Date(start); d.setDate(d.getDate()+i); if (i >= 35 && d.getMonth() !== m) break; cells.push(d); }
+  let h = `<div class="row" style="padding-left:52px;justify-content:space-between;height:44px"><button class="ibtn" style="color:var(--ink);border-color:var(--border)" aria-label="이전 달" onclick="moveMonth(-1)">‹</button><b style="font-size:16px">${y}년 ${m+1}월</b><button class="ibtn" style="color:var(--ink);border-color:var(--border)" aria-label="다음 달" onclick="moveMonth(1)">›</button></div>
+  <div class="cal">${DOW.map(w=>`<div class="cw">${w}</div>`).join('')}`;
+  cells.forEach(d => { const ds = dstr(d), n = doneOn(ds).length, day = D.days[ds], wrote = day && (day.intent || day.note);
+    h += `<button class="cd ${d.getMonth()!==m?'out':''} ${ds===td?'td':''} ${ds===calSel?'sel':''}" onclick="selDay('${ds}')"><span>${d.getDate()}</span><i>${n ? (n > 3 ? '✓'+n : '✓'.repeat(n)) : (wrote ? '·' : '')}</i></button>`; });
+  h += `</div>`;
+  // 고른 날 상세
+  const day = D.days[calSel] || {}; const done = doneOn(calSel); const notes = (day.inbox||[]).filter(x => x.kind === 'note');
+  const dd = new Date(calSel);
+  h += `<div class="sp"></div><div class="lbl">${dd.getMonth()+1}월 ${dd.getDate()}일 ${DOW[(dd.getDay()+6)%7]}요일</div>`;
+  h += `<div class="line ruled" style="font-size:15px;${day.intent?'':'color:var(--faint);font-weight:400'}">${esc(day.intent || '의도 없음')}</div>`;
+  if (!done.length) h += `<div class="line faint ruled" style="font-size:14px">체크한 일 없음</div>`;
+  done.forEach(r => { h += `<div class="item"><div class="mg">${CHECK.replace('width="22" height="22"','width="18" height="18"')}</div><div class="bd"><div class="t" style="font-size:15px"><span class="tx">${esc(r.title)}</span></div><div class="m"><span>${[esc(r.role), r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'].filter(Boolean).join(' · ')}</span></div></div></div>`; });
+  notes.forEach(x => { h += `<div class="line ruled" style="font-size:13px;color:var(--ink-2)">* ${esc(x.text)}</div>`; });
+  if (day.note) h += `<div class="line ruled" style="font-size:14px;font-style:italic;color:var(--ink-2)">“${esc(day.note)}”</div>`;
+  return h;
+}
 function renderReview() {
   const wk = reviewWeek(), rv = D.reviews[wk] || (D.reviews[wk] = { candidates: [] });
   const nd = new Date(wk); nd.setDate(nd.getDate()+7); const nwk = weekKey(nd);
-  const ds = weekDates(new Date(wk));
-  const doneW = live().filter(r => r.done && ds.includes(r.doneAt||''));
   const stale = staleItems();
-  let h = connBanner() + `<div class="sp"></div>`;
-  // 이번 주 한눈에
-  h += `<div class="lbl">이번 주 한 일 <span class="mono" style="letter-spacing:0">${doneW.length}</span></div>`;
-  if (!doneW.length) h += `<div class="line faint ruled">아직 체크한 게 없어요</div>`;
-  doneW.forEach(r => { h += `<div class="item done"><div class="mg"><span class="chk on">${CHECK}</span></div><div class="bd"><div class="t"><span class="tx" style="text-decoration:none;color:var(--ink)">${esc(r.title)}</span></div><div class="m"><span>${esc(r.role)}</span><span>·</span><span>${md(r.doneAt)}</span></div></div></div>`; });
-  h += `<div class="sp"></div>`;
+  let h = connBanner() + `<div class="sp"></div>` + calendarHtml() + `<div class="sp"></div><div class="lbl" style="color:var(--cover);font-weight:700">이번 주 리뷰 · W${weekNo(new Date(wk))}</div>`;
+  h += reviewSection(wk, nwk, rv, stale);
+  document.getElementById('review').innerHTML = h;
+}
+function reviewSection(wk, nwk, rv, stale) {
+  let h = '';
   // 비서 리뷰
   if (rv.summary) {
     h += `<div class="postit"><div class="ph"><span>${esc(agentLabel(rv.summaryBy||(D.agent||{}).name))} · W${weekNo(new Date(wk))} REVIEW</span></div><div style="line-height:var(--row);white-space:pre-wrap;padding-bottom:6px">${esc(rv.summary)}</div></div><div class="sp"></div>`;
   } else if (agentOn()) {
     h += `<div class="postit"><div class="ph"><span>비서에게 리뷰 맡기기</span></div>
-      <div class="pl">내 에이전트에게 이렇게 말하세요:</div>
+      <div class="pl">달력을 보고, 비서에게 이렇게 말하세요:</div>
       <div class="pl" style="font-weight:600">"듀얼플래너 주간 리뷰 해줘"</div>
       <div class="pbtns"><button class="pbtn fill" onclick="copyText('듀얼플래너 주간 리뷰 해줘','복사됨 — 에이전트에 붙여넣기')">문장 복사</button><button class="pbtn" onclick="pullState(true)">비서가 적은 것 가져오기</button></div></div><div class="sp"></div>`;
   } else {
@@ -435,7 +478,7 @@ function renderReview() {
   const yes = cands.filter(c=>c.state==='y').length;
   if (cands.length) h += `<div class="sp"></div><a class="cta" onclick="startNext('${wk}','${nwk}')">${yes ? `채택 ${yes}개를 B에 넣고 이번 주 마감 ›` : '마감할 후보를 체크하세요'}</a>`;
   h += `<div class="sp"></div>`;
-  document.getElementById('review').innerHTML = h;
+  return h;
 }
 async function copyPacket(wk) { const t = packetText(wk); try { await navigator.clipboard.writeText(t); toast('복사됨 — 에이전트에 붙여넣기'); } catch(e) { prompt('복사하세요', t); } D.reviews[wk].packetAt = new Date().toISOString(); save(); }
 async function sharePacket(wk) { const t = packetText(wk); if (navigator.share) { try { await navigator.share({ text: t }); } catch(e) {} } else copyPacket(wk); }
