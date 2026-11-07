@@ -203,6 +203,7 @@ function empty() {
     sheetId: '', seen: {}, streakFreeze: {} };
 }
 let D = load();
+(D.rocks||[]).forEach(r => { if (r && !r.bucket) r.bucket = r.routine ? 'important' : 'important'; });
 function load() { try { const r = localStorage.getItem(KEY); if (r) return Object.assign(empty(), JSON.parse(r)); } catch(e) {} return empty(); }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch(e) {} }
 function uid(p) { return (p||'r_') + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
@@ -215,16 +216,22 @@ function weekDates(ws) { return Array.from({length:7},(_,i)=>{ const x=new Date(
 function weekNo(d) { const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()+3-(x.getDay()+6)%7); const y = new Date(x.getFullYear(),0,4); return 1+Math.round(((x-y)/86400000-3+(y.getDay()+6)%7)/7); }
 function md(ds) { const [y,m,d] = ds.split('-').map(Number); return m+'/'+d; }
 function dayOf(ds) { if (!D.days[ds]) D.days[ds] = { intent:'', note:'', picks:[], inbox:[] }; return D.days[ds]; }
-function rocksOf(wk) { return D.rocks.filter(r => r.week === wk && !r._deleted); }
+const BUCKETS = [['urgent','A · 급하고 꼭'],['important','B · 꼭 해야 (장기)'],['light','C · 급하지만 가벼운'],['nice','D · 하면 좋은 일']];
+function bucketName(b) { return (BUCKETS.find(x=>x[0]===b)||BUCKETS[2])[1]; }
+function live() { return D.rocks.filter(r => r && !r._deleted && !r.tomb); }
+function openItems() { return live().filter(r => !r.done); }
+function rocksOf(wk) { return live().filter(r => (r.week||'') <= wk); } // 리뷰용: 그 주까지 살아 있던 항목
+function lastTouched(r) { const ks = Object.keys(r.checks||{}).sort(); return ks.length ? ks[ks.length-1] : (r.week||''); }
+function staleItems() { const cut = new Date(); cut.setDate(cut.getDate()-14); const c = dstr(cut); return openItems().filter(r => !r.routine && lastTouched(r) < c); }
 function rock(id) { return D.rocks.find(r => r.id === id); }
 function fmtDue(r) { return r.routine ? ('주 '+r.routine+'회') : r.due ? (md(r.due)+'까지만') : ''; }
-function checkedCount(r) { return Object.keys(r.checks||{}).length; }
+function checkedCount(r) { const ks = Object.keys(r.checks||{}); if (!r.routine) return ks.length; const ds = weekDates(weekStart(new Date())); return ks.filter(k => ds.includes(k)).length; }
 function streak() { let n = 0; const d = new Date(); for (let i=0;i<400;i++) { const ds = dstr(d); const day = D.days[ds]; const did = day && (day.picks||[]).some(id => (rock(id)||{}).checks && rock(id).checks[ds]); if (did) n++; else if (i>0) break; d.setDate(d.getDate()-1); } return n; }
 function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('on'), 1600); }
 
 // ── 네비 ──
 let tab = 'today', curWeek = weekKey(new Date()), addOpen = false, addRole = null, addRoutine = false;
-function go(t) { tab = t; if (t==='week') curWeek = weekKey(new Date()); document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on', p.id==='p-'+t)); document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.tab===t)); window.scrollTo(0,0); render(); }
+function go(t) { tab = t; document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on', p.id==='p-'+t)); document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.tab===t)); window.scrollTo(0,0); render(); }
 function openMore() { renderRoles(); const si = document.getElementById('sheetIdIn'); if (si) si.value = D.sheetId || ''; document.getElementById('more').classList.add('on'); }
 function closeMore() { document.getElementById('more').classList.remove('on'); }
 function render() { renderCover(); if (tab==='today') renderToday(); else if (tab==='week') renderWeek(); else renderReview(); }
@@ -233,12 +240,11 @@ function renderCover() {
   const now = new Date(), td = today(), s = streak();
   let t1, t2, left = '';
   if (tab==='today') { t1 = `${now.getMonth()+1}월 ${now.getDate()}일 ${DOW[(now.getDay()+6)%7]}요일`; t2 = `${now.getFullYear()} · W${weekNo(now)}`; }
-  else if (tab==='week') { const ws = new Date(curWeek); const ds = weekDates(ws); t1 = `${md(ds[0])} – ${md(ds[6])}`; t2 = `${ws.getFullYear()} · W${weekNo(ws)} · 빅록 ${rocksOf(curWeek).filter(r=>!r.routine).length}/4`;
-    left = `<button class="ibtn" aria-label="지난 주" onclick="moveWeek(-1)">‹</button>`; }
-  else { t1 = '주간 리뷰'; const wk = reviewWeek(); const rs = rocksOf(wk); t2 = `W${weekNo(new Date(wk))} · 완료 ${rs.filter(r=>r.done).length}/${rs.length}`; }
+  else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${now.getFullYear()} · W${weekNo(now)} · A${o.filter(r=>r.bucket==='urgent').length} B${o.filter(r=>r.bucket==='important').length} C${o.filter(r=>r.bucket==='light').length} D${o.filter(r=>r.bucket==='nice').length}`; }
+  else { t1 = '주간 리뷰'; const wk = reviewWeek(); const ds = weekDates(new Date(wk)); const doneW = live().filter(r => r.done && ds.includes(r.doneAt||'')).length; t2 = `W${weekNo(new Date(wk))} · 이번 주 완료 ${doneW} · 남은 ${openItems().length}`; }
   const dots = Math.min(s,3);
   document.getElementById('cover').innerHTML = `
-    <div class="nav">${left}<div><div class="t1">${t1}</div><div class="t2">${t2}</div></div>${tab==='week'?`<button class="ibtn" aria-label="다음 주" onclick="moveWeek(1)">›</button>`:''}</div>
+    <div class="nav">${left}<div><div class="t1">${t1}</div><div class="t2">${t2}</div></div></div>
     <div class="right"><div class="streak" aria-label="연속 ${s}일">${[0,1,2].map(i=>`<i class="${i<dots?'':'off'}"></i>`).join('')}<span style="margin-left:4px">${s}</span></div><button class="ibtn" aria-label="더보기" onclick="openMore()">≡</button></div>`;
 }
 
@@ -260,8 +266,8 @@ function renderToday() {
   <div class="lbl">오늘의 의도</div>
   <input class="wr" placeholder="한 줄로 — 오늘은 이것." value="${esc(day.intent)}" onchange="dayOf('${ds}').intent=this.value;save()">
   <div class="sp"></div>
-  <div class="lbl"><span>오늘 할 것 <span class="mono" style="letter-spacing:0">${picks.filter(r=>r.checks&&r.checks[ds]).length}/${picks.length}</span></span>${picks.length<3?`<button onclick="go('week')">할 일에서 끌어오기 ›</button>`:''}</div>`;
-  if (!picks.length) h += `<div class="line faint ruled">할 일에서 오늘 할 것 1~3개를 끌어오세요</div>`;
+  <div class="lbl"><span>오늘 할 것 <span class="mono" style="letter-spacing:0">${picks.filter(r=>r.checks&&r.checks[ds]).length}/${picks.length}</span></span><button onclick="go('week')">할 일에서 끌어오기 ›</button></div>`;
+  if (!picks.length) h += `<div class="line faint ruled">할 일 목록에서 끌어오세요</div>`;
   picks.forEach(r => { h += itemHtml(r, ds, { meta: `<button onclick="unpick('${r.id}')">빼기</button>` }); });
   h += `<div class="sp"></div>
   <div class="postit"><div class="ph"><span>AGENT INBOX · ${inbox.length}</span><button onclick="openPaste()">PASTE ›</button></div>`;
@@ -275,7 +281,7 @@ function renderToday() {
   <div class="sp"></div>`;
   document.getElementById('today').innerHTML = h;
 }
-function toggleCheck(id, ds) { const r = rock(id); if (!r) return; r.checks = r.checks||{}; if (r.checks[ds]) delete r.checks[ds]; else { r.checks[ds] = true; if (navigator.vibrate) navigator.vibrate(12); } if (r.routine && checkedCount(r) >= r.routine) r.done = true; save(); render(); }
+function toggleCheck(id, ds) { const r = rock(id); if (!r) return; r.checks = r.checks||{}; if (r.checks[ds]) { delete r.checks[ds]; if (!r.routine) { r.done = false; r.doneAt = null; } } else { r.checks[ds] = true; if (navigator.vibrate) navigator.vibrate(12); if (!r.routine) { r.done = true; r.doneAt = ds; } } if (r.routine && checkedCount(r) >= r.routine) { r.done = true; r.doneAt = ds; } save(); render(); }
 function unpick(id) { const day = dayOf(today()); day.picks = day.picks.filter(x=>x!==id); save(); render(); }
 function pick(id) { const day = dayOf(today()); if (day.picks.includes(id)) { toast('이미 오늘에 있어요'); return; } if (day.picks.length>=3) { toast('오늘은 3개까지만'); return; } day.picks.push(id); save(); toast('오늘로 옮겨 적었어요'); go('today'); }
 function openPaste() { const b = document.getElementById('pasteBox'); b.style.display = 'block'; document.getElementById('pasteTa').focus(); }
@@ -289,81 +295,86 @@ function parseLines(txt) {
 }
 function doPaste() { const items = parseLines(document.getElementById('pasteTa').value); if (!items.length) return; const day = dayOf(today()); day.inbox = items.concat(day.inbox||[]); save(); render(); toast(items.length+'건 붙여 두었어요'); }
 function dropInbox(id) { const day = dayOf(today()); day.inbox = (day.inbox||[]).filter(x=>x.id!==id); save(); render(); }
-function moveToRock(id) { const day = dayOf(today()); const x = (day.inbox||[]).find(i=>i.id===id); if (!x) return; x.moved = true; save(); addOpen = true; addPrefill = x.text; go('week'); }
+function moveToRock(id) { const day = dayOf(today()); const x = (day.inbox||[]).find(i=>i.id===id); if (!x) return; x.moved = true; save(); addOpen = true; addPrefill = x.text; if (x.role && D.roles.includes(x.role)) addRole = x.role; go('week'); }
 
-// ── 주간 ──
-let addPrefill = '';
-function moveWeek(n) { const d = new Date(curWeek); d.setDate(d.getDate()+7*n); curWeek = weekKey(d); render(); }
-function carriedInto(wk) { // 지난 주 미완 빅록 (이월 후보)
-  const pd = new Date(wk); pd.setDate(pd.getDate()-7); const pw = weekKey(pd);
-  return rocksOf(pw).filter(r => !r.done && !r.routine && !r.movedTo);
+// ── 할 일 (상시 목록: 급한 일 · 중요한 일 · 하면 좋은 일) ──
+let addPrefill = '', addBucket = 'important';
+function moveWeek(n) {}
+function itemRow(r, n) {
+  const td = today(), picked = (dayOf(td).picks||[]).includes(r.id);
+  const meta = [esc(r.role), fmtDue(r)].filter(Boolean).join(' · ');
+  const prog = r.routine ? `<span class="dots">${Array.from({length:r.routine},(_,i)=>`<i class="${i<checkedCount(r)?'on':''}"></i>`).join('')}</span>` : '';
+  return `<div class="item ${r.done?'done':''}">
+    <div class="mg">${r.routine?`<span class="num">${n}</span>`:`<button class="chk ${r.done?'on':''}" aria-label="완료" onclick="finishRock('${r.id}')">${CHECK}</button>`}</div>
+    <div class="bd"><div class="t"><span class="tx">${esc(r.title)}</span>${r.carry?`<span class="mono" style="color:var(--check);font-size:12px">⟳${r.carry}</span>`:''}</div>
+    <div class="m"><span>${meta}</span>${prog}<span class="sp1"></span>
+      ${r.done?`<span style="color:var(--check)">완료</span>`:(picked?`<span style="color:var(--check)">오늘 ✓</span>`:`<button onclick="pick('${r.id}')">오늘로 ›</button>`)}
+      <button onclick="delRock('${r.id}')">✕</button></div></div></div>`;
 }
 function renderWeek() {
-  const wk = curWeek, ws = new Date(wk), ds = weekDates(ws), td = today();
-  const rocks = rocksOf(wk), main = rocks.filter(r=>!r.routine), routines = rocks.filter(r=>r.routine);
-  let h = `<div class="days">${ds.map((d,i)=>`<div class="${d===td?'td':''}"><span>${DOW[i]}</span><b>${Number(d.slice(8))}</b></div>`).join('')}</div>
-  <div style="padding-right:16px">
-  <div class="lbl">이번 주 나침반</div>`;
+  const items = openItems();
+  let h = `<div class="sp"></div>`;
   let n = 0;
-  rocks.forEach(r => { n++; const picked = (dayOf(td).picks||[]).includes(r.id);
-    h += `<div class="item ${r.done?'done':''}"><div class="mg"><span class="num">${n}</span></div><div class="bd">
-      <div class="t" style="font-size:12px;font-weight:400;color:var(--muted)"><span class="tag ${r.routine?'rt':''}">${esc(r.role)}${r.routine?' · 루틴':''}</span><span class="sp1" style="flex:1"></span><span>${esc(fmtDue(r))}</span></div>
-      <div class="t"><span class="tx">${esc(r.title)}</span>${r.carry?`<span class="mono" style="color:var(--check);font-size:12px">⟳${r.carry}</span>`:''}</div>
-      <div class="m"><span class="dots">${ds.map(d=>`<i class="${r.checks&&r.checks[d]?'on':''} ${d===td?'today':''}"></i>`).join('')}</span><span class="mono">${checkedCount(r)}/${r.routine||7}</span><span class="sp1"></span>
-        ${r.done?`<span style="color:var(--check)">완료</span>`:wk===weekKey(new Date())?(picked?`<span style="color:var(--check)">오늘 ✓</span>`:`<button onclick="pick('${r.id}')">오늘로 ›</button>`):''}
-        ${r.done?'':`<button onclick="finishRock('${r.id}')">끝</button>`}<button onclick="delRock('${r.id}')">✕</button></div></div></div>`;
+  BUCKETS.forEach(([b, name]) => {
+    const list = items.filter(r => (r.bucket||'nice') === b);
+    h += `<div class="lbl"><span>${name} <span class="mono" style="letter-spacing:0">${list.length}</span></span><button onclick="openAdd('${b}')">+ 추가</button></div>`;
+    if (!list.length) h += `<div class="line faint ruled">${b==='urgent'?'지금 당장 — 비어 있으면 좋은 상태':b==='important'?'장기적으로 꼭 — 끝 조건과 함께':b==='light'?'빨리 쳐낼 것':'여유 있을 때'}</div>`;
+    list.forEach(r => { n++; h += itemRow(r, n); });
+    if (addOpen && addBucket === b) h += addFormHtml(b);
+    h += `<div class="sp"></div>`;
   });
-  const left = 4 - main.length;
-  h += `<div class="item"><div class="mg"><span class="num" style="color:var(--faint)">${n+1}</span></div><div class="bd">
-    <button class="t" style="width:100%;text-align:left;color:${left>0?'var(--muted)':'var(--faint)'};font-weight:400" onclick="${left>0||true?'toggleAdd()':''}">+ 빅록 추가${left>0?` · ${left}칸 남음`:' · 루틴만 가능'}</button>
-    <div class="m" style="color:var(--faint)">끝 조건("~까지만")이 없으면 저장되지 않아요</div></div></div>
-  <div class="addrock ${addOpen?'on':''}" id="addrock">
-    <div class="sel" id="roleSel">${D.roles.map(r=>`<button class="${addRole===r?'on':''}" onclick="addRole='${esc(r)}';renderWeek()">${esc(r)}</button>`).join('')}<button class="${addRoutine?'on':''}" onclick="addRoutine=!addRoutine;renderWeek()">루틴</button></div>
-    <input class="wr" id="rockTitle" placeholder="무엇을 — 한 줄" value="${esc(addPrefill)}">
-    <div class="line sub" style="display:flex;gap:10px;align-items:center">${addRoutine?`주 <select id="rockN" style="background:transparent;border:none;border-bottom:1px solid var(--rule)"><option>2</option><option selected>3</option><option>4</option><option>5</option></select> 회`:`까지만 <input type="date" id="rockDue" style="background:transparent;border:none;border-bottom:1px solid var(--rule)" value="${ds[6]}">`}</div>
-    <div class="sp"></div><div class="pbtns" style="padding-left:52px"><button class="cta" style="margin-left:0;width:auto;flex:1" onclick="addRock()">저장</button><button class="cta ghost" style="margin-left:0;width:auto;flex:1" onclick="addOpen=false;addPrefill='';renderWeek()">취소</button></div></div>`;
-  const carried = carriedInto(wk);
-  if (carried.length && wk === weekKey(new Date())) {
-    h += `<div class="sp"></div><div class="postit"><div class="ph"><span>CARRIED FROM LAST WEEK · ${carried.length}</span></div>`;
-    carried.forEach(r => { h += `<div class="pl"><span>⟳</span><span class="tx">${esc(r.title)}</span><button onclick="carryRock('${r.id}')">이월</button><button onclick="splitRock('${r.id}')">분할</button><button onclick="tombRock('${r.id}')">묘비</button></div>`; });
-    h += `<div class="pf">2주째면 분할을 권해요</div></div>`;
+  const stale = staleItems();
+  if (stale.length) {
+    h += `<div class="postit"><div class="ph"><span>UNTOUCHED 2 WEEKS · ${stale.length}</span></div>`;
+    stale.forEach(r => { h += `<div class="pl"><span>⟳</span><span class="tx">${esc(r.title)}</span><button onclick="splitRock('${r.id}')">분할</button><button onclick="tombRock('${r.id}')">묘비</button></div>`; });
+    h += `<div class="pf">2주 넘게 손 안 댄 것 — 나누거나 보내 주세요</div></div><div class="sp"></div>`;
   }
-  h += `<div class="sp"></div></div>`;
   document.getElementById('week').innerHTML = h;
 }
-function toggleAdd() { addOpen = !addOpen; renderWeek(); if (addOpen) setTimeout(()=>{ const e=document.getElementById('rockTitle'); if (e) e.focus(); }, 50); }
-function addRock() {
+function addFormHtml(b) {
+  const due = dstr(new Date(Date.now()+6*86400000));
+  return `<div class="addrock on" id="addrock">
+    <div class="sel" id="roleSel">${D.roles.map(r=>`<button class="${addRole===r?'on':''}" onclick="addRole='${esc(r)}';renderWeek()">${esc(r)}</button>`).join('')}${b!=='urgent'?`<button class="${addRoutine?'on':''}" onclick="addRoutine=!addRoutine;renderWeek()">루틴</button>`:''}</div>
+    <input class="wr" id="rockTitle" placeholder="무엇을 — 한 줄" value="${esc(addPrefill)}">
+    <div class="line sub" style="display:flex;gap:10px;align-items:center">${addRoutine?`주 <select id="rockN" style="background:transparent;border:none;border-bottom:1px solid var(--rule)"><option>2</option><option selected>3</option><option>4</option><option>5</option></select> 회`:`까지만 <input type="date" id="rockDue" style="background:transparent;border:none;border-bottom:1px solid var(--rule)" value="${b==='important'?due:''}">${b!=='important'?'<span style="color:var(--faint)">(선택)</span>':''}`}</div>
+    <div class="pbtns" style="padding-left:52px"><button class="cta" style="margin-left:0;width:auto;flex:1" onclick="addRock('${b}')">저장</button><button class="cta ghost" style="margin-left:0;width:auto;flex:1" onclick="addOpen=false;addPrefill='';renderWeek()">취소</button></div></div>`;
+}
+function openAdd(b) { addBucket = b; addOpen = true; addRoutine = false; renderWeek(); setTimeout(()=>{ const e=document.getElementById('rockTitle'); if (e) e.focus(); }, 50); }
+function toggleAdd() { openAdd(addBucket); }
+function addRock(b) {
+  b = b || addBucket;
   const title = (document.getElementById('rockTitle').value||'').trim();
   if (!title) { toast('제목이 비어 있어요'); return; }
   if (!addRole) { toast('역할을 고르세요'); return; }
-  const main = rocksOf(curWeek).filter(r=>!r.routine).length;
-  if (!addRoutine && main >= 4) { toast('빅록은 주 4개까지'); return; }
-  const r = { id: uid(), week: curWeek, role: addRole, title, done: false, carry: 0, checks: {} };
-  if (addRoutine) r.routine = Number(document.getElementById('rockN').value||3); else { const due = document.getElementById('rockDue').value; if (!due) { toast('끝 조건이 필요해요'); return; } r.due = due; }
-  D.rocks.push(r); addOpen = false; addPrefill = ''; save(); renderWeek(); renderCover(); toast('빅록 저장');
+  const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: addRole, title, done: false, carry: 0, checks: {} };
+  if (addRoutine) r.routine = Number((document.getElementById('rockN')||{}).value||3);
+  else { const due = (document.getElementById('rockDue')||{}).value || ''; if (b==='important' && !due) { toast('B는 끝 조건이 필요해요'); return; } if (due) r.due = due; }
+  D.rocks.push(r); addOpen = false; addPrefill = ''; save(); renderWeek(); renderCover(); toast('적었어요');
 }
-function finishRock(id) { const r = rock(id); if (!r) return; r.done = true; save(); render(); toast('완료'); }
-function delRock(id) { if (!confirm('이 빅록을 지울까요?')) return; const r = rock(id); if (r) r._deleted = true; save(); render(); }
-function carryRock(id) { const r = rock(id); if (!r) return; const nr = Object.assign({}, r, { id: uid(), week: curWeek, carry: (r.carry||0)+1, checks: {}, done: false }); r.movedTo = nr.id; D.rocks.push(nr); save(); render(); toast('이월 ⟳'+nr.carry); }
-function splitRock(id) { const r = rock(id); if (!r) return; r.movedTo = 'split'; addOpen = true; addPrefill = r.title + ' — 1/2: '; addRole = r.role; save(); renderWeek(); toast('작게 나눠서 적어 보세요'); }
-function tombRock(id) { const r = rock(id); if (!r) return; r.movedTo = 'tomb'; r.tomb = true; save(); render(); toast('묘비 ✝'); }
+function finishRock(id) { const r = rock(id); if (!r) return; r.done = !r.done; r.doneAt = r.done ? today() : null; if (r.done && navigator.vibrate) navigator.vibrate(12); save(); render(); }
+function delRock(id) { if (!confirm('이 항목을 지울까요?')) return; const r = rock(id); if (r) r._deleted = true; save(); render(); }
+function splitRock(id) { const r = rock(id); if (!r) return; r.tomb = true; r.movedTo = 'split'; addPrefill = r.title + ' — 1/2: '; addRole = r.role; save(); openAdd(r.bucket||'important'); toast('작게 나눠서 적어 보세요'); }
+function tombRock(id) { const r = rock(id); if (!r) return; r.tomb = true; save(); render(); toast('묘비 ✝'); }
+function carryRock(id) {}
 
 // ── 리뷰 ──
 function reviewWeek() { const now = new Date(); return now.getDay()===0 || now.getDay()===6 ? weekKey(now) : weekKey(now); }
 function packetText(wk) {
-  const rs = rocksOf(wk), ws = new Date(wk), ds = weekDates(ws);
+  const ws = new Date(wk), ds = weekDates(ws);
+  const rs = live().filter(r => !r.done || ds.includes(r.doneAt||''));
   const days = ds.map(d => D.days[d]).filter(Boolean);
   const inbox = days.flatMap(d => d.inbox||[]);
   const lines = [];
   lines.push(`# DUAL Planner 주간 리뷰 패킷 · ${ws.getFullYear()} W${weekNo(ws)} (${md(ds[0])}–${md(ds[6])})`);
-  lines.push('', '## 이번 주 빅록');
-  rs.forEach(r => lines.push(`- [${r.done?'x':' '}] (${r.role}) ${r.title} — ${fmtDue(r)} · 체크 ${checkedCount(r)}/${r.routine||7}${r.carry?' · 이월 '+r.carry+'회':''}`));
+  lines.push('', '## 할 일 목록 (A 급하고 꼭 / B 꼭 해야 / C 급하지만 가벼운 / D 하면 좋은 일)');
+  BUCKETS.forEach(([b, name]) => { lines.push(`### ${name}`); rs.filter(r=>(r.bucket||'nice')===b).forEach(r => lines.push(`- [${r.done?'x':' '}] (${r.role}) ${r.title}${fmtDue(r)?' — '+fmtDue(r):''}${r.routine?' · 이번 주 '+checkedCount(r)+'/'+r.routine:''} · 마지막 손댐 ${lastTouched(r)||'-'}`)); });
+  const st = staleItems(); if (st.length) { lines.push('', '## 2주 넘게 안 건드린 것'); st.forEach(r => lines.push(`- ${r.title}`)); }
   lines.push('', '## 일별');
   ds.forEach(d => { const day = D.days[d]; if (!day) return; const done = (day.picks||[]).map(rock).filter(r=>r&&r.checks&&r.checks[d]).map(r=>r.title); lines.push(`- ${md(d)} ${DOW[ds.indexOf(d)]} · 의도: ${day.intent||'-'} · 완료: ${done.join(', ')||'-'} · 한 줄: ${day.note||'-'}`); });
   if (inbox.length) { lines.push('', '## 에이전트 인박스(이번 주 유입)'); inbox.forEach(x => lines.push(`- ${x.kind==='note'?'메모':'할 일'}: ${x.text}${x.moved?' (옮겨 적음)':''}`)); }
   lines.push('', '## 역할', D.roles.join(' · '));
-  lines.push('', '## 요청', '위 데이터로 (1) 이번 주를 3~5문장으로 리뷰하고, (2) 다음 주 빅록을 역할별로 최대 4개 제안해 주세요.',
-    '제안은 반드시 아래 형식으로, 한 줄에 하나:', '- [역할] 빅록 제목 · MM/DD까지만', '루틴은: - [역할] 루틴 제목 · 주 N회');
+  lines.push('', '## 요청', '위 데이터로 (1) 이번 주를 3~5문장으로 리뷰하고, (2) 목록에서 버리거나 나눌 것을 짚고, (3) 다음 주에 새로 넣을 B(꼭 해야 할 장기 일)를 최대 4개 제안해 주세요.',
+    '제안은 반드시 아래 형식으로, 한 줄에 하나:', '- [역할] 제목 · MM/DD까지만', '루틴은: - [역할] 루틴 제목 · 주 N회');
   return lines.join('\n');
 }
 function parseReply(txt) {
@@ -393,7 +404,7 @@ function renderReview() {
   <div class="postit"><div class="ph"><span>AGENT REPLY</span></div><textarea id="replyTa" placeholder="에이전트 답을 그대로 붙여넣기"></textarea>
     <div class="pbtns"><button class="pbtn" onclick="parseReplyBox('${wk}')">PARSE → 빅록 후보</button></div></div>
   <div class="sp"></div>
-  <div class="lbl">다음 주 후보 · 채택 / 버리기</div>`;
+  <div class="lbl">다음 주 B 후보 · 채택 / 버리기</div>`;
   if (!rv.candidates.length) h += `<div class="line faint ruled">답을 파싱하면 여기 쌓여요</div>`;
   rv.candidates.forEach(c => {
     h += `<div class="item ${c.state==='n'?'done':''}"><div class="mg"><button class="chk ${c.state==='y'?'on':''}" aria-label="채택" onclick="cand('${wk}','${c.id}','y')">${CHECK}</button></div>
@@ -401,7 +412,7 @@ function renderReview() {
       <div class="m"><span>${esc(c.role)}</span><span>·</span><span>${c.routine?'주 '+c.routine+'회':md(c.due)+'까지만'}</span></div></div></div>`;
   });
   const yes = rv.candidates.filter(c=>c.state==='y').length;
-  h += `<div class="sp"></div><a class="cta" onclick="startNext('${wk}','${nwk}')">채택 ${yes}개로 다음 주 시작 ›</a><div class="sp"></div>`;
+  h += `<div class="sp"></div><a class="cta" onclick="startNext('${wk}','${nwk}')">채택 ${yes}개를 B에 넣고 봉인 ›</a><div class="sp"></div>`;
   document.getElementById('review').innerHTML = h;
 }
 async function copyPacket(wk) { const t = packetText(wk); try { await navigator.clipboard.writeText(t); toast('복사됨 — 에이전트에 붙여넣기'); } catch(e) { prompt('복사하세요', t); } D.reviews[wk].packetAt = new Date().toISOString(); save(); }
@@ -411,8 +422,8 @@ function cand(wk, id, st) { const c = D.reviews[wk].candidates.find(x=>x.id===id
 function startNext(wk, nwk) {
   const rv = D.reviews[wk]; const yes = rv.candidates.filter(c=>c.state==='y');
   if (!yes.length) { toast('채택한 후보가 없어요'); return; }
-  yes.forEach(c => { const r = { id: uid(), week: nwk, role: c.role, title: c.title, done: false, carry: 0, checks: {} }; if (c.routine) r.routine = c.routine; else r.due = c.due; D.rocks.push(r); });
-  rv.sealed = true; rv.candidates = rv.candidates.filter(c=>c.state!=='y'); save(); curWeek = nwk; toast('봉인 — 다음 주 시작'); go('week'); curWeek = nwk; render();
+  yes.forEach(c => { const r = { id: uid(), week: nwk, bucket: 'important', role: c.role, title: c.title, done: false, carry: 0, checks: {} }; if (c.routine) r.routine = c.routine; else r.due = c.due; D.rocks.push(r); });
+  rv.sealed = true; rv.candidates = rv.candidates.filter(c=>c.state!=='y'); save(); toast('봉인 — 다음 주 시작'); go('week');
 }
 
 
