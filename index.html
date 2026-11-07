@@ -165,7 +165,7 @@ a { color: inherit; }
 
 <nav class="tabbar">
   <button data-tab="today" class="on" onclick="go('today')"><i></i>오늘</button>
-  <button data-tab="week" onclick="go('week')"><i></i>주간</button>
+  <button data-tab="week" onclick="go('week')"><i></i>할 일</button>
   <button data-tab="review" onclick="go('review')"><i></i>리뷰</button>
 </nav>
 
@@ -260,8 +260,8 @@ function renderToday() {
   <div class="lbl">오늘의 의도</div>
   <input class="wr" placeholder="한 줄로 — 오늘은 이것." value="${esc(day.intent)}" onchange="dayOf('${ds}').intent=this.value;save()">
   <div class="sp"></div>
-  <div class="lbl"><span>오늘 할 것 <span class="mono" style="letter-spacing:0">${picks.filter(r=>r.checks&&r.checks[ds]).length}/${picks.length}</span></span>${picks.length<3?`<button onclick="go('week')">주간에서 끌어오기 ›</button>`:''}</div>`;
-  if (!picks.length) h += `<div class="line faint ruled">주간 빅록에서 1~3개를 끌어오세요</div>`;
+  <div class="lbl"><span>오늘 할 것 <span class="mono" style="letter-spacing:0">${picks.filter(r=>r.checks&&r.checks[ds]).length}/${picks.length}</span></span>${picks.length<3?`<button onclick="go('week')">할 일에서 끌어오기 ›</button>`:''}</div>`;
+  if (!picks.length) h += `<div class="line faint ruled">할 일에서 오늘 할 것 1~3개를 끌어오세요</div>`;
   picks.forEach(r => { h += itemHtml(r, ds, { meta: `<button onclick="unpick('${r.id}')">빼기</button>` }); });
   h += `<div class="sp"></div>
   <div class="postit"><div class="ph"><span>AGENT INBOX · ${inbox.length}</span><button onclick="openPaste()">PASTE ›</button></div>`;
