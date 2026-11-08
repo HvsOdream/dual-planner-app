@@ -1,0 +1,122 @@
+# DUAL Planner — iOS 앱(Capacitor) 빌드 → TestFlight. 웹은 레포 루트 파일을 app/www 로 복사해 쓴다(빌드 단계 없음).
+# 수동 실행만(Actions → iOS TestFlight → Run workflow). 서일 오피스(hwp-pad)와 같은 틀·같은 인증서 레포·같은 API 키.
+# 처음 켜기 전에 레포 Secrets 6개가 있어야 한다: docs/ios-testflight.md 참조.
+name: iOS TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '앱 버전 — 비우면 루트 VERSION 파일 값'
+        default: ''
+      changelog:
+        description: '테스터에게 보일 변경 내용 — 비우면 CHANGELOG.md 맨 위 항목'
+        default: ''
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    # 자동 트리거는 Pages 배포가 성공했을 때만, 그리고 TestFlight 시크릿이 세팅된 뒤에만
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    # xcode-27 라벨: Xcode 27.x(iOS 27 SDK) 러너 — 아이폰 듀오 전체 화면·2027-04 이후 제출 요건
+    runs-on: xcode-27
+    timeout-minutes: 60
+    env:
+      APP_ID: com.hvsodream.dualplanner
+      APP_NAME: DUAL Planner
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+      MATCH_GIT_URL: https://github.com/HvsOdream/ios-certs.git
+      APP_VERSION_INPUT: ${{ github.event.inputs.version }}
+      CHANGELOG_INPUT: ${{ github.event.inputs.changelog }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      LC_ALL: ko_KR.UTF-8
+      LANG: ko_KR.UTF-8
+    steps:
+      - name: Secrets check
+        id: check
+        run: |
+          missing=""
+          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64 APPLE_TEAM_ID MATCH_PASSWORD MATCH_GIT_BASIC_AUTHORIZATION; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "::error::TestFlight 시크릿 누락:$missing — docs/ios-testflight.md"; exit 1; fi
+            echo "::notice::TestFlight 시크릿이 아직 없어 건너뜀:$missing"; echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.go == 'true'
+
+      - name: Resolve version (VERSION 파일 · CHANGELOG.md)
+        if: steps.check.outputs.go == 'true'
+        run: |
+          V="${APP_VERSION_INPUT:-$(tr -d ' \n' < VERSION)}"
+          if [ -z "$CHANGELOG_INPUT" ]; then
+            # CHANGELOG.md의 첫 "## " 항목 본문(다음 "## " 전까지)
+            C=$(awk '/^## /{n++} n==1' CHANGELOG.md | sed '1d' | sed 's/^- //' | tr '\n' ' ' | cut -c1-3900)
+          else C="$CHANGELOG_INPUT"; fi
+          echo "APP_VERSION=$V" >> "$GITHUB_ENV"
+          echo "CHANGELOG=v$V (빌드 ${{ github.run_number }}) $C" >> "$GITHUB_ENV"
+          echo "버전 $V / 빌드 ${{ github.run_number }}"
+
+      - name: Setup Node 22
+        if: steps.check.outputs.go == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Copy web files into app/www (+ native bridge)
+        if: steps.check.outputs.go == 'true'
+        run: |
+          rm -rf app/www && mkdir -p app/www
+          cp index.html manifest.webmanifest app/www/
+          cp -R brand icons legal app/www/
+          cp app/native/native.js app/www/native.js
+          node -e "const fs=require('fs');const p='app/www/index.html';let h=fs.readFileSync(p,'utf8');if(!h.includes('native.js'))h=h.replace(/<\/head>/i,'<script src=\"native.js\" defer></script>\n</head>');fs.writeFileSync(p,h)"
+          grep -c "native.js" app/www/index.html
+          du -sh app/www
+
+      - name: Install Capacitor
+        if: steps.check.outputs.go == 'true'
+        working-directory: app
+        run: npm install --no-audit --no-fund
+
+      - name: Prepare iOS project
+        if: steps.check.outputs.go == 'true'
+        working-directory: app
+        run: bash scripts/prepare-ios.sh
+
+      - name: Select Xcode
+        if: steps.check.outputs.go == 'true'
+        run: |
+          # iOS 27 SDK(Xcode 27)로 빌드해야 아이폰 듀오에서 전체 화면으로 뜬다(아니면 가운데 폰 크기 창). 러너의 가장 최신 Xcode 27.x를 고른다.
+          ls -d /Applications/Xcode*.app
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_27*.app | sort -V | tail -1)"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos
+          xcodebuild -downloadComponent MetalToolchain 2>/dev/null || true
+
+      - name: Fastlane beta (match → build → TestFlight)
+        if: steps.check.outputs.go == 'true'
+        working-directory: app
+        run: fastlane ios beta
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-logs
+          path: |
+            ~/Library/Logs/gym/*.log
+            app/build/*.log
+          if-no-files-found: ignore

@@ -1,0 +1,15 @@
+{
+  "appId": "com.hvsodream.dualplanner",
+  "appName": "DUAL",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "scheme": "dualplanner",
+    "backgroundColor": "#1E2F4F"
+  },
+  "server": { "iosScheme": "capacitor" },
+  "plugins": {
+    "Keyboard": { "resize": "native" },
+    "StatusBar": { "style": "DARK", "overlaysWebView": true }
+  }
+}

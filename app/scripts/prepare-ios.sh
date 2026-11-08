@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# DUAL Planner iOS 프로젝트 준비 (macOS 러너). www/ 가 채워진 뒤 호출한다.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+test -f www/index.html
+
+# Capacitor 8.5+ 템플릿(UIScene) — iOS 27 SDK 빌드·아이폰 듀오 전체 화면 조건
+if [ ! -d ios ]; then npx cap add ios --packagemanager CocoaPods; fi
+npx cap sync ios
+
+# 최소 iOS 15.0
+sed -i '' -E 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' ios/App/App.xcodeproj/project.pbxproj
+sed -i '' -E "s/^platform :ios, '[0-9.]+'/platform :ios, '15.0'/" ios/App/Podfile
+(cd ios/App && pod install)
+
+PLIST=ios/App/App/Info.plist
+PB="/usr/libexec/PlistBuddy -c"
+set_plist() { $PB "Delete :$1" "$PLIST" 2>/dev/null || true; $PB "Add :$1 $2 $3" "$PLIST"; }
+set_plist CFBundleDisplayName string "DUAL"
+set_plist ITSAppUsesNonExemptEncryption bool false
+set_plist UIRequiresFullScreen bool false
+set_plist UIStatusBarStyle string UIStatusBarStyleLightContent
+set_plist UIViewControllerBasedStatusBarAppearance bool true
+
+# 앱 아이콘: 레포의 1024 아이콘(네이비 천 표지 + 빨간 밴드)
+ICON_DIR=ios/App/App/Assets.xcassets/AppIcon.appiconset
+for f in "$ICON_DIR"/*.png; do sips -s format png -z 1024 1024 www/icons/icon-1024.png --out "$f" >/dev/null; done
+# 알파 채널 없애기(App Store 아이콘 규칙)
+for f in "$ICON_DIR"/*.png; do sips -s format jpeg "$f" --out /tmp/i.jpg >/dev/null && sips -s format png /tmp/i.jpg --out "$f" >/dev/null; done
+
+# 실행 화면: 네이비 단색(곧바로 앱 표지가 이어진다)
+SPLASH_DIR=ios/App/App/Assets.xcassets/Splash.imageset
+if [ -d "$SPLASH_DIR" ]; then
+  python3 - "$SPLASH_DIR" <<'PY'
+import sys, os, struct, zlib
+d = sys.argv[1]
+def png(path, w, h, rgb):
+    raw = b''.join(b'\x00' + bytes(rgb) * w for _ in range(h))
+    def chunk(t, data): c = struct.pack('>I', len(data)) + t + data; return c + struct.pack('>I', zlib.crc32(t + data) & 0xffffffff)
+    open(path, 'wb').write(b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(raw, 9)) + chunk(b'IEND', b''))
+for f in os.listdir(d):
+    if f.endswith('.png'): png(os.path.join(d, f), 2732, 2732, (0x1E, 0x2F, 0x4F))
+PY
+fi
+plutil -lint "$PLIST"
+grep -q "UIApplicationSceneManifest" "$PLIST" || { echo "Info.plist에 UIApplicationSceneManifest 없음"; exit 1; }
+echo "[prepare-ios] done"

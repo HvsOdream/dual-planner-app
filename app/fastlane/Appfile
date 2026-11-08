@@ -1,0 +1,2 @@
+app_identifier(ENV.fetch("APP_ID", "com.hvsodream.dualplanner"))
+team_id(ENV["APPLE_TEAM_ID"]) if ENV["APPLE_TEAM_ID"]

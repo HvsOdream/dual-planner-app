@@ -1,0 +1,4 @@
+git_url(ENV.fetch("MATCH_GIT_URL", "https://github.com/HvsOdream/ios-certs.git"))
+storage_mode("git")
+type("appstore")
+readonly(false)
