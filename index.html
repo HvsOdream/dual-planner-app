@@ -682,6 +682,8 @@ ensureVol();
 render();
 pullState(false).then(() => { ensureVol(); render(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pullState(false); });
+// 같은 기기의 다른 창(미리보기의 접은/펼친 화면 등)에서 바뀌면 바로 반영
+window.addEventListener('storage', e => { if (e.key !== KEY) return; const a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return; D = load(); _sig = sigOf(); render(); });
 if (location.hash === '#week') go('week'); else if (location.hash === '#review') go('review');
 </script>
 </body>

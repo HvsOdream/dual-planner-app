@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>듀얼플래너 · 듀오 미리보기</title>
+<style>
+:root { --desk:#2B2F36; --desk-2:#353A43; --ink:#E8E4D8; --muted:#9AA1AD; --frame:#0E1116; --accent:#D7452E; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--desk); color:var(--ink); font-family:-apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', 'Noto Sans KR', sans-serif; min-height:100vh; }
+header { display:flex; align-items:center; gap:14px; padding:14px 24px; border-bottom:1px solid var(--desk-2); flex-wrap:wrap; }
+header h1 { font-size:15px; font-weight:800; letter-spacing:.3px; }
+header .sub { font-size:12px; color:var(--muted); }
+header .sp { flex:1; }
+.seg { display:flex; border:1px solid #4A515D; border-radius:8px; overflow:hidden; }
+.seg button { background:none; border:none; color:var(--muted); font:inherit; font-size:12px; padding:6px 12px; cursor:pointer; }
+.seg button.on { background:var(--ink); color:var(--desk); font-weight:700; }
+.btn { background:none; border:1px solid #4A515D; color:var(--ink); font:inherit; font-size:12px; padding:6px 12px; border-radius:8px; cursor:pointer; }
+.stage { display:flex; align-items:flex-start; justify-content:center; gap:48px; padding:28px 24px 40px; flex-wrap:nowrap; }
+.dev { display:flex; flex-direction:column; align-items:center; gap:10px; }
+.dev .cap { font-size:12px; color:var(--muted); letter-spacing:1px; }
+.dev .cap b { color:var(--ink); letter-spacing:0; margin-right:6px; }
+.shell { background:var(--frame); padding:10px; border-radius:30px; box-shadow:0 18px 40px rgba(0,0,0,.45), inset 0 0 0 1px #2A2F38; position:relative; }
+.shell iframe { display:block; border:none; border-radius:20px; background:#FCFBF7; }
+/* 펼친 화면: 가운데 힌지(주름) 표시 */
+.shell.open .crease { position:absolute; top:10px; bottom:10px; left:50%; width:14px; transform:translateX(-50%); pointer-events:none; border-radius:2px;
+  background:linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,.10) 40%, rgba(255,255,255,.18) 50%, rgba(0,0,0,.10) 60%, rgba(0,0,0,0) 100%); }
+.shell.open.nocrease .crease { display:none; }
+.scalebox { transform-origin:top center; }
+.note { max-width:880px; margin:0 auto; padding:0 24px 32px; font-size:12px; color:var(--muted); line-height:1.7; }
+.note b { color:var(--ink); }
+.hide { display:none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>듀얼플래너 · 듀오 미리보기</h1>
+  <span class="sub">두 화면은 같은 데이터를 써요 — 한쪽에서 체크하면 다른 쪽도 바뀝니다</span>
+  <span class="sp"></span>
+  <div class="seg" id="mode">
+    <button data-m="both" class="on">둘 다</button>
+    <button data-m="fold">접은 화면</button>
+    <button data-m="open">펼친 화면</button>
+  </div>
+  <div class="seg" id="zoom">
+    <button data-z="fit" class="on">맞춤</button>
+    <button data-z="1">실제 크기</button>
+  </div>
+  <button class="btn" id="crease">주름 표시</button>
+  <button class="btn" id="reload">새로고침</button>
+</header>
+
+<div class="stage" id="stage">
+  <div class="dev" id="d-fold">
+    <div class="cap"><b>접은 화면</b>5.4″ · 466 × 678</div>
+    <div class="scalebox"><div class="shell"><iframe id="f-fold" src="./index.html" width="466" height="678" title="접은 화면"></iframe></div></div>
+  </div>
+  <div class="dev" id="d-open">
+    <div class="cap"><b>펼친 화면</b>7.6″ · 890 × 626</div>
+    <div class="scalebox"><div class="shell open"><iframe id="f-open" src="./index.html" width="890" height="626" title="펼친 화면"></iframe><div class="crease"></div></div></div>
+  </div>
+</div>
+
+<p class="note">크기는 애플 공개 해상도(바깥 1398×2034, 안쪽 1878×2670 px)를 3배율로 나눈 <b>추정 포인트</b>예요. 안쪽 화면은 책처럼 가로로 펼쳐지는 것으로 보고 890×626(가로)로 놓았어요. 실기기에서 한 번 맞춰 보고 숫자를 고치면 됩니다.</p>
+
+<script>
+const $ = s => document.querySelector(s);
+let mode = 'both', zoom = 'fit';
+function layout() {
+  $('#d-fold').classList.toggle('hide', mode === 'open');
+  $('#d-open').classList.toggle('hide', mode === 'fold');
+  // 맞춤: 창 높이·너비에 들어가게 축소 (확대는 안 함)
+  const boxes = [...document.querySelectorAll('.dev:not(.hide) .scalebox')];
+  boxes.forEach(b => { b.style.transform = ''; b.style.height = ''; b.style.width = ''; });
+  if (zoom !== 'fit') return;
+  const availH = window.innerHeight - $('header').offsetHeight - 28 - 40 - 30;
+  const totalW = boxes.reduce((n, b) => n + b.firstElementChild.offsetWidth, 0) + (boxes.length - 1) * 48;
+  const availW = window.innerWidth - 48;
+  const maxH = Math.max(...boxes.map(b => b.firstElementChild.offsetHeight));
+  const s = Math.min(1, availH / maxH, availW / totalW);
+  boxes.forEach(b => { const el = b.firstElementChild; b.style.transform = `scale(${s})`; b.style.width = el.offsetWidth * s + 'px'; b.style.height = el.offsetHeight * s + 'px'; b.style.transformOrigin = 'top left'; });
+}
+$('#mode').onclick = e => { const m = e.target.dataset.m; if (!m) return; mode = m; [...$('#mode').children].forEach(b => b.classList.toggle('on', b.dataset.m === m)); layout(); };
+$('#zoom').onclick = e => { const z = e.target.dataset.z; if (!z) return; zoom = z; [...$('#zoom').children].forEach(b => b.classList.toggle('on', b.dataset.z === z)); layout(); };
+$('#crease').onclick = () => { const s = $('#d-open .shell'); s.classList.toggle('nocrease'); };
+$('#reload').onclick = () => { document.querySelectorAll('iframe').forEach(f => f.contentWindow.location.reload()); };
+window.addEventListener('resize', layout);
+layout();
+</script>
+</body>
+</html>
