@@ -335,7 +335,6 @@ async function photo(req, env, token, ds) {
     const v = await env.PLANNER.get(key, { type: 'arrayBuffer' }); if (!v) return new Response('', { status: 404, headers: CORS });
     return new Response(v, { headers: Object.assign({ 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=604800' }, CORS) });
   }
-  if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
   if (req.method === 'DELETE') { await env.PLANNER.delete(key); return json({ ok: true }); }
   if (req.method !== 'PUT') return json({ error: 'method' }, 405);
   const buf = await req.arrayBuffer(), b = new Uint8Array(buf);
