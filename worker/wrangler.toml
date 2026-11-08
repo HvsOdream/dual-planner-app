@@ -6,6 +6,10 @@ compatibility_date = "2026-01-01"
 binding = "PLANNER"
 id = "82e7f317dbe74a3eba8d26f4a5fbb3dc"
 
+# 속지 비서 모델: Workers AI. LLM_URL(OpenAI 호환 sLLM)을 [vars]에 넣으면 그쪽을 쓴다(LLM_KEY는 wrangler secret).
+[ai]
+binding = "AI"
+
 # 로그인용 공개 ID(비밀 아님). 비어 있으면 그 로그인은 꺼진 상태.
 [vars]
 GOOGLE_CLIENT_ID = "992928610624-qivktlsooc8tifhdt6g0mmvckqdji7v2.apps.googleusercontent.com"

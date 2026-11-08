@@ -206,6 +206,35 @@ async function adminStats(req, env) {
   return json({ now: new Date().toISOString(), accounts, planners: userKeys.length, anonymous: userKeys.filter(k => !bound.has(k.slice(2))).length, admin: claims.email });
 }
 
+// ── 속지 비서: 작은 모델 하나로 묶기 등을 한다. LLM_URL(OpenAI 호환, 예: 직접 만든 sLLM)이 있으면 그쪽, 없으면 Workers AI ──
+async function llm(env, messages, maxTokens) {
+  if (env.LLM_URL) {
+    const r = await fetch(env.LLM_URL.replace(/\/$/, '') + '/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + (env.LLM_KEY || '') }, body: JSON.stringify({ model: env.LLM_MODEL || 'default', messages, temperature: 0.2, max_tokens: maxTokens || 600 }) });
+    const j = await r.json(); return (((j.choices || [])[0] || {}).message || {}).content || '';
+  }
+  if (!env.AI) throw new Error('no model');
+  const out = await env.AI.run(env.AI_MODEL || '@cf/meta/llama-3.3-70b-instruct-fp8-fast', { messages, max_tokens: maxTokens || 600, temperature: 0.2 });
+  return typeof out === 'string' ? out : (out.response || '');
+}
+function jsonIn(text) { const a = text.indexOf('{'), b = text.lastIndexOf('}'); if (a < 0 || b <= a) return null; try { return JSON.parse(text.slice(a, b + 1)); } catch { return null; } }
+async function group(req, env, token) {
+  if (req.method !== 'POST') return json({ error: 'method' }, 405);
+  if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
+  const dk = 'g:' + token + ':' + new Date().toISOString().slice(0, 10), used = Number(await env.PLANNER.get(dk) || 0);
+  if (used >= 30) return json({ error: 'daily limit' }, 429);
+  let body; try { body = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const items = (body.items || []).filter(x => x && x.id && x.title).slice(0, 40).map(x => ({ id: String(x.id), title: String(x.title).slice(0, 80) }));
+  const roles = (body.roles || []).map(String).slice(0, 12);
+  if (items.length < 3) return json({ groups: [] });
+  const sys = '너는 종이 플래너를 정리해 주는 비서다. 할 일 목록을 그 사람이 맡은 역할·생활 영역별로 2~5묶음으로 나눈다. 묶음 이름은 2~6자 한국어 명사로 짧게(예: 연구, 학과 행정, 집안일, 운동, 가족). 기존 역할 이름과 맞으면 그 이름을 그대로 쓴다. 모든 id를 정확히 한 번씩 넣는다. 설명 없이 JSON만 출력: {"groups":[{"name":"...","ids":["..."]}]}';
+  const user = '기존 역할: ' + (roles.join(', ') || '없음') + '\n할 일:\n' + items.map(x => `- id=${x.id}: ${x.title}`).join('\n');
+  let out; try { out = jsonIn(await llm(env, [{ role: 'system', content: sys }, { role: 'user', content: user }], 700)); } catch (e) { return json({ error: 'model failed' }, 502); }
+  await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
+  const known = new Set(items.map(x => x.id)), seen = new Set();
+  const groups = ((out && out.groups) || []).map(g => ({ name: String(g.name || '').trim().slice(0, 12), ids: (g.ids || []).map(String).filter(id => known.has(id) && !seen.has(id) && seen.add(id)) })).filter(g => g.name && g.ids.length);
+  return json({ groups, model: env.LLM_URL ? 'sllm' : 'workers-ai' });
+}
+
 export default {
   async fetch(req, env) {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
@@ -213,10 +242,11 @@ export default {
     const am = url.pathname.match(/^\/auth\/(config|google|apple|account)\/?$/);
     if (am) return auth(req, env, am[1]);
     if (url.pathname.replace(/\/$/, '') === '/admin/stats') return adminStats(req, env);
-    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp)\/?$/);
+    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group)\/?$/);
     if (!m) return json({ ok: true, name: 'dual-planner-api', usage: '/u/:token/state | /u/:token/items | /u/:token/mcp | /auth/config | /auth/google | /auth/apple | /auth/account' });
     const token = m[1], kind = m[2], key = 'u:' + token;
     if (kind === 'mcp') return mcp(req, env, token);
+    if (kind === 'group') return group(req, env, token);
     const cur = Object.assign(empty(), JSON.parse(await env.PLANNER.get(key) || 'null') || {});
     if (kind === 'state') {
       if (req.method === 'GET') return json(cur);

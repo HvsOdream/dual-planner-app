@@ -363,7 +363,7 @@ const CHECK = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" strok
 // ── 데이터 ──
 function empty() {
   return { v: 1,
-    roles: ['교수자','연구자','개인 행정업무','사업가','신산업본부장','AIDX혁신센터장'],
+    roles: [],      // 처음엔 비워 두고, 할 일이 쌓이면 속지 비서가 묶어서 제안한다
     rocks: [],      // {id, week, role, title, due:'YYYY-MM-DD'|null, routine:n|null, done:bool, carry:n, checks:{date:true}, from:'inbox'|null}
     days: {},       // {date: {intent, note, picks:[rockId], inbox:[{id, text, src, at, moved}]}}
     reviews: {},    // {week: {sealed:true, packetAt, candidates:[{id, role, title, due, state:'y'|'edit'|'n'}]}}
@@ -434,7 +434,7 @@ SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
 function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.paidPreview ? '무료로 보기' : '유료 속지로 보기'}</button><span style="font-size:11px;color:var(--muted)">개발용</span></div>` : ''; document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
 function closeMore() { document.getElementById('more').classList.remove('on'); }
 function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); }
-function render() { applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.paidPreview ? '' : 'none'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
+function render() { setTimeout(maybeGroup, 800); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.paidPreview ? '' : 'none'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
 
 function renderCover() {
   const s = streak(), dots = Math.min(s,3);
@@ -501,7 +501,7 @@ function renderToday() {
     sugg.slice(0,5).forEach(r => { h += `<div class="row ruled" style="padding-left:52px;gap:8px;font-size:14px;color:var(--ink-2)"><span class="tag" style="font-size:10px;height:18px;line-height:16px">${r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</span><button style="font-size:12px;color:var(--muted);text-decoration:underline" onclick="pick('${r.id}')">오늘로</button></div>`; });
   }
   const gs = guidesNow();
-  h += `${inbox.length || gs.length ? '<div class="sp"></div>' : ''}
+  h += `${inbox.length || gs.length || groupHtml() ? '<div class="sp"></div>' : ''}
   ${stickiesHtml(inbox, gs)}
   <div class="sp"></div>
   <div class="lbl">한 줄 일기</div>
@@ -555,11 +555,43 @@ function backSticky(label, count, peek, cls) {
     <div class="peek" aria-hidden="true">${esc(peek || '')}</div><div class="cnt">${esc(label)} · ${esc(count)}</div>
     <div class="flip">속지를 끼우면 펼쳐져요<button onclick="event.stopPropagation();go('shelf')">속지 보기</button></div></div>`;
 }
+// ── 속지 비서: 역할 없는 할 일이 3개 넘게 쌓이면 묶음을 제안한다 ──
+function unroled() { return openItems().filter(r => !r.role || !D.roles.includes(r.role)); }
+function groupSig(list) { return list.map(r => r.id).sort().join(','); }
+let _grouping = false;
+async function maybeGroup() {
+  const list = unroled(); if (list.length < 3 || _grouping || !baseUrl()) return;
+  const sig = groupSig(list), g = D.groupSug;
+  if (g && (g.sig === sig || g.off === sig)) return;
+  if (g && g.at && Date.now() - g.at < 60000) return;
+  _grouping = true;
+  try {
+    const r = await fetch(baseUrl() + '/u/' + D.token + '/group', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: list.map(x => ({ id: x.id, title: x.title })), roles: D.roles }) });
+    const j = await r.json();
+    if (r.ok && (j.groups || []).length) { D.groupSug = { sig, at: Date.now(), groups: j.groups }; _save0(); if (tab === 'today' || tab === 'week' || spread()) render(); }
+  } catch(e) {} finally { _grouping = false; }
+}
+function groupHtml() {
+  const g = D.groupSug, list = unroled(); if (!g || !g.groups || g.off === g.sig || list.length < 3) return '';
+  const live = new Set(list.map(r => r.id));
+  const groups = g.groups.map(x => ({ name: x.name, ids: x.ids.filter(id => live.has(id)) })).filter(x => x.ids.length);
+  if (!groups.length) return '';
+  const n = groups.reduce((k, x) => k + x.ids.length, 0);
+  if (!paid()) return backSticky('묶음', `할 일 ${n}개 → ${groups.length}묶음`, groups.map(x => x.name).join(' · '));
+  return `<div class="sticky wide"><div class="who"><span>속지 비서</span><span>묶어 볼까요</span></div>
+    <div class="tx">${groups.map(x => `<b>${esc(x.name)}</b> ${x.ids.length}  <span style="font-size:12px;opacity:.75">${x.ids.map(id => esc((rock(id) || {}).title || '')).join(', ')}</span>`).join('<br>')}</div>
+    <div class="act"><button onclick="applyGroups()">이대로 묶기</button><button onclick="D.groupSug.off=D.groupSug.sig;_save0();render()">떼기</button></div></div>`;
+}
+function applyGroups() {
+  const g = D.groupSug; if (!g) return; let k = 0;
+  g.groups.forEach(x => { if (!D.roles.includes(x.name)) D.roles.push(x.name); x.ids.forEach(id => { const r = rock(id); if (r && (!r.role || !D.roles.includes(r.role) || r.role === x.name)) { r.role = x.name; r.u = new Date().toISOString(); k++; } }); });
+  D.groupSug = null; save(); render(); toast(`${k}개를 ${g.groups.length}묶음으로`);
+}
 function stickiesHtml(list, gs) {
   gs = gs || [];
-  if (!list.length && !gs.length) return '';
+  if (!list.length && !gs.length && !groupHtml()) return '';
   const td = today();
-  let h = `<div class="stickies">` + gs.map(guideHtml).join('');
+  let h = `<div class="stickies">` + groupHtml() + gs.map(guideHtml).join('');
   list.forEach(x => {
     const when = (x.ds === td ? '' : md(x.ds) + ' ') + (x.at || '');
     const todo = x.kind !== 'note';
@@ -596,7 +628,8 @@ function itemRow(r, n) {
 }
 function renderWeek() {
   const items = openItems();
-  let h = `<div class="sp"></div>`;
+  const gh = groupHtml();
+  let h = gh ? `<div class="stickies" style="padding-top:12px">${gh}</div>` : `<div class="sp"></div>`;
   let n = 0;
   BUCKETS.forEach(([b, name]) => {
     const list = items.filter(r => (r.bucket||'nice') === b);
@@ -622,8 +655,7 @@ function addRock(b) {
   b = b || addBucket;
   const title = (document.getElementById('rockTitle').value||'').trim();
   if (!title) { toast('제목이 비어 있어요'); return; }
-  if (!addRole) { toast('역할을 고르세요'); return; }
-  const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: addRole, title, done: false, carry: 0, checks: {} };
+  const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: addRole || '', title, done: false, carry: 0, checks: {} };
   if (addRoutine) r.routine = Number((document.getElementById('rockN')||{}).value||3);
   else { const due = (document.getElementById('rockDue')||{}).value || ''; if (b==='important' && !due) { toast('B는 끝 조건이 필요해요'); return; } if (due) r.due = due; }
   r.vol = (curVol()||{}).id; D.rocks.push(r); addOpen = false; addPrefill = ''; save(); renderWeek(); renderCover(); toast('적었어요');
