@@ -3,13 +3,18 @@
   "private": true,
   "version": "0.1.0",
   "description": "DUAL Planner — Capacitor 껍데기 (iOS/TestFlight). 웹은 레포 루트 파일을 그대로 www/로 복사해 쓴다.",
-  "scripts": { "sync": "cap sync ios" },
-  "devDependencies": { "@capacitor/cli": "^8.6.0" },
+  "scripts": {
+    "sync": "cap sync ios"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.0"
+  },
   "dependencies": {
     "@capacitor/core": "^8.6.0",
     "@capacitor/ios": "^8.6.0",
     "@capacitor/app": "^8.0.0",
     "@capacitor/status-bar": "^8.0.0",
-    "@capacitor/keyboard": "^8.0.0"
+    "@capacitor/keyboard": "^8.0.0",
+    "@capacitor/local-notifications": "^8.0.0"
   }
 }

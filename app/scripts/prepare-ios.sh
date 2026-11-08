@@ -8,10 +8,16 @@ test -f www/index.html
 if [ ! -d ios ]; then npx cap add ios --packagemanager CocoaPods; fi
 npx cap sync ios
 
-# 최소 iOS 15.0
-sed -i '' -E 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' ios/App/App.xcodeproj/project.pbxproj
-sed -i '' -E "s/^platform :ios, '[0-9.]+'/platform :ios, '15.0'/" ios/App/Podfile
+# 최소 iOS 17.0(위젯 체크·앱 인텐트)
+sed -i '' -E 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;/IPHONEOS_DEPLOYMENT_TARGET = 17.0;/g' ios/App/App.xcodeproj/project.pbxproj
+sed -i '' -E "s/^platform :ios, '[0-9.]+'/platform :ios, '17.0'/" ios/App/Podfile
 (cd ios/App && pod install)
+
+# 앱 전용 Swift 파일 + 위젯·공유 확장 타깃
+ruby scripts/add-native.rb
+# 시작 화면을 DualViewController 로(앱 전용 플러그인 등록)
+sed -i '' -E 's/customClass="CAPBridgeViewController" customModule="Capacitor"/customClass="DualViewController" customModule="App" customModuleProvider="target"/' ios/App/App/Base.lproj/Main.storyboard
+grep -q 'DualViewController' ios/App/App/Base.lproj/Main.storyboard || { echo 'Main.storyboard 교체 실패'; exit 1; }
 
 PLIST=ios/App/App/Info.plist
 PB="/usr/libexec/PlistBuddy -c"
@@ -21,6 +27,8 @@ set_plist ITSAppUsesNonExemptEncryption bool false
 set_plist UIRequiresFullScreen bool false
 set_plist UIStatusBarStyle string UIStatusBarStyleLightContent
 set_plist UIViewControllerBasedStatusBarAppearance bool true
+set_plist NSCalendarsFullAccessUsageDescription string "오늘 일정을 플래너 맨 위 일정 칸에 보여 줘요"
+set_plist NSCalendarsUsageDescription string "오늘 일정을 플래너 맨 위 일정 칸에 보여 줘요"
 
 # 앱 아이콘: 레포의 1024 아이콘(네이비 천 표지 + 빨간 밴드)
 ICON_DIR=ios/App/App/Assets.xcassets/AppIcon.appiconset
