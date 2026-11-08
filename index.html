@@ -140,7 +140,8 @@ a { color: inherit; }
 .abtn { height: 44px; border-radius: 6px; background: #000; color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 16px; font-weight: 600; }
 #gbtn { min-height: 44px; display: flex; justify-content: center; }
 .login .skip { margin-top: 22px; font-size: 14px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; padding: 8px; }
-.login .fine { margin-top: 28px; font-size: 12px; color: var(--muted); text-align: center; }
+.login .fine { margin-top: 28px; font-size: 12px; color: var(--muted); text-align: center; line-height: 1.7; } .login .fine a { color: var(--ink-2); }
+.legal { display: flex; gap: 16px; justify-content: center; padding: 14px 0 2px; } .legal a { font-size: 12px; color: var(--muted); }
 .acct { display: flex; align-items: center; gap: 10px; min-height: 52px; border-bottom: 1px solid var(--rule); }
 .acct .who { flex: 1; min-width: 0; } .acct .who b { display: block; font-size: 15px; } .acct .who span { font-size: 12px; color: var(--muted); }
 .acts { display: flex; gap: 18px; padding: 10px 0 18px; } .acts button { font-size: 13px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; padding: 4px 0; } .acts .del { color: var(--check); margin-left: auto; }
@@ -298,6 +299,7 @@ body.d-night .ptabs button.on { color: #0F1626; }
     <div id="connBox" style="font-size:13px;line-height:1.8;margin:2px 0 4px"></div>
     <button class="cta" style="margin-left:0;width:100%;height:40px" onclick="copyText(mcpUrl(),'MCP 주소 복사됨')">MCP 주소 복사</button>
     <div style="height:10px"></div>
+    <div class="legal"><a href="legal/terms.html" target="_blank">이용약관</a><a href="legal/privacy.html" target="_blank">개인정보처리방침</a><a href="mailto:withsky0@gmail.com">문의</a></div>
     <button class="line sub" style="padding-left:0;width:100%;text-align:center" onclick="closeMore()">닫기</button>
   </div>
 </div>
@@ -311,7 +313,7 @@ body.d-night .ptabs button.on { color: #0F1626; }
     <div id="gbtn"></div>
   </div>
   <button class="skip" onclick="closeLogin(true)">로그인 없이 쓰기</button>
-  <div class="fine">로그인하면 폰과 다른 기기에서 같은 플래너를 써요</div>
+  <div class="fine">로그인하면 폰과 다른 기기에서 같은 플래너를 써요<br>계속하면 <a href="legal/terms.html" target="_blank">이용약관</a>과 <a href="legal/privacy.html" target="_blank">개인정보처리방침</a>에 동의하게 돼요</div>
 </div>
 <div class="toast" id="toast"></div>
 

@@ -10,3 +10,4 @@ id = "82e7f317dbe74a3eba8d26f4a5fbb3dc"
 [vars]
 GOOGLE_CLIENT_ID = "992928610624-qivktlsooc8tifhdt6g0mmvckqdji7v2.apps.googleusercontent.com"
 APPLE_SERVICES_ID = "com.hvsodream.dualplanner.web"
+ADMIN_EMAILS = "withsky0@gmail.com"

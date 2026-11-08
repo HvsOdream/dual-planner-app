@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>DUAL Planner 관리자</title>
+<link rel="icon" href="icons/icon-32.png">
+<style>
+:root { --paper:#FCFBF7; --paper-2:#F4F2EC; --ink:#1F2A44; --ink-2:#4E5A72; --muted:#7A8291; --faint:#B9C2CF; --rule:#DCDAD2; --cover:#1E2F4F; --check:#D7452E; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--paper); color:var(--ink); font-family:-apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', 'Noto Sans KR', sans-serif; font-size:14px; -webkit-font-smoothing:antialiased; }
+header { background:var(--cover); color:var(--paper); padding:14px 20px; display:flex; align-items:center; gap:12px; }
+header b { font-size:16px; font-weight:800; }
+header span { font-size:12px; opacity:.7; }
+header .sp { flex:1; }
+header button { color:var(--paper); border:1px solid rgba(252,251,247,.4); background:none; border-radius:6px; padding:6px 10px; font:inherit; font-size:12px; cursor:pointer; }
+main { max-width:1100px; margin:0 auto; padding:20px; }
+.gate { min-height:70vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; color:var(--ink-2); }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; }
+.kpi { border:1px solid var(--rule); border-radius:8px; padding:12px 14px; background:#fff; }
+.kpi b { display:block; font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; }
+.kpi span { font-size:12px; color:var(--muted); }
+h2 { font-size:13px; font-weight:800; color:var(--ink-2); margin:26px 0 8px; }
+.bars { display:flex; align-items:flex-end; gap:3px; height:90px; border-bottom:1px solid var(--rule); padding:0 2px; }
+.bars i { flex:1; background:var(--cover); border-radius:2px 2px 0 0; min-height:1px; position:relative; }
+.bars i.z { background:var(--rule); }
+.bars i.td { background:var(--check); }
+.axis { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:4px; }
+.wrap { overflow-x:auto; border:1px solid var(--rule); border-radius:8px; background:#fff; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th, td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--paper-2); white-space:nowrap; }
+th { font-size:12px; color:var(--muted); font-weight:600; background:var(--paper-2); }
+td.n { font-variant-numeric:tabular-nums; text-align:right; }
+.tag { font-size:11px; border:1px solid var(--faint); border-radius:4px; padding:1px 6px; color:var(--ink-2); }
+.on { color:var(--check); font-weight:700; }
+.muted { color:var(--muted); }
+.err { color:var(--check); }
+</style>
+</head>
+<body>
+<header><b>DUAL Planner 관리자</b><span id="who"></span><span class="sp"></span><button id="reload" style="display:none" onclick="load()">새로고침</button></header>
+<main id="main">
+  <div class="gate"><div id="gbtn"></div><div id="msg" class="muted">관리자 구글 계정으로 로그인하세요</div></div>
+</main>
+<script>
+'use strict';
+const API = 'https://dual-planner-api.withsky0.workers.dev';
+let cred = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const day = iso => iso ? iso.slice(0, 10) : '';
+function ago(iso) { if (!iso) return '-'; const m = Math.round((Date.now() - new Date(iso)) / 60000); return m < 1 ? '방금' : m < 60 ? m + '분 전' : m < 1440 ? Math.round(m / 60) + '시간 전' : Math.round(m / 1440) + '일 전'; }
+async function start() {
+  const cfg = await (await fetch(API + '/auth/config')).json().catch(() => ({}));
+  if (!cfg.google) { $('msg').textContent = '구글 로그인이 설정되지 않았어요'; return; }
+  const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = () => {
+    google.accounts.id.initialize({ client_id: cfg.google, callback: r => { cred = r.credential; load(); } });
+    google.accounts.id.renderButton($('gbtn'), { theme: 'outline', size: 'large', text: 'signin_with', locale: 'ko' });
+  }; document.head.appendChild(s);
+}
+async function load() {
+  const r = await fetch(API + '/admin/stats', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ credential: cred }) });
+  if (r.status === 403) { $('msg').innerHTML = '<span class="err">관리자 계정이 아니에요</span>'; return; }
+  if (r.status === 401) { $('msg').innerHTML = '<span class="err">로그인이 만료됐어요. 다시 로그인하세요</span>'; $('main').innerHTML = '<div class="gate"><div id="gbtn"></div><div id="msg"></div></div>'; start(); return; }
+  if (!r.ok) { $('msg').innerHTML = '<span class="err">불러오지 못했어요</span>'; return; }
+  render(await r.json());
+}
+function render(d) {
+  $('who').textContent = d.admin; $('reload').style.display = '';
+  const A = d.accounts, now = Date.now(), wk = now - 7 * 86400000;
+  const newWeek = A.filter(a => new Date(a.created) > wk).length;
+  const active7 = A.filter(a => a.lastActive && new Date(a.lastActive) > wk).length;
+  const agents = A.filter(a => a.agent && a.agent.at).length;
+  const apple = A.filter(a => a.provider === 'apple').length;
+  // 최근 30일 가입
+  const days = [...Array(30)].map((_, i) => { const t = new Date(now - (29 - i) * 86400000); return t.toISOString().slice(0, 10); });
+  const cnt = Object.fromEntries(days.map(x => [x, 0])); A.forEach(a => { const k = day(a.created); if (k in cnt) cnt[k]++; });
+  const max = Math.max(1, ...Object.values(cnt));
+  let h = `<div class="kpis">
+    <div class="kpi"><b>${A.length}</b><span>계정 · Apple ${apple} / Google ${A.length - apple}</span></div>
+    <div class="kpi"><b>${newWeek}</b><span>이번 7일 가입</span></div>
+    <div class="kpi"><b>${active7}</b><span>7일 안에 쓴 계정</span></div>
+    <div class="kpi"><b>${agents}</b><span>비서 연결한 계정</span></div>
+    <div class="kpi"><b>${d.anonymous}</b><span>로그인 없이 쓰는 플래너</span></div>
+  </div>
+  <h2>최근 30일 가입</h2>
+  <div class="bars">${days.map((k, i) => `<i class="${cnt[k] ? '' : 'z'} ${i === 29 ? 'td' : ''}" style="height:${cnt[k] ? Math.max(6, cnt[k] / max * 100) : 2}%" title="${k} · ${cnt[k]}명"></i>`).join('')}</div>
+  <div class="axis"><span>${days[0].slice(5)}</span><span>오늘</span></div>
+  <h2>계정 ${A.length}</h2>
+  <div class="wrap"><table>
+    <tr><th>가입</th><th>이름</th><th>이메일</th><th>로그인</th><th>마지막 활동</th><th>할 일</th><th>끝낸 것</th><th>기록한 날</th><th>속지</th><th>비서</th></tr>
+    ${A.map(a => `<tr><td>${day(a.created)}</td><td>${esc(a.name) || '<span class="muted">-</span>'}</td><td>${esc(a.email) || '<span class="muted">가려짐</span>'}</td>
+      <td><span class="tag">${a.provider === 'apple' ? 'Apple' : 'Google'}</span></td><td>${ago(a.lastActive)}</td>
+      <td class="n">${a.items}</td><td class="n">${a.done}</td><td class="n">${a.days}</td><td class="n">${a.vols}</td>
+      <td>${a.agent && a.agent.at ? `<span class="on">${esc(a.agent.name)}</span> <span class="muted">${ago(a.agent.at)}</span>` : '<span class="muted">-</span>'}</td></tr>`).join('') || '<tr><td colspan="10" class="muted">아직 가입한 계정이 없어요</td></tr>'}
+  </table></div>
+  <p class="muted" style="font-size:12px;margin-top:10px">플래너 내용은 여기서 보이지 않아요. 숫자만 집계해요. · ${new Date(d.now).toLocaleString('ko-KR')}</p>`;
+  $('main').innerHTML = h;
+}
+start();
+</script>
+</body>
+</html>

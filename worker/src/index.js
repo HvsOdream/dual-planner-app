@@ -185,12 +185,34 @@ async function auth(req, env, path) {
   return json({ token: acct.token, account: { provider: acct.provider, email: acct.email, name: acct.name } });
 }
 
+// ── 관리자: 구글 로그인 + ADMIN_EMAILS 확인 후 숫자만 돌려준다(플래너 내용은 보내지 않음) ──
+async function kvKeys(env, prefix, cap) { const out = []; let cursor; do { const r = await env.PLANNER.list({ prefix, cursor, limit: 1000 }); out.push(...r.keys.map(k => k.name)); cursor = r.list_complete ? null : r.cursor; } while (cursor && out.length < cap); return out.slice(0, cap); }
+async function adminStats(req, env) {
+  if (req.method !== 'POST') return json({ error: 'method' }, 405);
+  const conf = PROVIDERS.google(env); if (!conf) return json({ error: 'google not configured' }, 503);
+  let body; try { body = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  let claims; try { claims = await verifyJwt(body.credential, conf.jwks, conf.iss, conf.aud); } catch (e) { return json({ error: 'login failed' }, 401); }
+  const admins = String(env.ADMIN_EMAILS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+  if (!claims.email || !claims.email_verified || !admins.includes(String(claims.email).toLowerCase())) return json({ error: 'not admin' }, 403);
+  const acctKeys = await kvKeys(env, 'a:', 2000), userKeys = await kvKeys(env, 'u:', 5000);
+  const bound = new Set(), accounts = [];
+  for (const k of acctKeys) {
+    const a = JSON.parse(await env.PLANNER.get(k) || 'null'); if (!a) continue; bound.add(a.token);
+    const S = JSON.parse(await env.PLANNER.get('u:' + a.token) || 'null') || {};
+    const rocks = (S.rocks || []).filter(r => r && !r._deleted);
+    accounts.push({ provider: a.provider, email: a.email || '', name: a.name || '', created: a.created || '', lastActive: S._modified || '', items: rocks.length, done: rocks.filter(r => r.done).length, days: Object.keys(S.days || {}).length, agent: S.agent ? { name: S.agent.name || '', at: S.agent.at || '' } : null, vols: (S.vols || []).filter(v => v && !v._deleted).length });
+  }
+  accounts.sort((x, y) => (y.created || '').localeCompare(x.created || ''));
+  return json({ now: new Date().toISOString(), accounts, planners: userKeys.length, anonymous: userKeys.filter(k => !bound.has(k.slice(2))).length, admin: claims.email });
+}
+
 export default {
   async fetch(req, env) {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const url = new URL(req.url);
     const am = url.pathname.match(/^\/auth\/(config|google|apple|account)\/?$/);
     if (am) return auth(req, env, am[1]);
+    if (url.pathname.replace(/\/$/, '') === '/admin/stats') return adminStats(req, env);
     const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp)\/?$/);
     if (!m) return json({ ok: true, name: 'dual-planner-api', usage: '/u/:token/state | /u/:token/items | /u/:token/mcp | /auth/config | /auth/google | /auth/apple | /auth/account' });
     const token = m[1], kind = m[2], key = 'u:' + token;
