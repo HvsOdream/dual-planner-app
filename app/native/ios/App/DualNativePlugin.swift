@@ -46,18 +46,20 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
         let hm = DateFormatter(); hm.dateFormat = "HH:mm"; hm.timeZone = .current
         var out: [[String: Any]] = []
         let cal = Calendar.current
-        for e in store.events(matching: pred).sorted(by: { $0.startDate < $1.startDate }) {
+        for e in store.events(matching: pred).sorted(by: { ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast) }) {
             if e.status == .canceled { continue }
+            guard let st: Date = e.startDate else { continue }
+            let en: Date = e.endDate ?? st
             let title = (e.title ?? "").isEmpty ? "(제목 없음)" : e.title!
             if e.isAllDay {
-                var d = cal.startOfDay(for: e.startDate)
-                let end = e.endDate ?? e.startDate
+                var d = cal.startOfDay(for: st)
+                let end = en
                 while d < end && d < to {
                     if d >= from { out.append(["date": df.string(from: d), "start": "", "end": "", "title": title, "allDay": true]) }
                     d = cal.date(byAdding: .day, value: 1, to: d)!
                 }
             } else {
-                out.append(["date": df.string(from: e.startDate), "start": hm.string(from: e.startDate), "end": hm.string(from: e.endDate), "title": title, "allDay": false])
+                out.append(["date": df.string(from: st), "start": hm.string(from: st), "end": hm.string(from: en), "title": title, "allDay": false])
             }
             if out.count >= 400 { break }
         }
