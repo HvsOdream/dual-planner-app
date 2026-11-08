@@ -120,6 +120,20 @@ a { color: inherit; }
   font-size: 14px; line-height: 1.5; box-shadow: 0 1px 1px rgba(60,50,0,.10), 3px 8px 12px -6px rgba(60,50,0,.45); transform: rotate(-1.2deg); }
 .sticky:nth-child(even) { transform: rotate(1.1deg); background: #FFF6A8; }
 .sticky:nth-child(3n) { transform: rotate(-.4deg); }
+/* 처음부터 붙어 있는 안내 포스트잇(하늘색): 해내면 체크되고 떨어진다 */
+.sticky.guide, .sticky.guide:nth-child(even) { background: #DCEBFF; color: #1F2A44; }
+.sticky.guide:nth-child(even) { background: #E4EFFF; }
+.sticky.guide::before { background: rgba(30,47,79,.06); }
+.sticky.guide::after { background: linear-gradient(135deg, rgba(0,0,0,0) 50%, rgba(30,47,79,.14) 50%, rgba(255,255,255,.55) 100%); }
+.sticky.guide .who, .sticky.guide .hint { color: #5A6E8C; }
+.sticky.guide .tx { font-weight: 600; }
+.sticky .hint { font-size: 12px; margin-top: 2px; }
+.sticky.guide .act button { color: #1F2A44; }
+.sticky .ok { position: absolute; right: 10px; top: 20px; display: none; }
+.sticky.fin .ok { display: block; animation: stamp .18s ease-out; }
+.sticky.fin .tx { text-decoration: line-through; text-decoration-color: var(--check); }
+.sticky.fin { animation: peel 2.4s ease-in forwards; }
+@keyframes peel { 0%, 55% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px) rotate(-5deg); } }
 .sticky::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 18px; background: rgba(120,100,0,.07); }
 .sticky::after { content: ''; position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; background: linear-gradient(135deg, rgba(0,0,0,0) 50%, rgba(120,100,0,.16) 50%, rgba(255,255,255,.5) 100%); }
 .sticky .who { position: absolute; top: 2px; left: 12px; right: 12px; font-family: var(--mono); font-size: 10px; letter-spacing: .5px; color: var(--postit-muted); height: 16px; line-height: 16px; display: flex; justify-content: space-between; }
@@ -451,20 +465,20 @@ function renderToday() {
   const soon = dstr(new Date(Date.now()+3*86400000));
   const sugg = openItems().filter(r => !(day.picks||[]).includes(r.id) && (r.bucket==='urgent' || (r.bucket==='important' && r.due && r.due <= soon) || (r.routine && checkedCount(r) < r.routine)));
   const cv = curVol(); const full = cv && today() > volLast(cv);
-  let h = `${connBanner()}${full ? `<button class="banner" onclick="go('close')"><span>${volName(cv)} 속지가 다 찼어요. 1년을 돌아보고 새 속지를 끼울 시간이에요</span><b>속지 닫기 ›</b></button>` : ''}<div class="sp"></div>
+  let h = `${full ? `<button class="banner" onclick="go('close')"><span>${volName(cv)} 속지가 다 찼어요. 1년을 돌아보고 새 속지를 끼울 시간이에요</span><b>속지 닫기 ›</b></button>` : ''}<div class="sp"></div>
   <div class="lbl">의도</div>
   <input class="wr" style="font-size:18px;font-weight:600" placeholder="" value="${esc(day.intent)}" onchange="dayOf('${ds}').intent=this.value;save()">
   <div class="sp"></div>
   <div class="lbl"><span>오늘 할 것 <span style="font-weight:400;color:var(--muted)">${picks.length ? doneN+'/'+picks.length : ''}</span></span></div>`;
-  if (!picks.length && !introSeen()) h += ghostHtml();
   picks.forEach(r => { h += itemHtml(r, ds, { meta: `<button onclick="unpick('${r.id}')">빼기</button>`, big: true }); });
   h += `<div class="item"><div class="mg"><span class="chk" style="border-style:dashed"></span></div><div class="bd"><input class="wr" id="quickIn" style="padding-left:12px;font-size:17px" placeholder="" aria-label="오늘 할 것" onkeydown="if(event.key==='Enter')addToday()"></div></div>`;
   if (sugg.length) {
     h += `<div class="sp"></div><div class="lbl"><span>가져올 것</span><button onclick="go('week')">할 일 ›</button></div>`;
     sugg.slice(0,5).forEach(r => { h += `<div class="row ruled" style="padding-left:52px;gap:8px;font-size:14px;color:var(--ink-2)"><span class="tag" style="font-size:10px;height:18px;line-height:16px">${r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</span><button style="font-size:12px;color:var(--muted);text-decoration:underline" onclick="pick('${r.id}')">오늘로</button></div>`; });
   }
-  h += `${inbox.length ? '<div class="sp"></div>' : ''}
-  ${stickiesHtml(inbox)}
+  const gs = guidesNow();
+  h += `${inbox.length || gs.length ? '<div class="sp"></div>' : ''}
+  ${stickiesHtml(inbox, gs)}
   <div class="sp"></div>
   <div class="lbl">한 줄 일기</div>
   <input class="wr" placeholder="" value="${esc(day.note)}" onchange="dayOf('${ds}').note=this.value;save()">
@@ -476,10 +490,39 @@ function unpick(id) { const day = dayOf(today()); day.picks = day.picks.filter(x
 function pick(id) { const day = dayOf(today()); if (day.picks.includes(id)) { toast('이미 오늘에 있어요'); return; } day.picks.push(id); save(); toast('오늘로 옮겨 적었어요'); go('today'); }
 function stuckNotes() { const out = []; Object.keys(D.days).sort().reverse().forEach(ds => (D.days[ds].inbox||[]).forEach(x => { if (!x.moved) out.push(Object.assign({ ds }, x)); })); return out; }
 function findNote(id) { for (const ds in D.days) { const x = (D.days[ds].inbox||[]).find(i => i.id === id); if (x) return x; } return null; }
-function stickiesHtml(list) {
-  if (!list.length) return '';
+// 처음부터 붙어 있는 안내: 한 번에 두 장, 해내면 체크되고 떨어진다
+const GUIDES = [
+  { id: 'write', text: '오늘 할 것 하나 적기', hint: '위의 빈 줄에', done: () => Object.values(D.days).some(d => d && (d.picks||[]).length) },
+  { id: 'check', text: '끝낸 건 왼쪽 칸에 체크', done: () => D.rocks.some(r => r && r.checks && Object.keys(r.checks).length) },
+  { id: 'note', text: '저녁엔 한 줄 일기', hint: '맨 아래 줄에', done: () => Object.values(D.days).some(d => d && d.note) },
+  { id: 'agent', text: '쓰는 AI 비서 데려오기', hint: 'Claude, ChatGPT…', act: ['연결', 'openMore()'], done: () => agentOn() },
+];
+function guidesNow() {
+  D.guide = D.guide || { done: {}, off: {} };
+  const now = Date.now(), out = []; let changed = false;
+  for (const g of GUIDES) {
+    if (D.guide.off[g.id]) continue;
+    const ok = g.done();
+    if (ok && !D.guide.done[g.id]) { D.guide.done[g.id] = now; changed = true; }
+    if (ok && now - D.guide.done[g.id] > 2400) continue;
+    out.push({ g, fin: ok });
+  }
+  if (changed) { _save0(); clearTimeout(guidesNow._t); guidesNow._t = setTimeout(() => { if (tab === 'today' || spread()) renderToday(); }, 2500); }
+  const fin = out.filter(x => x.fin), open = out.filter(x => !x.fin).slice(0, 2);
+  return fin.concat(open);
+}
+function dropGuide(id) { D.guide = D.guide || { done: {}, off: {} }; D.guide.off[id] = true; _save0(); render(); }
+function guideHtml(x) {
+  const g = x.g;
+  return `<div class="sticky guide ${x.fin ? 'fin' : ''}"><div class="who"><span>DUAL</span><span></span></div><span class="ok">${CHECK}</span>
+    <div class="tx">${esc(g.text)}</div>${g.hint ? `<div class="hint">${esc(g.hint)}</div>` : ''}
+    <div class="act">${g.act && !x.fin ? `<button onclick="${g.act[1]}">${g.act[0]}</button>` : ''}${x.fin ? '' : `<button onclick="dropGuide('${g.id}')">떼기</button>`}</div></div>`;
+}
+function stickiesHtml(list, gs) {
+  gs = gs || [];
+  if (!list.length && !gs.length) return '';
   const td = today();
-  let h = `<div class="stickies">`;
+  let h = `<div class="stickies">` + gs.map(guideHtml).join('');
   list.forEach(x => {
     const when = (x.ds === td ? '' : md(x.ds) + ' ') + (x.at || '');
     const todo = x.kind !== 'note';
@@ -507,7 +550,7 @@ function itemRow(r, n) {
 }
 function renderWeek() {
   const items = openItems();
-  let h = `${spread()?'':connBanner()}<div class="sp"></div>`;
+  let h = `<div class="sp"></div>`;
   let n = 0;
   BUCKETS.forEach(([b, name]) => {
     const list = items.filter(r => (r.bucket||'nice') === b);
@@ -575,7 +618,7 @@ function renderReview() {
   const nd = new Date(wk); nd.setDate(nd.getDate()+7); const nwk = weekKey(nd);
   const stale = staleItems();
   const v = curVol();
-  let h = (spread()?'':connBanner()) + `<div class="sp"></div><button class="row ruled" style="padding-left:52px;width:100%;gap:10px;text-align:left" onclick="go('shelf')"><span class="vcover ${v.design}" style="width:18px;height:24px;border-width:1.5px"></span><span style="flex:1;font-size:14px"><b>${volName(v)} 속지</b> <span style="color:var(--muted);font-size:12px">· 남은 ${weeksLeft(v)}주</span></span><span style="font-size:12px;color:var(--muted);text-decoration:underline">책장 ›</span></button>` + calendarHtml() + `<div class="sp"></div><div class="lbl" style="color:var(--cover);font-weight:700">이번 주 리뷰 · W${weekNo(new Date(wk))}</div>`;
+  let h = `<div class="sp"></div><button class="row ruled" style="padding-left:52px;width:100%;gap:10px;text-align:left" onclick="go('shelf')"><span class="vcover ${v.design}" style="width:18px;height:24px;border-width:1.5px"></span><span style="flex:1;font-size:14px"><b>${volName(v)} 속지</b> <span style="color:var(--muted);font-size:12px">· 남은 ${weeksLeft(v)}주</span></span><span style="font-size:12px;color:var(--muted);text-decoration:underline">책장 ›</span></button>` + calendarHtml() + `<div class="sp"></div><div class="lbl" style="color:var(--cover);font-weight:700">이번 주 리뷰 · W${weekNo(new Date(wk))}</div>`;
   h += reviewSection(wk, nwk, rv, stale);
   document.getElementById('review').innerHTML = h;
 }
@@ -722,11 +765,6 @@ async function pullState(manual) { if (!baseUrl()) { if (manual) toast('서버 �
 function agentAgo() { const a = D.agent; if (!a || !a.at) return ''; const m = Math.round((Date.now() - new Date(a.at)) / 60000); return m < 1 ? '방금' : m < 60 ? m + '분 전' : m < 1440 ? Math.round(m/60) + '시간 전' : Math.round(m/1440) + '일 전'; }
 function agentOn() { return !!(baseUrl() && D.agent && D.agent.at); }
 function agentLabel(n) { n = String(n||'agent'); return /claude/i.test(n) ? 'Claude' : /chatgpt|openai/i.test(n) ? 'ChatGPT' : /gemini/i.test(n) ? 'Gemini' : n; }
-function connBanner() {
-  if (agentOn()) return '';
-  const msg = '비서 연결 안 됨';
-  return `<button class="banner" onclick="openMore()"><span>${msg}</span><b>연결</b></button>`;
-}
 function setConn(t) { const el = document.getElementById('connBox'); if (!el) return;
   const srv = baseUrl() ? '● 서버 연결됨' : '○ 서버 미연결';
   const ag = agentOn() ? `● ${agentLabel(D.agent.name)} · ${agentAgo()}` : '○ 비서 미연결';
@@ -741,7 +779,6 @@ const INTRO_KEY = 'dpa_intro';
 let introStep = 0, introTimer = null;
 function introSeen() { try { return !!localStorage.getItem(INTRO_KEY); } catch(e) { return true; } }
 function markStarted() { try { localStorage.setItem(INTRO_KEY, '1'); } catch(e) {} }
-function ghostHtml() { return [['강의 자료 마무리','교수자'],['논문 초록 다듬기','연구자 · 11/14까지만']].map(([t,m]) => `<div class="item ghost" aria-hidden="true"><div class="mg"><span class="chk"></span></div><div class="bd"><div class="t" style="font-size:18px;font-weight:600"><span class="tx">${t}</span></div><div class="m"><span>${m}</span></div></div></div>`).join(''); }
 function introWide() { document.getElementById('intro').classList.toggle('wide', spread()); }
 function volLabel() { const v = curVol(); return v ? `${volName(v)} 속지 · ${v.start.replace('-','.')} ~ ${volEnd(v).replace('-','.')}` : ''; }
 function introTap() { clearTimeout(introTimer); introClose(); }
