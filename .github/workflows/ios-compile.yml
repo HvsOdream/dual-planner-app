@@ -1,0 +1,41 @@
+# DUAL Planner — 서명 없이 iOS 시뮬레이터용으로 빌드만 해 본다(시크릿 필요 없음).
+# 앱 네이티브 코드(app/**)나 웹이 바뀌면 자동으로 돌아서, TestFlight에 올리기 전에 컴파일 오류를 잡는다.
+name: iOS compile check
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', 'index.html', '.github/workflows/ios-compile.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: ios-compile
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    runs-on: xcode-27
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy web files
+        run: bash app/scripts/copy-web.sh
+      - name: Install Capacitor
+        working-directory: app
+        run: npm install --no-audit --no-fund
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_27*.app | sort -V | tail -1)"
+          xcodebuild -version
+      - name: Prepare iOS project
+        working-directory: app
+        run: bash scripts/prepare-ios.sh
+      - name: Build (simulator, no signing)
+        working-directory: app/ios/App
+        run: |
+          set -o pipefail
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build 2>&1 | tee /tmp/build.log | grep -E "error:|warning: .*Swift|BUILD (SUCCEEDED|FAILED)|Compiling|Ld " | tail -80
+      - name: Errors only
+        if: failure()
+        run: grep -E "error:" -A3 /tmp/build.log | head -120 || true
