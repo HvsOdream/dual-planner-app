@@ -67,6 +67,7 @@ def add_extension(proj, app, name, bundle, files, shared_ref)
   t
 end
 
+abort 'SharedStore.swift 없음' unless shared_ref
 copy_into(File.join(SRC, 'DualWidget'), File.join(IOS, 'DualWidget'))
 copy_into(File.join(SRC, 'DualShare'), File.join(IOS, 'DualShare'))
 add_extension(proj, app, 'DualWidget', "#{APP_ID}.widget", ['DualWidget.swift'], shared_ref)
