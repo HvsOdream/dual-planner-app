@@ -3,6 +3,8 @@ import Foundation
 import Capacitor
 import EventKit
 import WidgetKit
+import AuthenticationServices
+import UIKit
 
 @objc(DualNativePlugin)
 public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
@@ -13,8 +15,24 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "calendarEvents", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "widgetSave", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "takePending", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "appleSignIn", returnType: CAPPluginReturnPromise),
     ]
     private let store = EKEventStore()
+    private var appleDelegate: AppleSignInDelegate?
+
+    // 기기 Apple 로그인: identity token(JWT)을 돌려주면 서버가 검증한다(aud = 앱 번들 ID)
+    @objc func appleSignIn(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            let req = ASAuthorizationAppleIDProvider().createRequest()
+            req.requestedScopes = [.fullName, .email]
+            let d = AppleSignInDelegate(call: call, window: self.bridge?.webView?.window) { [weak self] in self?.appleDelegate = nil }
+            self.appleDelegate = d
+            let c = ASAuthorizationController(authorizationRequests: [req])
+            c.delegate = d
+            c.presentationContextProvider = d
+            c.performRequests()
+        }
+    }
 
     private func status() -> String {
         switch EKEventStore.authorizationStatus(for: .event) {
@@ -82,5 +100,31 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func takePending(_ call: CAPPluginCall) {
         let p = SharedStore.takePending()
         call.resolve(["checks": p.checks, "shared": p.shared.map { ["text": $0.text, "at": $0.at, "src": $0.src] }])
+    }
+}
+
+final class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    let call: CAPPluginCall
+    let window: UIWindow?
+    let done: () -> Void
+    init(call: CAPPluginCall, window: UIWindow?, done: @escaping () -> Void) { self.call = call; self.window = window; self.done = done }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        if let w = window { return w }
+        return UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first ?? ASPresentationAnchor()
+    }
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        guard let cred = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let data = cred.identityToken, let token = String(data: data, encoding: .utf8) else {
+            call.reject("no token"); done(); return
+        }
+        let name = [cred.fullName?.familyName, cred.fullName?.givenName].compactMap { $0 }.joined()
+        call.resolve(["idToken": token, "name": name, "email": cred.email ?? ""])
+        done()
+    }
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        let canceled = (error as? ASAuthorizationError)?.code == .canceled
+        call.reject(canceled ? "canceled" : error.localizedDescription)
+        done()
     }
 }

@@ -1018,7 +1018,7 @@ const DEFAULT_API = 'https://dual-planner-api.withsky0.workers.dev';
 if (!D.api) { D.api = DEFAULT_API; save(); }
 let authConf = null;
 function isNative() { return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
-async function loadAuthConf() { if (authConf) return authConf; if (isNative()) { authConf = {}; return authConf; } // 앱 안 로그인은 기기 로그인으로 다음 빌드에서
+async function loadAuthConf() { if (authConf) return authConf; if (isNative()) { authConf = { apple: 'native' }; return authConf; } // 앱 안에서는 기기 Apple 로그인
   try { authConf = await (await fetch(baseUrl() + '/auth/config')).json(); } catch(e) { authConf = {}; } return authConf; }
 function hasProviders() { return !!(authConf && (authConf.google || authConf.apple)); }
 function loadScript(src) { return new Promise((res, rej) => { if (document.querySelector(`script[src="${src}"]`)) return res(); const el = document.createElement('script'); el.src = src; el.async = true; el.onload = res; el.onerror = rej; document.head.appendChild(el); }); }
@@ -1036,12 +1036,16 @@ async function openLogin() {
 function closeLogin(skip) { document.getElementById('login').classList.remove('on'); if (skip) { D.skipLogin = true; save(); } }
 async function appleLogin() {
   try {
+    if (isNative()) {
+      const r = await Capacitor.Plugins.DualNative.appleSignIn();
+      return await authWith('apple', { id_token: r.idToken, name: r.name || '' });
+    }
     await loadScript('https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/ko_KR/appleid.auth.js');
     AppleID.auth.init({ clientId: authConf.apple, scope: 'name email', redirectURI: location.origin + location.pathname, usePopup: true });
     const r = await AppleID.auth.signIn();
     const nm = r.user && r.user.name ? [r.user.name.lastName, r.user.name.firstName].filter(Boolean).join('') : '';
     await authWith('apple', { id_token: r.authorization.id_token, name: nm });
-  } catch(e) { if (!(e && /popup_closed|user_cancelled/.test(e.error || ''))) toast('Apple 로그인 실패'); }
+  } catch(e) { if (!(e && /popup_closed|user_cancelled|canceled/.test(e.error || e.message || ''))) toast('Apple 로그인 실패'); }
 }
 async function authWith(p, body) {
   try {

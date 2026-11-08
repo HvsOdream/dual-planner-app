@@ -18,19 +18,25 @@ platform :ios do
 
     # App ID(com.hvsodream.dualplanner)는 2026-11-08 개발자 포털에서, 앱 레코드는 App Store Connect 웹에서 직접 만들었다
 
-    # 배포용 인증서·프로파일: ios-certs 레포에 암호화 보관, 없으면 API 키로 만든다
-    match(type: "appstore", app_identifier: app_id, api_key: api_key, readonly: false)
+    # 배포용 인증서·프로파일: 앱 + 위젯 + 공유 확장 세 개. ios-certs 레포에 암호화 보관, 없으면 API 키로 만든다
+    targets = { "App" => app_id, "DualWidget" => "#{app_id}.widget", "DualShare" => "#{app_id}.share" }
+    match(type: "appstore", app_identifier: targets.values, api_key: api_key, readonly: false,
+          force: ENV["MATCH_FORCE"] == "1")
 
-    profile = ENV["sigh_#{app_id}_appstore_profile-name"]
-    update_code_signing_settings(
-      path: "ios/App/App.xcodeproj",
-      use_automatic_signing: false,
-      team_id: ENV.fetch("APPLE_TEAM_ID"),
-      targets: ["App"],
-      code_sign_identity: "Apple Distribution",
-      profile_name: profile,
-      bundle_identifier: app_id,
-    )
+    profiles = {}
+    targets.each do |target, bid|
+      profile = ENV["sigh_#{bid}_appstore_profile-name"]
+      profiles[bid] = profile
+      update_code_signing_settings(
+        path: "ios/App/App.xcodeproj",
+        use_automatic_signing: false,
+        team_id: ENV.fetch("APPLE_TEAM_ID"),
+        targets: [target],
+        code_sign_identity: "Apple Distribution",
+        profile_name: profile,
+        bundle_identifier: bid,
+      )
+    end
     increment_build_number(build_number: ENV.fetch("BUILD_NUMBER", Time.now.strftime("%Y%m%d%H%M")), xcodeproj: "ios/App/App.xcodeproj")
     increment_version_number(version_number: ENV.fetch("APP_VERSION", "0.1.0"), xcodeproj: "ios/App/App.xcodeproj") rescue nil
 
@@ -41,7 +47,7 @@ platform :ios do
       export_method: "app-store",
       output_directory: "build",
       output_name: "DualPlanner.ipa",
-      export_options: { provisioningProfiles: { app_id => profile } },
+      export_options: { provisioningProfiles: profiles },
     )
     upload_to_testflight(
       api_key: api_key,

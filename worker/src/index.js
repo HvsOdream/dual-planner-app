@@ -151,14 +151,14 @@ async function verifyJwt(jwt, jwksUrl, issuers, aud) {
   const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64bytes(sig), new TextEncoder().encode(h + '.' + p));
   if (!ok) throw new Error('bad signature');
   if (!issuers.includes(payload.iss)) throw new Error('bad issuer');
-  const auds = Array.isArray(payload.aud) ? payload.aud : [payload.aud]; if (!auds.includes(aud)) throw new Error('bad audience');
+  const auds = Array.isArray(payload.aud) ? payload.aud : [payload.aud]; const want = Array.isArray(aud) ? aud : [aud]; if (!auds.some(a => want.includes(a))) throw new Error('bad audience');
   if (!payload.exp || payload.exp * 1000 < Date.now() - 60000) throw new Error('expired');
   if (!payload.sub) throw new Error('no subject');
   return payload;
 }
 const PROVIDERS = {
   google: env => env.GOOGLE_CLIENT_ID && { jwks: 'https://www.googleapis.com/oauth2/v3/certs', iss: ['accounts.google.com', 'https://accounts.google.com'], aud: env.GOOGLE_CLIENT_ID },
-  apple: env => env.APPLE_SERVICES_ID && { jwks: 'https://appleid.apple.com/auth/keys', iss: ['https://appleid.apple.com'], aud: env.APPLE_SERVICES_ID },
+  apple: env => env.APPLE_SERVICES_ID && { jwks: 'https://appleid.apple.com/auth/keys', iss: ['https://appleid.apple.com'], aud: [env.APPLE_SERVICES_ID, env.APPLE_APP_ID || 'com.hvsodream.dualplanner'] },
 };
 async function auth(req, env, path) {
   if (path === 'config') return json({ google: env.GOOGLE_CLIENT_ID || null, apple: env.APPLE_SERVICES_ID || null });
