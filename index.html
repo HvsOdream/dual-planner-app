@@ -110,6 +110,20 @@ a { color: inherit; }
 .pbtn { flex: 1; height: 36px; border: 1.5px solid var(--postit-ink); color: var(--postit-ink); font-family: var(--mono); font-size: 12px; font-weight: 600; }
 .pbtn.fill { background: var(--postit-ink); color: var(--postit); }
 
+/* 비서가 붙여 둔 포스트잇(낱장) */
+.stickies { margin-left: 52px; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px 14px; padding: 8px 4px 10px 0; }
+.sticky { position: relative; background: var(--postit); color: var(--postit-ink); padding: 26px 12px 10px; min-height: 112px; display: flex; flex-direction: column;
+  font-size: 14px; line-height: 1.5; box-shadow: 0 1px 1px rgba(60,50,0,.10), 3px 8px 12px -6px rgba(60,50,0,.45); transform: rotate(-1.2deg); }
+.sticky:nth-child(even) { transform: rotate(1.1deg); background: #FFF6A8; }
+.sticky:nth-child(3n) { transform: rotate(-.4deg); }
+.sticky::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 18px; background: rgba(120,100,0,.07); }
+.sticky::after { content: ''; position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; background: linear-gradient(135deg, rgba(0,0,0,0) 50%, rgba(120,100,0,.16) 50%, rgba(255,255,255,.5) 100%); }
+.sticky .who { position: absolute; top: 2px; left: 12px; right: 12px; font-family: var(--mono); font-size: 10px; letter-spacing: .5px; color: var(--postit-muted); height: 16px; line-height: 16px; display: flex; justify-content: space-between; }
+.sticky .kd { font-size: 11px; font-weight: 700; letter-spacing: .5px; color: var(--postit-muted); }
+.sticky .tx { flex: 1; word-break: keep-all; overflow-wrap: anywhere; }
+.sticky .act { display: flex; gap: 14px; margin-top: 8px; }
+.sticky .act button { font-size: 12px; color: var(--postit-ink); text-decoration: underline; padding: 6px 0; }
+
 /* 큰 버튼 */
 .cta { margin-left: 52px; height: 44px; border-radius: 10px; background: var(--cover); color: var(--paper); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 15px; width: calc(100% - 52px); }
 .cta.ghost { background: transparent; color: var(--cover); border: 1.5px solid var(--cover); }
@@ -206,9 +220,57 @@ body.spread .more .box { max-width: calc(50% - var(--gutter) / 2); margin: 0 0 0
 .ptabs button { color: rgba(252,251,247,.75); font-size: 13px; padding: 0 12px; height: 34px; }
 .ptabs button.on { background: var(--paper); color: var(--cover); font-weight: 800; }
 body.d-night .ptabs button.on { color: #0F1626; }
+/* ── 타이틀(표지) · 첫 실행 안내 ── */
+.intro { position: fixed; inset: 0; z-index: 120; display: grid; grid-template-columns: 1fr; background: var(--paper); transition: opacity .35s ease; }
+.intro.out { opacity: 0; pointer-events: none; }
+.intro .cv { position: relative; background: #1E2F4F; color: #FCFBF7; display: flex; flex-direction: column; justify-content: space-between;
+  padding: calc(48px + env(safe-area-inset-top)) 32px calc(36px + env(safe-area-inset-bottom)); overflow: hidden; cursor: pointer; }
+.intro .cv::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, rgba(255,255,255,.025) 0 2px, transparent 2px 6px); pointer-events: none; }
+.intro .band { position: absolute; top: 0; bottom: 0; right: 44px; width: 12px; background: #D7452E; box-shadow: 1px 0 0 rgba(0,0,0,.25); }
+.intro .brand { position: relative; display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12px; letter-spacing: 3px; opacity: .8; }
+.intro .brand svg { width: 22px; height: 22px; }
+.intro .ttl { position: relative; }
+.intro .ttl .k { font-size: 44px; font-weight: 800; letter-spacing: -1px; line-height: 1.1; }
+.intro .ttl .e { font-family: var(--mono); font-size: 13px; letter-spacing: 6px; opacity: .65; margin-top: 8px; }
+.intro .ttl .tg { font-size: 15px; line-height: 1.6; opacity: .9; margin-top: 22px; max-width: 18em; }
+.intro .lab { position: relative; align-self: flex-start; background: #FCFBF7; color: #1E2F4F; padding: 8px 14px; border-radius: 3px; font-family: var(--mono); font-size: 12px; letter-spacing: 1px; box-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.intro .ob { display: none; flex-direction: column; background: var(--paper); padding: calc(20px + env(safe-area-inset-top)) 0 calc(20px + env(safe-area-inset-bottom)); min-height: 0;
+  background-image: linear-gradient(to right, transparent 39px, var(--margin) 39px, var(--margin) 40px, transparent 40px); }
+.intro.onboard .ob { display: flex; }
+.intro.onboard:not(.wide) .cv { display: none; }
+.intro .ob .top { display: flex; justify-content: space-between; align-items: center; padding: 0 20px 0 52px; height: 44px; }
+.intro .ob .top .pg { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 2px; }
+.intro .ob .top button { font-size: 13px; color: var(--muted); text-decoration: underline; }
+.intro .ob .body { flex: 1; overflow-y: auto; padding-right: 20px; }
+.intro .ob h2 { padding-left: 52px; font-size: 26px; font-weight: 800; line-height: 1.3; margin: 18px 0 10px; color: var(--ink); }
+.intro .ob p { padding-left: 52px; font-size: 15px; line-height: 1.7; color: var(--ink-2); margin-bottom: 18px; }
+.intro .ob .demo { pointer-events: none; }
+.intro .ob .foot { padding: 12px 20px 0 52px; display: flex; flex-direction: column; gap: 10px; }
+.intro .ob .foot .cta { margin-left: 0; width: 100%; height: 48px; }
+.intro .ob .fine { font-size: 12px; color: var(--muted); line-height: 1.6; text-align: center; }
+.intro .dotsnav { display: flex; gap: 6px; justify-content: center; }
+.intro .dotsnav i { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); }
+.intro .dotsnav i.on { background: var(--check); width: 18px; border-radius: 3px; }
+.intro.wide { grid-template-columns: minmax(0,1fr) minmax(0,1fr); column-gap: var(--gutter); background: #18253F; }
+.intro.wide .cv { box-shadow: inset -14px 0 16px -14px rgba(0,0,0,.4); }
+.intro.wide .ob { box-shadow: inset 14px 0 16px -14px rgba(31,42,68,.22); }
+.intro.wide .ttl .k { font-size: 40px; }
+.intro.wide:not(.onboard) { grid-template-columns: minmax(0,1fr); }
+.intro.wide:not(.onboard) .cv { width: calc(50% - var(--gutter) / 2); justify-self: end; border-radius: 4px 14px 14px 4px; box-shadow: 0 20px 40px rgba(0,0,0,.45); }
+
 </style>
 </head>
 <body>
+
+<div class="intro" id="intro" aria-live="polite">
+  <div class="cv" onclick="introTap()">
+    <div class="band" aria-hidden="true"></div>
+    <div class="brand"><svg viewBox="0 0 24 24" fill="none" stroke="#D7452E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5 L10 18 L20 6"/></svg>DUAL PLANNER</div>
+    <div class="ttl"><div class="k">듀얼플래너</div><div class="e">PLAN · CHECK · REVIEW</div><div class="tg">앱은 내 정리 양식,<br>정리는 비서가 합니다.</div></div>
+    <div class="lab" id="introLab"></div>
+  </div>
+  <div class="ob" id="introOb"></div>
+</div>
 
 <header class="cover" id="cover"></header>
 
@@ -369,7 +431,7 @@ function addToday() {
 function renderToday() {
   const ds = today(), day = dayOf(ds);
   const picks = (day.picks||[]).map(rock).filter(r => r && !r._deleted);
-  const inbox = (day.inbox||[]).filter(x => !x.moved);
+  const inbox = stuckNotes();
   const doneN = picks.filter(r=>r.checks&&r.checks[ds]).length;
   // 오늘 고를 만한 것: A 전부 + 3일 안에 끝나는 B (아직 안 고른 것)
   const soon = dstr(new Date(Date.now()+3*86400000));
@@ -385,11 +447,8 @@ function renderToday() {
     h += `<div class="sp"></div><div class="lbl"><span>고를 만한 것</span><button onclick="go('week')">할 일 전체 ›</button></div>`;
     sugg.slice(0,5).forEach(r => { h += `<div class="row ruled" style="padding-left:52px;gap:8px;font-size:14px;color:var(--ink-2)"><span class="tag" style="font-size:10px;height:18px;line-height:16px">${r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</span><button style="font-size:12px;color:var(--muted);text-decoration:underline" onclick="pick('${r.id}')">오늘로</button></div>`; });
   }
-  h += `<div class="sp"></div>
-  <div class="postit"><div class="ph"><span>비서 메모 · ${inbox.length}</span><button onclick="openPaste()">붙여넣기 ›</button></div>`;
-  if (!inbox.length) h += `<div class="pl" style="color:var(--postit-muted)">비서가 남긴 결정·메모가 여기 붙어요</div>`;
-  inbox.forEach(x => { h += `<div class="pl" style="align-items:flex-start;padding:4px 0"><span>${x.kind==='note'?'*':'[ ]'}</span><span class="tx" style="white-space:normal;overflow:visible;line-height:20px">${esc(x.text)}</span>${x.kind!=='note'?`<button onclick="moveToRock('${x.id}')">옮겨 적기</button>`:''}<button onclick="dropInbox('${x.id}')">✕</button></div>`; });
-  h += `<div id="pasteBox" style="display:none"><textarea id="pasteTa" placeholder="한 줄에 하나. '- '는 할 일, '* '는 메모"></textarea><div class="pbtns"><button class="pbtn fill" onclick="doPaste()">넣기</button><button class="pbtn" onclick="document.getElementById('pasteBox').style.display='none'">취소</button></div></div></div>
+  h += `${inbox.length ? '<div class="sp"></div>' : ''}
+  ${stickiesHtml(inbox)}
   <div class="sp"></div>
   <div class="lbl">저녁 한 줄</div>
   <input class="wr" placeholder="오늘은…" value="${esc(day.note)}" onchange="dayOf('${ds}').note=this.value;save()">
@@ -399,22 +458,27 @@ function renderToday() {
 function toggleCheck(id, ds) { const r = rock(id); if (!r) return; r.checks = r.checks||{}; if (r.checks[ds]) { delete r.checks[ds]; if (!r.routine) { r.done = false; r.doneAt = null; } } else { r.checks[ds] = true; if (navigator.vibrate) navigator.vibrate(12); if (!r.routine) { r.done = true; r.doneAt = ds; } } if (r.routine && checkedCount(r) >= r.routine) { r.done = true; r.doneAt = ds; } save(); render(); }
 function unpick(id) { const day = dayOf(today()); day.picks = day.picks.filter(x=>x!==id); save(); render(); }
 function pick(id) { const day = dayOf(today()); if (day.picks.includes(id)) { toast('이미 오늘에 있어요'); return; } day.picks.push(id); save(); toast('오늘로 옮겨 적었어요'); go('today'); }
-function openPaste() { const b = document.getElementById('pasteBox'); b.style.display = 'block'; document.getElementById('pasteTa').focus(); }
-function parseLines(txt) {
-  return String(txt||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(s => {
-    let kind = 'todo', t = s;
-    if (/^\*\s/.test(t) || /^(결정|메모|insight|note)[:：]/i.test(t)) { kind = 'note'; t = t.replace(/^\*\s*/,''); }
-    t = t.replace(/^(-|•|\d+[.)])\s*/,'').replace(/^\[[ xX]?\]\s*/,'').replace(/^(할 일|todo)[:：]\s*/i,'');
-    return { id: uid('i_'), text: t, kind, at: new Date().toTimeString().slice(0,5) };
+function stuckNotes() { const out = []; Object.keys(D.days).sort().reverse().forEach(ds => (D.days[ds].inbox||[]).forEach(x => { if (!x.moved) out.push(Object.assign({ ds }, x)); })); return out; }
+function findNote(id) { for (const ds in D.days) { const x = (D.days[ds].inbox||[]).find(i => i.id === id); if (x) return x; } return null; }
+function stickiesHtml(list) {
+  if (!list.length) return '';
+  const td = today();
+  let h = `<div class="lbl"><span>비서가 붙여 둔 메모 <span class="mono" style="letter-spacing:0">${list.length}</span></span></div><div class="stickies">`;
+  list.forEach(x => {
+    const when = (x.ds === td ? '' : md(x.ds) + ' ') + (x.at || '');
+    const todo = x.kind !== 'note';
+    h += `<div class="sticky"><div class="who"><span>${esc(agentLabel(x.src || (D.agent||{}).name))}</span><span>${esc(when)}</span></div>
+      <div class="kd">${todo ? '할 일로 적을까요?' : '결정 · 메모'}</div>
+      <div class="tx">${esc(x.text)}</div>
+      <div class="act">${todo ? `<button onclick="moveToRock('${x.id}')">할 일에 적기</button>` : ''}<button onclick="dropInbox('${x.id}')">${todo ? '버리기' : '떼기'}</button></div></div>`;
   });
+  return h + `</div>`;
 }
-function doPaste() { const items = parseLines(document.getElementById('pasteTa').value); if (!items.length) return; const day = dayOf(today()); day.inbox = items.concat(day.inbox||[]); save(); render(); toast(items.length+'건 붙여 두었어요'); }
-function dropInbox(id) { const day = dayOf(today()); day.inbox = (day.inbox||[]).filter(x=>x.id!==id); save(); render(); }
-function moveToRock(id) { const day = dayOf(today()); const x = (day.inbox||[]).find(i=>i.id===id); if (!x) return; x.moved = true; save(); addOpen = true; addPrefill = x.text; if (x.role && D.roles.includes(x.role)) addRole = x.role; go('week'); }
+function dropInbox(id) { const x = findNote(id); if (!x) return; x.moved = true; x.dropped = true; save(); render(); }
+function moveToRock(id) { const x = findNote(id); if (!x) return; x.moved = true; save(); addOpen = true; addPrefill = x.text; if (x.role && D.roles.includes(x.role)) addRole = x.role; go('week'); }
 
 // ── 할 일 (상시 목록: 급한 일 · 중요한 일 · 하면 좋은 일) ──
 let addPrefill = '', addBucket = 'important', showD = false;
-function moveWeek(n) {}
 function itemRow(r, n) {
   const td = today(), picked = (dayOf(td).picks||[]).includes(r.id);
   const meta = [esc(r.role), fmtDue(r)].filter(Boolean).join(' · ');
@@ -439,12 +503,6 @@ function renderWeek() {
     if (addOpen && addBucket === b) h += addFormHtml(b);
     h += `<div class="sp"></div>`;
   });
-  const stale = staleItems();
-  if (stale.length) {
-    h += `<div class="postit"><div class="ph"><span>UNTOUCHED 2 WEEKS · ${stale.length}</span></div>`;
-    stale.forEach(r => { h += `<div class="pl"><span>⟳</span><span class="tx">${esc(r.title)}</span><button onclick="splitRock('${r.id}')">분할</button><button onclick="tombRock('${r.id}')">묘비</button></div>`; });
-    h += `<div class="pf">2주 넘게 손 안 댄 것 — 나누거나 보내 주세요</div></div><div class="sp"></div>`;
-  }
   document.getElementById('week').innerHTML = h;
 }
 function addFormHtml(b) {
@@ -456,7 +514,6 @@ function addFormHtml(b) {
     <div class="pbtns" style="padding-left:52px"><button class="cta" style="margin-left:0;width:auto;flex:1" onclick="addRock('${b}')">저장</button><button class="cta ghost" style="margin-left:0;width:auto;flex:1" onclick="addOpen=false;addPrefill='';renderWeek()">취소</button></div></div>`;
 }
 function openAdd(b) { addBucket = b; addOpen = true; addRoutine = false; renderWeek(); setTimeout(()=>{ const e=document.getElementById('rockTitle'); if (e) e.focus(); }, 50); }
-function toggleAdd() { openAdd(addBucket); }
 function addRock(b) {
   b = b || addBucket;
   const title = (document.getElementById('rockTitle').value||'').trim();
@@ -471,40 +528,9 @@ function finishRock(id) { const r = rock(id); if (!r) return; r.done = !r.done; 
 function delRock(id) { if (!confirm('이 항목을 지울까요?')) return; const r = rock(id); if (r) r._deleted = true; save(); render(); }
 function splitRock(id) { const r = rock(id); if (!r) return; r.tomb = true; r.movedTo = 'split'; addPrefill = r.title + ' — 1/2: '; addRole = r.role; save(); openAdd(r.bucket||'important'); toast('작게 나눠서 적어 보세요'); }
 function tombRock(id) { const r = rock(id); if (!r) return; r.tomb = true; r.tombAt = today(); save(); render(); toast('묘비 ✝'); }
-function carryRock(id) {}
 
 // ── 리뷰 ──
 function reviewWeek() { const now = new Date(); return now.getDay()===0 || now.getDay()===6 ? weekKey(now) : weekKey(now); }
-function packetText(wk) {
-  const ws = new Date(wk), ds = weekDates(ws);
-  const rs = live().filter(r => !r.done || ds.includes(r.doneAt||''));
-  const days = ds.map(d => D.days[d]).filter(Boolean);
-  const inbox = days.flatMap(d => d.inbox||[]);
-  const lines = [];
-  lines.push(`# DUAL Planner 주간 리뷰 패킷 · ${ws.getFullYear()} W${weekNo(ws)} (${md(ds[0])}–${md(ds[6])})`);
-  lines.push('', '## 할 일 목록 (A 급하고 꼭 / B 꼭 해야 / C 급하지만 가벼운 / D 하면 좋은 일)');
-  BUCKETS.forEach(([b, name]) => { lines.push(`### ${name}`); rs.filter(r=>(r.bucket||'nice')===b).forEach(r => lines.push(`- [${r.done?'x':' '}] (${r.role}) ${r.title}${fmtDue(r)?' — '+fmtDue(r):''}${r.routine?' · 이번 주 '+checkedCount(r)+'/'+r.routine:''} · 마지막 손댐 ${lastTouched(r)||'-'}`)); });
-  const st = staleItems(); if (st.length) { lines.push('', '## 2주 넘게 안 건드린 것'); st.forEach(r => lines.push(`- ${r.title}`)); }
-  lines.push('', '## 일별');
-  ds.forEach(d => { const day = D.days[d]; if (!day) return; const done = (day.picks||[]).map(rock).filter(r=>r&&r.checks&&r.checks[d]).map(r=>r.title); lines.push(`- ${md(d)} ${DOW[ds.indexOf(d)]} · 의도: ${day.intent||'-'} · 완료: ${done.join(', ')||'-'} · 한 줄: ${day.note||'-'}`); });
-  if (inbox.length) { lines.push('', '## 에이전트 인박스(이번 주 유입)'); inbox.forEach(x => lines.push(`- ${x.kind==='note'?'메모':'할 일'}: ${x.text}${x.moved?' (옮겨 적음)':''}`)); }
-  lines.push('', '## 역할', D.roles.join(' · '));
-  lines.push('', '## 요청', '위 데이터로 (1) 이번 주를 3~5문장으로 리뷰하고, (2) 목록에서 버리거나 나눌 것을 짚고, (3) 다음 주에 새로 넣을 B(꼭 해야 할 장기 일)를 최대 4개 제안해 주세요.',
-    '제안은 반드시 아래 형식으로, 한 줄에 하나:', '- [역할] 제목 · MM/DD까지만', '루틴은: - [역할] 루틴 제목 · 주 N회');
-  return lines.join('\n');
-}
-function parseReply(txt) {
-  const out = [];
-  String(txt||'').split(/\r?\n/).forEach(s => {
-    s = s.trim(); const m = s.match(/^[-•*]?\s*\[([^\]]+)\]\s*(.+?)\s*[·,\-—]\s*(.+)$/); if (!m) return;
-    const role = m[1].trim(), title = m[2].trim(), tail = m[3].trim();
-    const c = { id: uid('c_'), role, title, state: null };
-    const rt = tail.match(/주\s*(\d+)\s*회/); const dd = tail.match(/(\d{1,2})\s*[\/.]\s*(\d{1,2})/);
-    if (rt) c.routine = Number(rt[1]); else if (dd) { const y = new Date().getFullYear(); c.due = `${y}-${String(dd[1]).padStart(2,'0')}-${String(dd[2]).padStart(2,'0')}`; } else return;
-    out.push(c);
-  });
-  return out;
-}
 let calMonth = null, calSel = null;
 function moveMonth(n) { const d = new Date(calMonth); d.setMonth(d.getMonth()+n); calMonth = dstr(d).slice(0,7)+'-01'; renderReview(); }
 function selDay(ds) { calSel = ds; renderReview(); }
@@ -546,11 +572,7 @@ function reviewSection(wk, nwk, rv, stale) {
   } else if (agentOn()) {
     h += `<div class="line sub ruled" style="white-space:normal;height:auto;min-height:var(--row)">비서에게 "주간 리뷰 해줘"라고 하면 여기에 리뷰와 다음 주 후보가 채워져요</div><div class="sp"></div>`;
   } else {
-    h += `<div class="postit"><div class="ph"><span>비서 없이 리뷰하기</span></div>
-      <div class="pl" style="color:var(--postit-muted)">이번 주 기록을 복사해 아무 AI에 붙여넣고, 답을 아래에 붙여넣어요</div>
-      <div class="pbtns"><button class="pbtn fill" onclick="copyPacket('${wk}')">기록 복사</button><button class="pbtn" onclick="sharePacket('${wk}')">공유…</button></div>
-      <textarea id="replyTa" placeholder="AI 답을 그대로 붙여넣기"></textarea>
-      <div class="pbtns"><button class="pbtn" onclick="parseReplyBox('${wk}')">후보로 만들기</button></div></div><div class="sp"></div>`;
+    h += `<div class="line sub ruled" style="white-space:normal;height:auto;min-height:var(--row)">비서를 연결하면 일요일마다 한 주 리뷰와 다음 주 후보를 여기에 붙여 줘요</div><div class="sp"></div>`;
   }
   // 방치
   if (stale.length) {
@@ -572,9 +594,6 @@ function reviewSection(wk, nwk, rv, stale) {
   h += `<div class="sp"></div>`;
   return h;
 }
-async function copyPacket(wk) { const t = packetText(wk); try { await navigator.clipboard.writeText(t); toast('복사됨 — 에이전트에 붙여넣기'); } catch(e) { prompt('복사하세요', t); } D.reviews[wk].packetAt = new Date().toISOString(); save(); }
-async function sharePacket(wk) { const t = packetText(wk); if (navigator.share) { try { await navigator.share({ text: t }); } catch(e) {} } else copyPacket(wk); }
-function parseReplyBox(wk) { const cs = parseReply(document.getElementById('replyTa').value); if (!cs.length) { toast('형식을 못 읽었어요 — "- [역할] 제목 · 11/16까지만"'); return; } D.reviews[wk].candidates = cs.concat(D.reviews[wk].candidates||[]); save(); renderReview(); toast(cs.length+'개 후보'); }
 function cand(wk, id, st) { const c = D.reviews[wk].candidates.find(x=>x.id===id); if (!c) return; c.state = c.state===st ? null : st; save(); renderReview(); }
 function startNext(wk, nwk) {
   const rv = D.reviews[wk]; const yes = rv.candidates.filter(c=>c.state==='y');
@@ -704,33 +723,54 @@ function setConn(t) { const el = document.getElementById('connBox'); if (!el) re
   const ag = agentOn() ? `● 비서 연결됨 — ${agentLabel(D.agent.name)} · 마지막 ${agentAgo()}` : '○ 비서 미연결 — 아래 MCP 주소를 에이전트에 붙여 주세요';
   el.innerHTML = `<div style="color:${baseUrl()?'var(--ink)':'var(--muted)'}">${srv}</div><div style="color:${agentOn()?'var(--check)':'var(--muted)'}">${esc(ag)}</div>`; }
 async function copyText(t, msg) { try { await navigator.clipboard.writeText(t); toast(msg || '복사됨'); } catch(e) { prompt('복사하세요', t); } }
-function agentGuide() {
-  return `# DUAL Planner 비서 지침
-나는 DUAL Planner(노트형 플래너)를 쓴다. 앱은 내 정리 양식이고, 정리는 비서(너)가 한다.
-MCP: ${mcpUrl()}
-(MCP가 없으면 HTTP: GET ${baseUrl()}/u/${D.token}/state 로 읽고, POST ${baseUrl()}/u/${D.token}/items 에 {"src":"<이름>","items":[...]} 로 쓴다)
-
-## 네가 할 일
-1. 세션 시작 때 planner_read로 목록을 읽는다(역할, A/B/C/D, 오늘, 인박스, 방치 항목).
-2. 세션 중 생긴 할 일·결정은 세션 끝에 한 번에 planner_add로 적는다. 인박스에 던지지 말고 **분류해서** 적어라:
-   - kind=item + bucket: A(급하고 꼭) | B(꼭 해야 하는 장기 일, due 필수) | C(급하지만 가벼운) | D(하면 좋은 일)
-   - role은 내 역할 중 하나. 루틴은 routine=주당 횟수.
-   - 결정·메모·인사이트는 kind=note.
-3. 끝난 일을 알게 되면 planner_update로 done=true. 2주 넘게 방치된 것은 나눠서(새 item 2개 + 원본 tomb=true) 적거나 묘비(tomb=true)를 제안한다.
-4. 일요일(또는 내가 "주간 리뷰"라고 하면): planner_read → 이번 주 리뷰 3~5문장을 kind=review로 적고 → 다음 주 B 후보를 kind=candidate(due 필수)로 최대 4개 적는다. 내가 앱에서 채택/버림을 고른다.
-5. 적은 뒤엔 무엇을 어디에 적었는지 한 줄로 알려 준다. 내 허락 없이 항목을 지우지(tomb) 않는다.`;
-}
 // ── 더보기 ──
-function renderRoles() { document.getElementById('rolesEd').innerHTML = D.roles.map(r=>`<span class="tag">${esc(r)} <button onclick="delRole('${esc(r)}')" style="color:var(--muted)">✕</button></span>`).join('') + `<button class="tag" style="border-style:dashed" onclick="addRole2()">+ 역할</button>`; }
-function addRole2() { const n = prompt('역할 이름'); if (n && n.trim() && !D.roles.includes(n.trim())) { D.roles.push(n.trim()); save(); renderRoles(); } }
-function delRole(r) { if (!confirm(r+' 역할을 지울까요?')) return; D.roles = D.roles.filter(x=>x!==r); save(); renderRoles(); }
 async function exportData() { const t = JSON.stringify(D); try { await navigator.clipboard.writeText(t); toast('JSON 복사됨'); } catch(e) { prompt('복사하세요', t); } }
 function importData() { const t = prompt('JSON 붙여넣기'); if (!t) return; try { const d = JSON.parse(t); if (!d.rocks) throw 0; D = Object.assign(empty(), d); save(); render(); toast('가져왔어요'); } catch(e) { toast('형식이 안 맞아요'); } }
+
+// ── 타이틀(표지) · 첫 실행 안내 ──
+const INTRO_KEY = 'dpa_intro';
+let introStep = 0, introTimer = null;
+const OB = [
+  { h: '아침 3분,<br>오늘 할 것만 적어요', p: '「오늘」에 할 것을 한 줄씩 적고, 끝나면 체크만 하세요. 저녁엔 한 줄로 하루를 닫아요.',
+    demo: () => `<div class="lbl"><span>오늘 할 것 <span class="mono" style="letter-spacing:0">1/2</span></span></div>
+      <div class="item done"><div class="mg"><span class="chk on">${CHECK}</span></div><div class="bd"><div class="t" style="font-size:17px;font-weight:600"><span class="tx">강의 자료 마무리</span></div><div class="m"><span>교수자</span></div></div></div>
+      <div class="item"><div class="mg"><span class="chk"></span></div><div class="bd"><div class="t" style="font-size:17px;font-weight:600"><span class="tx">논문 초록 다듬기</span></div><div class="m"><span>연구자 · 11/14까지만</span></div></div></div>` },
+  { h: '할 일은<br>네 칸에 나눠 둬요', p: 'A 급하고 꼭 · B 꼭 해야 하는 장기 일 · C 급하지만 가벼운 · D 하면 좋은 일. B에는 「언제까지만」 끝을 꼭 정해요.',
+    demo: () => [['A · 급하고 꼭','오늘 마감 서류 제출'],['B · 꼭 해야 (장기)','해외 논문 1편 투고 준비'],['C · 급하지만 가벼운','회의실 예약'],['D · 하면 좋은 일','책상 정리']].map(([b,t]) => `<div class="lbl">${b}</div><div class="line ruled" style="font-size:15px">${t}</div>`).join('') },
+  { h: '정리는<br>내 AI 비서가 해요', p: '쓰고 있는 AI(Claude·ChatGPT 등)를 연결하면, 대화하다 생긴 일을 비서가 알아서 칸에 나눠 적어요. 일요일엔 한 주 리뷰도 붙여 둬요.',
+    demo: () => `<div class="stickies"><div class="sticky"><div class="who"><span>Claude</span><span>14:30</span></div><div class="kd">할 일로 적을까요?</div><div class="tx">학회 발표 자료 만들기</div></div><div class="sticky"><div class="who"><span>Claude</span><span>14:31</span></div><div class="kd">결정 · 메모</div><div class="tx">사업자등록은 내년에 하기로</div></div></div>` }
+];
+function introSeen() { try { return !!localStorage.getItem(INTRO_KEY); } catch(e) { return true; } }
+function introWide() { document.getElementById('intro').classList.toggle('wide', spread()); }
+function volLabel() { const v = curVol(); return v ? `${volName(v)} 속지 · ${v.start.replace('-','.')} ~ ${volEnd(v).replace('-','.')}` : ''; }
+function renderIntro() {
+  const last = introStep === OB.length - 1, o = OB[introStep];
+  document.getElementById('introOb').innerHTML = `
+    <div class="top"><span class="pg">${introStep+1} / ${OB.length}</span>${last ? '<span></span>' : '<button onclick="introDone()">건너뛰기</button>'}</div>
+    <div class="body"><h2>${o.h}</h2><p>${o.p}</p><div class="demo" aria-hidden="true">${o.demo()}</div></div>
+    <div class="foot">
+      <div class="dotsnav" aria-hidden="true">${OB.map((_,i)=>`<i class="${i===introStep?'on':''}"></i>`).join('')}</div>
+      <button class="cta" onclick="${last ? 'introDone()' : 'introNext()'}">${last ? '시작하기' : '다음'}</button>
+      ${last ? '<div class="fine">지금은 이 기기에 저장돼요. 계정을 만들면 다른 기기와 이어져요.</div>' : ''}
+    </div>`;
+}
+function introNext() { introStep = Math.min(OB.length-1, introStep+1); renderIntro(); }
+function introTap() { const el = document.getElementById('intro'); if (el.classList.contains('onboard')) return; clearTimeout(introTimer); introClose(); }
+function introClose() { const el = document.getElementById('intro'); el.classList.add('out'); setTimeout(() => { el.style.display = 'none'; }, 380); }
+function introDone() { try { localStorage.setItem(INTRO_KEY, '1'); } catch(e) {} introClose(); }
+function showIntro(onboard) {
+  const el = document.getElementById('intro'); el.style.display = ''; el.classList.remove('out');
+  document.getElementById('introLab').textContent = volLabel();
+  introWide(); el.classList.toggle('onboard', !!onboard);
+  if (onboard) { introStep = 0; renderIntro(); } else { clearTimeout(introTimer); introTimer = setTimeout(introClose, 900); }
+}
+SPREAD_MQ.addEventListener('change', introWide);
 
 // ── 시작 ──
 ensureVol();
 syncPages();
 render();
+showIntro(!introSeen());
 pullState(false).then(() => { ensureVol(); render(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pullState(false); });
 // 같은 기기의 다른 창(미리보기의 접은/펼친 화면 등)에서 바뀌면 바로 반영
