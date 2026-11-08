@@ -133,6 +133,28 @@ a { color: inherit; }
 .sticky.fin .ok { display: block; animation: stamp .18s ease-out; }
 .sticky.fin .tx { text-decoration: line-through; text-decoration-color: var(--check); }
 .sticky.fin { animation: peel 2.4s ease-in forwards; }
+.sticky.wide { grid-column: 1 / -1; min-height: 0; transform: rotate(-.6deg); }
+.sticky.wide .tx { white-space: pre-wrap; line-height: 1.7; }
+.sticky.orange, .sticky.orange:nth-child(even) { background: #FFD9B0; }
+.sticky.mine, .sticky.mine:nth-child(even) { background: #FFD6DE; color: #4A2A33; }
+.sticky.mine .who { color: #9A6B76; }
+.sticky.mine .act button { color: #4A2A33; }
+.sticky .inp { width: 100%; border: none; background: transparent; font: inherit; font-size: 15px; font-weight: 600; color: inherit; outline: none; padding: 4px 0; border-bottom: 1px dashed rgba(74,42,51,.3); }
+.sticky .inp::placeholder { color: rgba(74,42,51,.35); font-weight: 500; }
+/* 뒤집힌 포스트잇: 뒷면만 보이고 글씨가 비친다. 누르면 귀퉁이가 들린다 */
+.sticky.back { background: #EDE3A2; cursor: pointer; transition: transform .25s ease; }
+.sticky.back:nth-child(even) { background: #EADF9C; }
+.sticky.back.orange { background: #F1CDA6; }
+.sticky.back .seep { position: absolute; left: 14px; right: 18px; top: 30px; height: 48px; opacity: .22; transform: scaleX(-1); filter: blur(1.2px);
+  background: repeating-linear-gradient(to bottom, #6B5B1E 0 2px, transparent 2px 12px); -webkit-mask-image: linear-gradient(90deg, #000 0 70%, transparent 95%); mask-image: linear-gradient(90deg, #000 0 70%, transparent 95%); }
+.sticky.back .cnt { position: relative; margin-top: auto; font-size: 13px; font-weight: 700; color: #6B5B1E; }
+.sticky.back .flip { display: none; position: relative; font-size: 12px; color: #4A3F12; margin-top: 6px; }
+.sticky.back .flip button { text-decoration: underline; font-size: 12px; color: #4A3F12; margin-left: 6px; }
+.sticky.back.lift { transform: rotate(-3deg) translateY(-4px); box-shadow: 0 1px 1px rgba(60,50,0,.10), 6px 14px 16px -8px rgba(60,50,0,.5); }
+.sticky.back.lift .flip { display: block; }
+.sticky.back.lift .peek { filter: blur(3px); }
+.sticky.back .peek { position: relative; font-size: 14px; color: #4A3F12; opacity: .55; filter: blur(4px); user-select: none; }
+.dev-on { position: fixed; left: 8px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; font-size: 11px; background: var(--check); color: #fff; padding: 2px 8px; border-radius: 10px; }
 @keyframes peel { 0%, 55% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px) rotate(-5deg); } }
 .sticky::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 18px; background: rgba(120,100,0,.07); }
 .sticky::after { content: ''; position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; background: linear-gradient(135deg, rgba(0,0,0,0) 50%, rgba(120,100,0,.16) 50%, rgba(255,255,255,.5) 100%); }
@@ -308,7 +330,7 @@ body.d-night .ptabs button.on { color: #0F1626; }
 
 <div class="more" id="more" onclick="if(event.target===this)closeMore()">
   <div class="box">
-    <div id="acctBox"></div>
+    <div id="acctBox"></div><div id="devBox"></div>
     <div class="lbl" style="padding-left:0">비서 연결</div>
     <div id="connBox" style="font-size:13px;line-height:1.8;margin:2px 0 4px"></div>
     <button class="cta" style="margin-left:0;width:100%;height:40px" onclick="copyText(mcpUrl(),'MCP 주소 복사됨')">MCP 주소 복사</button>
@@ -330,6 +352,7 @@ body.d-night .ptabs button.on { color: #0F1626; }
   <div class="fine">로그인하면 폰과 다른 기기에서 같은 플래너를 써요<br>계속하면 <a href="legal/terms.html" target="_blank">이용약관</a>과 <a href="legal/privacy.html" target="_blank">개인정보처리방침</a>에 동의하게 돼요</div>
 </div>
 <div class="toast" id="toast"></div>
+<div class="dev-on" id="devTag" style="display:none">유료 속지 미리보기</div>
 
 <script>
 'use strict';
@@ -408,10 +431,10 @@ function go(t) {
   render();
 }
 SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
-function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
+function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.paidPreview ? '무료로 보기' : '유료 속지로 보기'}</button><span style="font-size:11px;color:var(--muted)">개발용</span></div>` : ''; document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
 function closeMore() { document.getElementById('more').classList.remove('on'); }
 function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); }
-function render() { applyDesign(); renderCover(); if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
+function render() { applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.paidPreview ? '' : 'none'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
 
 function renderCover() {
   const s = streak(), dots = Math.min(s,3);
@@ -466,6 +489,7 @@ function renderToday() {
   const sugg = openItems().filter(r => !(day.picks||[]).includes(r.id) && (r.bucket==='urgent' || (r.bucket==='important' && r.due && r.due <= soon) || (r.routine && checkedCount(r) < r.routine)));
   const cv = curVol(); const full = cv && today() > volLast(cv);
   let h = `${full ? `<button class="banner" onclick="go('close')"><span>${volName(cv)} 속지가 다 찼어요. 1년을 돌아보고 새 속지를 끼울 시간이에요</span><b>속지 닫기 ›</b></button>` : ''}<div class="sp"></div>
+  ${firstHtml(ds)}
   <div class="lbl">의도</div>
   <input class="wr" style="font-size:18px;font-weight:600" placeholder="" value="${esc(day.intent)}" onchange="dayOf('${ds}').intent=this.value;save()">
   <div class="sp"></div>
@@ -482,6 +506,9 @@ function renderToday() {
   <div class="sp"></div>
   <div class="lbl">한 줄 일기</div>
   <input class="wr" placeholder="" value="${esc(day.note)}" onchange="dayOf('${ds}').note=this.value;save()">
+  <div class="sp"></div>
+  <div class="stickies"><div class="sticky mine"><div class="who"><span>내일 첫 줄</span><span>${md(addDays(ds, 1))}</span></div>
+    <input class="inp" placeholder="내일 아침 가장 먼저" value="${esc((D.days[addDays(ds, 1)] || {}).first || '')}" onchange="setFirst('${addDays(ds, 1)}', this.value)"></div></div>
   <div class="sp"></div>`;
   document.getElementById('today').innerHTML = h;
 }
@@ -518,6 +545,16 @@ function guideHtml(x) {
     <div class="tx">${esc(g.text)}</div>${g.hint ? `<div class="hint">${esc(g.hint)}</div>` : ''}
     <div class="act">${g.act && !x.fin ? `<button onclick="${g.act[1]}">${g.act[0]}</button>` : ''}${x.fin ? '' : `<button onclick="dropGuide('${g.id}')">떼기</button>`}</div></div>`;
 }
+// 유료 속지: 지금은 결제 전이라 속지의 paid 표시 또는 개발용 미리보기로만 켠다
+function isDev() { try { if (/[?&]dev\b/.test(location.search)) localStorage.setItem('dpa_dev', '1'); return localStorage.getItem('dpa_dev') === '1' || ((D.account || {}).email === 'withsky0@gmail.com'); } catch(e) { return false; } }
+function paid() { const v = curVol(); return !!((v && v.paid) || D.paidPreview); }
+function togglePaidPreview() { D.paidPreview = !D.paidPreview; _save0(); closeMore(); render(); toast(D.paidPreview ? '유료 속지로 보는 중' : '무료로 보는 중'); }
+// 뒤집힌 포스트잇: 내용은 숫자만 비치고, 누르면 귀퉁이가 들린다
+function backSticky(label, count, peek, cls) {
+  return `<div class="sticky back ${cls || ''}" role="button" tabindex="0" onclick="this.classList.toggle('lift')"><div class="who"><span>속지 비서</span><span></span></div><div class="seep" aria-hidden="true"></div>
+    <div class="peek" aria-hidden="true">${esc(peek || '')}</div><div class="cnt">${esc(label)} · ${esc(count)}</div>
+    <div class="flip">속지를 끼우면 펼쳐져요<button onclick="event.stopPropagation();go('shelf')">속지 보기</button></div></div>`;
+}
 function stickiesHtml(list, gs) {
   gs = gs || [];
   if (!list.length && !gs.length) return '';
@@ -532,6 +569,15 @@ function stickiesHtml(list, gs) {
   });
   return h + `</div>`;
 }
+function addDays(ds, n) { const d = new Date(ds + 'T00:00:00'); d.setDate(d.getDate() + n); return dstr(d); }
+function setFirst(ds, v) { const d = dayOf(ds); d.first = v.trim(); d.firstOff = false; save(); if (v.trim()) toast('내일 아침 맨 위에 붙여 둘게요'); }
+function firstHtml(ds) {
+  const d = D.days[ds]; if (!d || !d.first || d.firstOff) return '';
+  return `<div class="stickies" style="padding-top:12px"><div class="sticky mine"><div class="who"><span>어제 적어 둔 첫 줄</span><span></span></div>
+    <div class="tx" style="font-weight:600">${esc(d.first)}</div>
+    <div class="act"><button onclick="firstToPick('${ds}')">오늘 할 것으로</button><button onclick="dayOf('${ds}').firstOff=true;save();render()">떼기</button></div></div></div>`;
+}
+function firstToPick(ds) { const d = dayOf(ds); const r = { id: uid(), week: '', bucket: 'light', role: '', title: d.first, done: false, carry: 0, checks: {} }; D.rocks.push(r); d.picks.push(r.id); d.firstOff = true; markStarted(); save(); render(); }
 function dropInbox(id) { const x = findNote(id); if (!x) return; x.moved = true; x.dropped = true; save(); render(); }
 function moveToRock(id) { const x = findNote(id); if (!x) return; x.moved = true; save(); addOpen = true; addPrefill = x.text; if (x.role && D.roles.includes(x.role)) addRole = x.role; go('week'); }
 
@@ -623,30 +669,37 @@ function renderReview() {
   document.getElementById('review').innerHTML = h;
 }
 function reviewSection(wk, nwk, rv, stale) {
+  const P = paid(), cands = rv.candidates || [];
   let h = '';
-  // 비서 리뷰
+  const anyNote = rv.summary || stale.length || cands.length;
+  if (!anyNote) return '<div class="sp"></div>';
+  h += `<div class="stickies">`;
+  // 이번 주 리뷰: 큰 노란 한 장
   if (rv.summary) {
-    h += `<div class="postit"><div class="ph"><span>${esc(agentLabel(rv.summaryBy||(D.agent||{}).name))} · W${weekNo(new Date(wk))} REVIEW</span></div><div style="line-height:var(--row);white-space:pre-wrap;padding-bottom:6px">${esc(rv.summary)}</div></div><div class="sp"></div>`;
+    const lines = rv.summary.split(/(?<=[.!?。다요])\s+|\n/).filter(Boolean).length;
+    h += P ? `<div class="sticky wide"><div class="who"><span>${esc(agentLabel(rv.summaryBy || (D.agent||{}).name))}</span><span>W${weekNo(new Date(wk))} 리뷰</span></div><div class="tx">${esc(rv.summary)}</div></div>`
+           : backSticky('이번 주 리뷰', lines + '줄', rv.summary.slice(0, 14), 'wide');
   }
-  // 방치
+  // 2주 방치: 주황
   if (stale.length) {
-    h += `<div class="lbl">2주 넘게 안 건드린 것 ${stale.length}</div>`;
-    stale.forEach(r => { h += `<div class="item"><div class="mg"><span class="num">⟳</span></div><div class="bd"><div class="t"><span class="tx">${esc(r.title)}</span></div><div class="m"><span>${esc(r.role)}</span><span class="sp1"></span><button onclick="splitRock('${r.id}')">분할</button><button onclick="tombRock('${r.id}')">묘비</button></div></div></div>`; });
-    h += `<div class="sp"></div>`;
+    if (P) stale.forEach(r => { h += `<div class="sticky orange"><div class="who"><span>2주째 그대로</span><span>${esc(r.role)}</span></div><div class="tx">${esc(r.title)}</div><div class="act"><button onclick="splitRock('${r.id}')">쪼개기</button><button onclick="tombRock('${r.id}')">묘비</button></div></div>`; });
+    else h += backSticky('2주째 그대로', stale.length + '개', stale[0].title.slice(0, 10), 'orange');
   }
-  // 후보
-  const cands = rv.candidates || [];
-  if (cands.length) h += `<div class="lbl">다음 주 B 후보 ${cands.length}</div>`;
-  cands.forEach(c => {
-    h += `<div class="item ${c.state==='n'?'done':''}"><div class="mg"><button class="chk ${c.state==='y'?'on':''}" aria-label="채택" onclick="cand('${wk}','${c.id}','y')">${CHECK}</button></div>
-      <div class="bd"><div class="t"><span class="tx">${esc(c.title)}</span><button onclick="cand('${wk}','${c.id}','n')">${c.state==='n'?'되살림':'버림'}</button></div>
-      <div class="m"><span>${esc(c.role)}</span><span>·</span><span>${c.routine?'주 '+c.routine+'회':(c.due?md(c.due)+'까지만':'')}</span>${c.src?`<span class="sp1"></span><span>${esc(agentLabel(c.src))}</span>`:''}</div></div></div>`;
-  });
-  const yes = cands.filter(c=>c.state==='y').length;
-  if (cands.length) h += `<div class="sp"></div><a class="cta" onclick="startNext('${wk}','${nwk}')">${yes ? `채택 ${yes}개를 B에 넣고 이번 주 마감 ›` : '마감할 후보를 체크하세요'}</a>`;
-  h += `<div class="sp"></div>`;
+  // 다음 주 후보: 작은 장 여러 장, 채택하면 떨어져 할 일로
+  if (cands.length) {
+    if (P) cands.forEach(c => { h += `<div class="sticky ${c.state==='y' ? 'fin' : ''}"><div class="who"><span>다음 주 후보</span><span>${esc(c.role)}</span></div><span class="ok">${CHECK}</span><div class="tx">${esc(c.title)}</div><div class="hint">${c.routine ? '주 ' + c.routine + '회' : (c.due ? md(c.due) + '까지만' : '')}</div><div class="act"><button onclick="adoptCand('${wk}','${c.id}')">B로 옮기기</button><button onclick="cand('${wk}','${c.id}','n');dropCand('${wk}','${c.id}')">떼기</button></div></div>`; });
+    else h += backSticky('다음 주 후보', cands.length + '장', cands[0].title.slice(0, 10));
+  }
+  h += `</div><div class="sp"></div>`;
   return h;
 }
+function adoptCand(wk, id) {
+  const rv = D.reviews[wk]; const c = (rv.candidates || []).find(x => x.id === id); if (!c) return;
+  const r = { id: uid(), week: '', bucket: 'important', role: c.role, title: c.title, done: false, carry: 0, checks: {} }; if (c.routine) r.routine = c.routine; else r.due = c.due;
+  D.rocks.push(r); c.state = 'y'; save(); renderReview(); toast('B에 붙였어요');
+  setTimeout(() => { rv.candidates = rv.candidates.filter(x => x.id !== id); save(); if (tab === 'review' || spread()) renderReview(); }, 2400);
+}
+function dropCand(wk, id) { const rv = D.reviews[wk]; rv.candidates = (rv.candidates || []).filter(x => x.id !== id); save(); renderReview(); }
 function cand(wk, id, st) { const c = D.reviews[wk].candidates.find(x=>x.id===id); if (!c) return; c.state = c.state===st ? null : st; save(); renderReview(); }
 function startNext(wk, nwk) {
   const rv = D.reviews[wk]; const yes = rv.candidates.filter(c=>c.state==='y');
@@ -690,7 +743,8 @@ function renderShelf() {
 function renderVol() {
   const v = liveVols().find(x => x.id === volSel); if (!v) { go('shelf'); return; }
   let h = `<div class="sp"></div><div class="lbl">1년 한눈에</div>` + heatHtml(v) + `<div class="sp"></div>` + volStats(v) + `<div class="sp"></div>`;
-  if (v.summary) h += `<div class="postit"><div class="ph"><span>비서의 1년 리뷰</span></div><div style="line-height:var(--row);white-space:pre-wrap;padding-bottom:6px">${esc(v.summary)}</div></div><div class="sp"></div>`;
+  if (v.summary && !paid()) h += `<div class="stickies">${backSticky('1년 리뷰', v.summary.split(/\n|(?<=다\.)\s/).filter(Boolean).length + '줄', v.summary.slice(0, 14), 'wide')}</div>`;
+  else if (v.summary) h += `<div class="postit"><div class="ph"><span>비서의 1년 리뷰</span></div><div style="line-height:var(--row);white-space:pre-wrap;padding-bottom:6px">${esc(v.summary)}</div></div><div class="sp"></div>`;
   if ((v.goals||[]).length) { h += `<div class="lbl">이 속지에서 이루고 싶었던 것</div>`; v.goals.forEach(g => { h += `<div class="line ruled" style="font-size:15px">${esc(g)}</div>`; }); h += `<div class="sp"></div>`; }
   h += `<div class="cta ghost" style="margin-left:52px" onclick="calMonth='${volFirst(v)}';calSel='${volFirst(v)}';go('review')">이 속지 달력 펼치기 ›</div><div class="sp"></div>`;
   document.getElementById('vol').innerHTML = h;
@@ -698,7 +752,8 @@ function renderVol() {
 function renderClose() {
   const v = curVol(); const open = openItems();
   let h = `<div class="sp"></div><div class="lbl">1년 한눈에</div>` + heatHtml(v) + `<div class="sp"></div>` + volStats(v) + `<div class="sp"></div>`;
-  if (v.summary) h += `<div class="postit"><div class="ph"><span>비서의 1년 리뷰</span></div><div style="line-height:var(--row);white-space:pre-wrap;padding-bottom:6px">${esc(v.summary)}</div></div>`;
+  if (v.summary && !paid()) h += `<div class="stickies">${backSticky('1년 리뷰', v.summary.split(/\n|(?<=다\.)\s/).filter(Boolean).length + '줄', v.summary.slice(0, 14), 'wide')}</div>`;
+  else if (v.summary) h += `<div class="postit"><div class="ph"><span>비서의 1년 리뷰</span></div><div style="line-height:var(--row);white-space:pre-wrap;padding-bottom:6px">${esc(v.summary)}</div></div>`;
   else if (false) h += `<div class="postit"><div class="ph"><span>비서의 1년 리뷰</span></div><div class="pl" style="white-space:normal;line-height:20px;padding:4px 0">${agentOn() ? '비서에게 "듀얼플래너 속지 1년 리뷰 해줘"라고 하면 여기에 붙어요.' : '비서를 연결하면 1년 리뷰를 써 줘요. 없어도 속지는 닫을 수 있어요.'}</div></div>`;
   if (today() < volLast(v)) h += `<div class="sp"></div><div class="line sub" style="white-space:normal;height:auto;line-height:20px">아직 ${weeksLeft(v)}주 남았어요. 지금 닫으면 남은 기간은 새 속지로 넘어가요.</div>`;
   h += `<div class="sp"></div><div class="line sub ruled">안 끝난 할 일 <b>${open.length}개</b></div><div class="sp"></div>
