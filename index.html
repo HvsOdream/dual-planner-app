@@ -184,6 +184,28 @@ body.d-night .tag { color:#E8E4D8; border-color:#E8E4D8; } body.d-night .vcard {
 @media (min-width: 768px) {
   .sheet { max-width: 720px; }
 }
+
+/* ── 펼친 화면(듀오 안쪽 등 가로로 넓은 화면): 노트 두 쪽 ── */
+:root { --gutter: 28px; }
+body.spread { padding-bottom: 0; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+body.spread .tabbar { display: none; }
+body.spread .cover { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); column-gap: var(--gutter); padding: calc(6px + env(safe-area-inset-top)) 0 6px; min-height: 52px; flex: none; }
+body.spread .cover .half { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 16px; min-width: 0; }
+body.spread .cover .half > .nav { min-width: 0; }
+body.spread .cover .t1 { font-size: 17px; white-space: nowrap; }
+body.spread .cover .t2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.spread main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); column-gap: var(--gutter);
+  background: linear-gradient(90deg, transparent calc(50% - 1px), var(--border) calc(50% - 1px), var(--border) calc(50% + 1px), transparent calc(50% + 1px)), var(--paper-2); }
+body.spread .page.on { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; background: var(--paper); grid-row: 1; }
+body.spread #p-today { grid-column: 1; box-shadow: inset -14px 0 16px -14px rgba(31,42,68,.22); }
+body.spread .page:not(#p-today) { grid-column: 2; box-shadow: inset 14px 0 16px -14px rgba(31,42,68,.22); }
+body.spread .sheet { max-width: none; min-height: 100%; }
+body.spread .toast { bottom: calc(20px + env(safe-area-inset-bottom)); left: 75%; }
+body.spread .more .box { max-width: calc(50% - var(--gutter) / 2); margin: 0 0 0 auto; border-radius: 16px 0 0 0; }
+.ptabs { display: flex; border: 1px solid rgba(252,251,247,.35); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+.ptabs button { color: rgba(252,251,247,.75); font-size: 13px; padding: 0 12px; height: 34px; }
+.ptabs button.on { background: var(--paper); color: var(--cover); font-weight: 800; }
+body.d-night .ptabs button.on { color: #0F1626; }
 </style>
 </head>
 <body>
@@ -279,13 +301,44 @@ function toast(m) { const t = document.getElementById('toast'); t.textContent = 
 
 // ── 네비 ──
 let tab = 'today', curWeek = weekKey(new Date()), addOpen = false, addRole = null, addRoutine = false;
-function go(t) { tab = t; document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on', p.id==='p-'+t)); document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.tab===t)); window.scrollTo(0,0); render(); }
+// 펼친 화면: 왼쪽 쪽은 늘 오늘, 오른쪽 쪽은 rightTab
+let rightTab = 'week';
+const SPREAD_MQ = window.matchMedia('(min-width: 720px) and (min-aspect-ratio: 5/4)');
+function spread() { return SPREAD_MQ.matches; }
+function syncPages() {
+  const sp = spread(); document.body.classList.toggle('spread', sp);
+  const on = sp ? ['today', rightTab] : [tab];
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', on.includes(p.id.slice(2))));
+  document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+}
+function go(t) {
+  tab = t; if (t !== 'today') rightTab = t;
+  syncPages();
+  if (!spread()) window.scrollTo(0,0); else if (t !== 'today') { const p = document.getElementById('p-' + t); if (p) p.scrollTop = 0; }
+  render();
+}
+SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
 function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); const ai = document.getElementById('apiIn'); if (ai) ai.value = D.api || ''; setConn(''); document.getElementById('more').classList.add('on'); }
 function closeMore() { document.getElementById('more').classList.remove('on'); }
-function render() { applyDesign(); renderCover(); if (tab==='today') renderToday(); else if (tab==='week') renderWeek(); else if (tab==='review') renderReview(); else if (tab==='shelf') renderShelf(); else if (tab==='vol') renderVol(); else if (tab==='close') renderClose(); else if (tab==='refill') renderRefill(); }
+function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); }
+function render() { applyDesign(); renderCover(); if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
 
 function renderCover() {
-  const now = new Date(), td = today(), s = streak();
+  const s = streak(), dots = Math.min(s,3);
+  const streakHtml = `<div class="streak" aria-label="연속 ${s}일">${[0,1,2].map(i=>`<i class="${i<dots?'':'off'}"></i>`).join('')}<span style="margin-left:4px">${s}</span></div>`;
+  const moreBtn = `<button class="ibtn" aria-label="더보기" onclick="openMore()">≡</button>`;
+  const head = c => `<div class="nav">${c.left}<div style="min-width:0"><div class="t1">${c.t1}</div><div class="t2">${c.t2}</div></div></div>`;
+  if (spread()) {
+    const L = coverParts('today'), R = coverParts(rightTab);
+    const tabs = (rightTab==='week' || rightTab==='review') ? `<div class="ptabs">${[['week','할 일'],['review','기록']].map(([k,n]) => `<button class="${rightTab===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</div>` : '';
+    document.getElementById('cover').innerHTML = `<div class="half">${head(L)}${streakHtml}</div><div class="half">${head(R)}<div class="right">${tabs}${moreBtn}</div></div>`;
+    return;
+  }
+  const C = coverParts(tab);
+  document.getElementById('cover').innerHTML = `${head(C)}<div class="right">${streakHtml}${moreBtn}</div>`;
+}
+function coverParts(tab) {
+  const now = new Date();
   let t1, t2, left = '';
   if (tab==='today') { t1 = `${now.getMonth()+1}월 ${now.getDate()}일 ${DOW[(now.getDay()+6)%7]}요일`; t2 = `${now.getFullYear()} · W${weekNo(now)}`; }
   else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${now.getFullYear()} · W${weekNo(now)} · A${o.filter(r=>r.bucket==='urgent').length} B${o.filter(r=>r.bucket==='important').length} C${o.filter(r=>r.bucket==='light').length} D${o.filter(r=>r.bucket==='nice').length}`; }
@@ -294,10 +347,7 @@ function renderCover() {
   else if (tab==='close') { const v = curVol(); t1 = volName(v) + ' 속지 닫기'; t2 = '1 / 2 · 1년 돌아보기'; left = `<button class="ibtn" aria-label="뒤로" onclick="go('shelf')">‹</button>`; }
   else if (tab==='refill') { t1 = '새 속지 끼우기'; t2 = '2 / 2'; left = `<button class="ibtn" aria-label="뒤로" onclick="go('close')">‹</button>`; }
   else { t1 = '기록'; const wk = reviewWeek(); const ds = weekDates(new Date(wk)); const doneW = live().filter(r => r.done && ds.includes(r.doneAt||'')).length; t2 = `W${weekNo(new Date(wk))} · 이번 주 완료 ${doneW} · 남은 ${openItems().length}`; }
-  const dots = Math.min(s,3);
-  document.getElementById('cover').innerHTML = `
-    <div class="nav">${left}<div><div class="t1">${t1}</div><div class="t2">${t2}</div></div></div>
-    <div class="right"><div class="streak" aria-label="연속 ${s}일">${[0,1,2].map(i=>`<i class="${i<dots?'':'off'}"></i>`).join('')}<span style="margin-left:4px">${s}</span></div><button class="ibtn" aria-label="더보기" onclick="openMore()">≡</button></div>`;
+  return { t1, t2, left };
 }
 
 // ── 오늘 ──
@@ -378,7 +428,7 @@ function itemRow(r, n) {
 }
 function renderWeek() {
   const items = openItems();
-  let h = `${connBanner()}<div class="sp"></div>`;
+  let h = `${spread()?'':connBanner()}<div class="sp"></div>`;
   let n = 0;
   BUCKETS.forEach(([b, name]) => {
     const list = items.filter(r => (r.bucket||'nice') === b);
@@ -484,7 +534,7 @@ function renderReview() {
   const nd = new Date(wk); nd.setDate(nd.getDate()+7); const nwk = weekKey(nd);
   const stale = staleItems();
   const v = curVol();
-  let h = connBanner() + `<div class="sp"></div><button class="row ruled" style="padding-left:52px;width:100%;gap:10px;text-align:left" onclick="go('shelf')"><span class="vcover ${v.design}" style="width:18px;height:24px;border-width:1.5px"></span><span style="flex:1;font-size:14px"><b>${volName(v)} 속지</b> <span style="color:var(--muted);font-size:12px">· 남은 ${weeksLeft(v)}주</span></span><span style="font-size:12px;color:var(--muted);text-decoration:underline">책장 ›</span></button>` + calendarHtml() + `<div class="sp"></div><div class="lbl" style="color:var(--cover);font-weight:700">이번 주 리뷰 · W${weekNo(new Date(wk))}</div>`;
+  let h = (spread()?'':connBanner()) + `<div class="sp"></div><button class="row ruled" style="padding-left:52px;width:100%;gap:10px;text-align:left" onclick="go('shelf')"><span class="vcover ${v.design}" style="width:18px;height:24px;border-width:1.5px"></span><span style="flex:1;font-size:14px"><b>${volName(v)} 속지</b> <span style="color:var(--muted);font-size:12px">· 남은 ${weeksLeft(v)}주</span></span><span style="font-size:12px;color:var(--muted);text-decoration:underline">책장 ›</span></button>` + calendarHtml() + `<div class="sp"></div><div class="lbl" style="color:var(--cover);font-weight:700">이번 주 리뷰 · W${weekNo(new Date(wk))}</div>`;
   h += reviewSection(wk, nwk, rv, stale);
   document.getElementById('review').innerHTML = h;
 }
@@ -679,6 +729,7 @@ function importData() { const t = prompt('JSON 붙여넣기'); if (!t) return; t
 
 // ── 시작 ──
 ensureVol();
+syncPages();
 render();
 pullState(false).then(() => { ensureVol(); render(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pullState(false); });
