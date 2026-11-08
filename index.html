@@ -189,6 +189,17 @@ a { color: inherit; }
 .ev .te { font-family: var(--mono); font-size: 11px; color: var(--muted); padding-right: 4px; }
 .ev.past .et, .ev.past .tm { color: var(--faint); }
 
+/* 하루 사진: 클립으로 꽂은 폴라로이드 */
+.snap { margin: 6px 0 0 52px; display: inline-block; position: relative; background: #fff; padding: 8px 8px 26px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 3px 8px 14px -6px rgba(31,42,68,.35); transform: rotate(1.6deg); }
+.snap img { display: block; width: 168px; height: 168px; object-fit: cover; background: var(--paper-2); }
+.snap .clip { position: absolute; top: -12px; left: 22px; width: 14px; height: 34px; border: 2px solid #9AA3B2; border-radius: 7px; border-bottom-color: transparent; }
+.snap .cap { position: absolute; left: 10px; right: 10px; bottom: 5px; display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.snap .cap button { font-size: 11px; color: var(--muted); text-decoration: underline; }
+.snap.empty { transform: rotate(-1deg); background: transparent; box-shadow: none; border: 1.5px dashed var(--faint); padding: 0; cursor: pointer; }
+.snap.empty label { display: flex; width: 168px; height: 120px; align-items: center; justify-content: center; font-size: 13px; color: var(--muted); cursor: pointer; }
+.cal .cd.ph { background-size: cover; background-position: center; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.cal .cd.ph i { color: #fff; }
+
 /* 큰 버튼 */
 .cta { margin-left: 52px; height: 44px; background: none; color: var(--cover); display: flex; align-items: center; justify-content: flex-start; font-weight: 700; font-size: 15px; width: calc(100% - 52px); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1.5px; cursor: pointer; }
 .cta.ghost { color: var(--muted); font-weight: 500; }
@@ -514,6 +525,7 @@ function renderToday() {
   <div class="sp"></div>
   <div class="lbl">한 줄 일기</div>
   <input class="wr" placeholder="" value="${esc(day.note)}" onchange="dayOf('${ds}').note=this.value;save()">
+  ${photoHtml(ds)}
   <div class="sp"></div>
   <div class="stickies"><div class="sticky mine"><div class="who"><span>내일 첫 줄</span><span>${md(addDays(ds, 1))}</span></div>
     <input class="inp" placeholder="내일 아침 가장 먼저" value="${esc((D.days[addDays(ds, 1)] || {}).first || '')}" onchange="setFirst('${addDays(ds, 1)}', this.value)"></div></div>
@@ -702,6 +714,27 @@ async function takePending() {
   (p.shared || []).forEach(x => { const d = dayOf(ds); d.inbox = d.inbox || []; d.inbox.unshift({ id: uid('i_'), text: x.text, kind: 'todo', src: x.src === 'siri' ? 'Siri' : '공유', at: x.at }); n++; });
   if (n) { save(); render(); if ((p.shared || []).length) toast(`${p.shared.length}장 붙였어요`); }
 }
+// ── 하루 사진 한 장 ──
+function photoUrl(ds) { const d = D.days[ds]; return d && d.photo && baseUrl() ? baseUrl() + '/u/' + D.token + '/photo/' + ds + '?v=' + d.photo : ''; }
+function photoHtml(ds) {
+  const u = photoUrl(ds);
+  if (u) return `<div class="snap"><span class="clip" aria-hidden="true"></span><img src="${u}" alt="${md(ds)} 사진" loading="lazy"><div class="cap"><span>${md(ds)}</span><button onclick="dropPhoto('${ds}')">빼기</button></div></div>`;
+  if (!baseUrl() || ds !== today()) return '';
+  return `<div class="snap empty"><label>오늘 사진 한 장<input type="file" accept="image/*" style="display:none" onchange="addPhoto('${ds}', this.files[0])"></label></div>`;
+}
+async function addPhoto(ds, file) {
+  if (!file) return; toast('사진 붙이는 중');
+  try {
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(file); });
+    const k = Math.min(1, 900 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    let q = 0.82, blob; do { blob = await new Promise(r => c.toBlob(r, 'image/jpeg', q)); q -= 0.12; } while (blob.size > 560 * 1024 && q > 0.3);
+    const r = await fetch(baseUrl() + '/u/' + D.token + '/photo/' + ds, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: blob });
+    if (!r.ok) throw 0;
+    dayOf(ds).photo = Date.now(); save(); render(); toast('사진을 꽂았어요');
+  } catch(e) { toast('사진을 붙이지 못했어요'); }
+}
+async function dropPhoto(ds) { try { await fetch(baseUrl() + '/u/' + D.token + '/photo/' + ds, { method: 'DELETE' }); } catch(e) {} const d = dayOf(ds); delete d.photo; save(); render(); }
 function addDays(ds, n) { const d = new Date(ds + 'T00:00:00'); d.setDate(d.getDate() + n); return dstr(d); }
 function setFirst(ds, v) { const d = dayOf(ds); d.first = v.trim(); d.firstOff = false; save(); if (v.trim()) toast('내일 아침 맨 위에 붙여 둘게요'); }
 function firstHtml(ds) {
@@ -779,13 +812,14 @@ function calendarHtml() {
   let h = `<div class="row" style="padding-left:52px;justify-content:space-between;height:44px"><button class="ibtn" style="color:var(--ink);border-color:var(--border)" aria-label="이전 달" onclick="moveMonth(-1)">‹</button><b style="font-size:16px">${y}년 ${m+1}월</b><button class="ibtn" style="color:var(--ink);border-color:var(--border)" aria-label="다음 달" onclick="moveMonth(1)">›</button></div>
   <div class="cal">${DOW.map(w=>`<div class="cw">${w}</div>`).join('')}`;
   cells.forEach(d => { const ds = dstr(d), n = doneOn(ds).length, day = D.days[ds], wrote = day && (day.intent || day.note);
-    h += `<button class="cd ${d.getMonth()!==m?'out':''} ${ds===td?'td':''} ${ds===calSel?'sel':''}" onclick="selDay('${ds}')"><span>${d.getDate()}</span><i>${n ? (n > 3 ? '✓'+n : '✓'.repeat(n)) : (wrote ? '·' : '')}</i></button>`; });
+    h += `<button class="cd ${d.getMonth()!==m?'out':''} ${ds===td?'td':''} ${ds===calSel?'sel':''} ${photoUrl(ds)?'ph':''}" ${photoUrl(ds)?`style="background-image:url('${photoUrl(ds)}')"`:''} onclick="selDay('${ds}')"><span>${d.getDate()}</span><i>${n ? (n > 3 ? '✓'+n : '✓'.repeat(n)) : (wrote ? '·' : '')}</i></button>`; });
   h += `</div>`;
   // 고른 날 상세
   const day = D.days[calSel] || {}; const done = doneOn(calSel); const notes = (day.inbox||[]).filter(x => x.kind === 'note');
   const dd = new Date(calSel);
   h += `<div class="sp"></div><div class="lbl">${dd.getMonth()+1}월 ${dd.getDate()}일 ${DOW[(dd.getDay()+6)%7]}요일</div>`;
   h += `<div class="line ruled" style="font-size:15px;${day.intent?'':'color:var(--faint);font-weight:400'}">${esc(day.intent || '의도 없음')}</div>`;
+  if (photoUrl(calSel)) h += photoHtml(calSel);
   if (!done.length) h += `<div class="line faint ruled" style="font-size:14px">체크한 일 없음</div>`;
   done.forEach(r => { h += `<div class="item"><div class="mg">${CHECK.replace('width="22" height="22"','width="18" height="18"')}</div><div class="bd"><div class="t" style="font-size:15px"><span class="tx">${esc(r.title)}</span></div><div class="m"><span>${[esc(r.role), r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'].filter(Boolean).join(' · ')}</span></div></div></div>`; });
   notes.forEach(x => { h += `<div class="line ruled" style="font-size:13px;color:var(--ink-2)">* ${esc(x.text)}</div>`; });

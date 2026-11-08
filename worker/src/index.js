@@ -168,6 +168,7 @@ async function auth(req, env, path) {
     if (!TOKEN_RE.test(tok)) return json({ error: 'no token' }, 401);
     const ak = await env.PLANNER.get('acct:' + tok);
     await env.PLANNER.delete('u:' + tok); await env.PLANNER.delete('acct:' + tok); if (ak) await env.PLANNER.delete(ak);
+    for (const k of await kvKeys(env, 'p:' + tok + ':', 2000)) await env.PLANNER.delete(k);
     return json({ ok: true, deleted: true });
   }
   const conf = PROVIDERS[path] && PROVIDERS[path](env);
@@ -327,10 +328,28 @@ async function cal(req, env, token) {
   return json({ events: parseIcs(text, from, Math.min(to, from + 62 * DAY)) });
 }
 
+// ── 하루 사진 한 장: 날짜별로 따로 저장(플래너 데이터와 분리), 600KB까지 JPEG ──
+async function photo(req, env, token, ds) {
+  const key = 'p:' + token + ':' + ds;
+  if (req.method === 'GET') {
+    const v = await env.PLANNER.get(key, { type: 'arrayBuffer' }); if (!v) return new Response('', { status: 404, headers: CORS });
+    return new Response(v, { headers: Object.assign({ 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=604800' }, CORS) });
+  }
+  if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
+  if (req.method === 'DELETE') { await env.PLANNER.delete(key); return json({ ok: true }); }
+  if (req.method !== 'PUT') return json({ error: 'method' }, 405);
+  const buf = await req.arrayBuffer(), b = new Uint8Array(buf);
+  if (buf.byteLength > 600 * 1024) return json({ error: 'too big' }, 413);
+  if (!(b[0] === 0xFF && b[1] === 0xD8)) return json({ error: 'jpeg only' }, 415);
+  await env.PLANNER.put(key, buf); return json({ ok: true, size: buf.byteLength });
+}
+
 export default {
   async fetch(req, env) {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const url = new URL(req.url);
+    const pm = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/photo\/(\d{4}-\d{2}-\d{2})\/?$/);
+    if (pm) return photo(req, env, pm[1], pm[2]);
     const am = url.pathname.match(/^\/auth\/(config|google|apple|account)\/?$/);
     if (am) return auth(req, env, am[1]);
     if (url.pathname.replace(/\/$/, '') === '/admin/stats') return adminStats(req, env);
