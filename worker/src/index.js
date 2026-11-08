@@ -25,6 +25,7 @@ function merge(a, b) {
   const vm = new Map(); [...(a.vols || []), ...(b.vols || [])].forEach(v => { if (!v || !v.id) return; const p = vm.get(v.id); if (!p || (v.u || '') >= (p.u || '')) vm.set(v.id, v); }); out.vols = [...vm.values()];
   out.roles = ((b._modified || '') >= (a._modified || '') ? b : a).roles || [];
   out.seen = Object.assign({}, a.seen, b.seen);
+  out.settings = (((b.settings || {}).u || '') >= ((a.settings || {}).u || '') ? b.settings : a.settings) || {};
   out.agent = [a.agent, b.agent].filter(Boolean).sort((x, y) => (x.at || '') < (y.at || '') ? -1 : 1).pop() || null;
   out._modified = [a._modified, b._modified].sort().pop() || '';
   return out;
@@ -237,6 +238,95 @@ async function group(req, env, token) {
   return json(Object.assign({ groups, model: env.LLM_URL ? 'sllm' : 'workers-ai' }, body.debug ? { raw: String(raw).slice(0, 1500) } : {}));
 }
 
+// ── 일정: 사용자가 준 iCal 주소(구글 캘린더 '비공개 주소' 등)를 받아 기간 안의 일정을 한국 시간으로 펼친다 ──
+const DAY = 86400000;
+function icsLines(text) { return text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '').split(/\r?\n/); }
+function icsProp(line) { const i = line.indexOf(':'); if (i < 0) return null; const head = line.slice(0, i), val = line.slice(i + 1); const [name, ...ps] = head.split(';'); const params = {}; ps.forEach(p => { const [k, v] = p.split('='); params[k.toUpperCase()] = (v || '').replace(/"/g, ''); }); return { name: name.toUpperCase(), params, val }; }
+// '한국 시간 기준 벽시계' 밀리초(Date.UTC로 만든 값)로 바꾼다
+function icsTime(val, params) {
+  const m = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?$/.exec(String(val).trim()); if (!m) return null;
+  const allDay = !m[4] || params.VALUE === 'DATE';
+  let t = Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+  if (m[7] === 'Z') t += KST;
+  return { t, allDay };
+}
+function icsUnescape(v) { return String(v || '').replace(/\\n/gi, ' ').replace(/\\([,;\\])/g, '$1').trim(); }
+const WD = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+function expand(ev, from, to) {
+  const out = [], dur = ev.end ? ev.end - ev.start : (ev.allDay ? DAY : 3600000);
+  const push = s => { if (s + Math.max(dur, 1) > from && s < to && !ev.ex.has(s)) out.push(s); };
+  if (!ev.rrule) { push(ev.start); return out.map(s => [s, dur]); }
+  const R = {}; ev.rrule.split(';').forEach(kv => { const [k, v] = kv.split('='); R[k] = v; });
+  const freq = R.FREQ, step = Math.max(1, +(R.INTERVAL || 1)), count = R.COUNT ? +R.COUNT : Infinity;
+  const until = R.UNTIL ? (icsTime(R.UNTIL, {}) || {}).t : Infinity;
+  const byday = R.BYDAY ? R.BYDAY.split(',').map(x => WD[x.slice(-2)]).filter(x => x != null) : null;
+  let n = 0, guard = 0;
+  if (freq === 'WEEKLY') {
+    const days = byday && byday.length ? byday : [new Date(ev.start).getUTCDay()];
+    const base = ev.start - new Date(ev.start).getUTCDay() * DAY; // 그 주 일요일
+    for (let w = 0; guard < 3000; w += step, guard++) {
+      for (const d of days.slice().sort()) {
+        const s = base + (w * 7 + d) * DAY; if (s < ev.start) continue;
+        if (s > until || n >= count || s >= to) return out.map(x => [x, dur]);
+        n++; push(s);
+      }
+    }
+  } else {
+    for (let s = ev.start; guard < 5000; guard++) {
+      if (s > until || n >= count || s >= to) break;
+      n++; push(s);
+      const d = new Date(s);
+      if (freq === 'DAILY') s += step * DAY;
+      else if (freq === 'MONTHLY') s = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + step, d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes());
+      else if (freq === 'YEARLY') s = Date.UTC(d.getUTCFullYear() + step, d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes());
+      else break;
+    }
+  }
+  return out.map(x => [x, dur]);
+}
+function parseIcs(text, from, to) {
+  const lines = icsLines(text), evs = [], overrides = new Map();
+  let cur = null;
+  for (const line of lines) {
+    if (line === 'BEGIN:VEVENT') { cur = { ex: new Set() }; continue; }
+    if (line === 'END:VEVENT') { if (cur && cur.start != null && cur.status !== 'CANCELLED') { if (cur.rid != null) overrides.set(cur.uid + '@' + cur.rid, cur); else evs.push(cur); } else if (cur && cur.rid != null) overrides.set(cur.uid + '@' + cur.rid, null); cur = null; continue; }
+    if (!cur) continue;
+    const p = icsProp(line); if (!p) continue;
+    if (p.name === 'SUMMARY') cur.title = icsUnescape(p.val);
+    else if (p.name === 'UID') cur.uid = p.val;
+    else if (p.name === 'STATUS') cur.status = p.val.toUpperCase();
+    else if (p.name === 'RRULE') cur.rrule = p.val;
+    else if (p.name === 'DTSTART') { const t = icsTime(p.val, p.params); if (t) { cur.start = t.t; cur.allDay = t.allDay; } }
+    else if (p.name === 'DTEND') { const t = icsTime(p.val, p.params); if (t) cur.end = t.t; }
+    else if (p.name === 'EXDATE') p.val.split(',').forEach(v => { const t = icsTime(v, p.params); if (t) cur.ex.add(t.t); });
+    else if (p.name === 'RECURRENCE-ID') { const t = icsTime(p.val, p.params); if (t) cur.rid = t.t; }
+  }
+  const out = [];
+  const emit = (ev, s, dur) => {
+    const ymd = t => new Date(t).toISOString().slice(0, 10), hm = t => new Date(t).toISOString().slice(11, 16);
+    if (ev.allDay) { for (let d = s; d < s + Math.max(dur, DAY); d += DAY) if (d >= from && d < to) out.push({ date: ymd(d), start: '', end: '', title: ev.title || '(제목 없음)', allDay: true }); }
+    else out.push({ date: ymd(s), start: hm(s), end: hm(s + dur), title: ev.title || '(제목 없음)', allDay: false });
+  };
+  for (const ev of evs) for (const [s, dur] of expand(ev, from, to)) {
+    const key = (ev.uid || '') + '@' + s;
+    if (overrides.has(key)) { const o = overrides.get(key); overrides.delete(key); if (o) emit(Object.assign({ allDay: ev.allDay }, o), o.start, (o.end || o.start + dur) - o.start); continue; }
+    emit(ev, s, dur);
+  }
+  for (const o of overrides.values()) if (o && o.start >= from && o.start < to) emit(o, o.start, (o.end || o.start + 3600000) - o.start);
+  return out.sort((a, b) => (a.date + (a.allDay ? '' : a.start)).localeCompare(b.date + (b.allDay ? '' : b.start))).slice(0, 400);
+}
+async function cal(req, env, token) {
+  if (req.method !== 'POST') return json({ error: 'method' }, 405);
+  if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
+  let body; try { body = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  let url = String(body.url || '').trim().replace(/^webcal:\/\//i, 'https://');
+  if (!/^https:\/\/[^\s]+$/i.test(url)) return json({ error: 'https 주소가 필요해요' }, 400);
+  const from = Date.parse((body.from || '') + 'T00:00:00Z') || (Date.now() + KST - 7 * DAY), to = Date.parse((body.to || '') + 'T00:00:00Z') || (from + 21 * DAY);
+  let text; try { const r = await fetch(url, { cf: { cacheTtl: 600, cacheEverything: true }, headers: { 'user-agent': 'DUAL-Planner-Calendar' } }); if (!r.ok) return json({ error: '주소를 열 수 없어요', status: r.status }, 502); text = await r.text(); } catch (e) { return json({ error: '주소를 열 수 없어요' }, 502); }
+  if (!/BEGIN:VCALENDAR/.test(text)) return json({ error: '캘린더(iCal) 주소가 아니에요' }, 400);
+  return json({ events: parseIcs(text, from, Math.min(to, from + 62 * DAY)) });
+}
+
 export default {
   async fetch(req, env) {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
@@ -244,11 +334,12 @@ export default {
     const am = url.pathname.match(/^\/auth\/(config|google|apple|account)\/?$/);
     if (am) return auth(req, env, am[1]);
     if (url.pathname.replace(/\/$/, '') === '/admin/stats') return adminStats(req, env);
-    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group)\/?$/);
+    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group|cal)\/?$/);
     if (!m) return json({ ok: true, name: 'dual-planner-api', usage: '/u/:token/state | /u/:token/items | /u/:token/mcp | /auth/config | /auth/google | /auth/apple | /auth/account' });
     const token = m[1], kind = m[2], key = 'u:' + token;
     if (kind === 'mcp') return mcp(req, env, token);
     if (kind === 'group') return group(req, env, token);
+    if (kind === 'cal') return cal(req, env, token);
     const cur = Object.assign(empty(), JSON.parse(await env.PLANNER.get(key) || 'null') || {});
     if (kind === 'state') {
       if (req.method === 'GET') return json(cur);

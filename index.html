@@ -182,6 +182,13 @@ a { color: inherit; }
 .acct .who { flex: 1; min-width: 0; } .acct .who b { display: block; font-size: 15px; } .acct .who span { font-size: 12px; color: var(--muted); }
 .acts { display: flex; gap: 18px; padding: 10px 0 18px; } .acts button { font-size: 13px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; padding: 4px 0; } .acts .del { color: var(--check); margin-left: auto; }
 
+/* 일정: 인쇄된 시간 칸처럼 */
+.ev { display: flex; align-items: baseline; gap: 10px; padding-left: 52px; min-height: 38px; padding-top: 9px; font-size: 15px; }
+.ev .tm { font-family: var(--mono); font-size: 12px; color: var(--ink-2); width: 40px; flex: none; font-variant-numeric: tabular-nums; }
+.ev .et { flex: 1; min-width: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev .te { font-family: var(--mono); font-size: 11px; color: var(--muted); padding-right: 4px; }
+.ev.past .et, .ev.past .tm { color: var(--faint); }
+
 /* 큰 버튼 */
 .cta { margin-left: 52px; height: 44px; background: none; color: var(--cover); display: flex; align-items: center; justify-content: flex-start; font-weight: 700; font-size: 15px; width: calc(100% - 52px); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1.5px; cursor: pointer; }
 .cta.ghost { color: var(--muted); font-weight: 500; }
@@ -330,7 +337,7 @@ body.d-night .ptabs button.on { color: #0F1626; }
 
 <div class="more" id="more" onclick="if(event.target===this)closeMore()">
   <div class="box">
-    <div id="acctBox"></div><div id="devBox"></div>
+    <div id="acctBox"></div><div id="calBox"></div><div id="devBox"></div>
     <div class="lbl" style="padding-left:0">비서 연결</div>
     <div id="connBox" style="font-size:13px;line-height:1.8;margin:2px 0 4px"></div>
     <button class="cta" style="margin-left:0;width:100%;height:40px" onclick="copyText(mcpUrl(),'MCP 주소 복사됨')">MCP 주소 복사</button>
@@ -431,7 +438,7 @@ function go(t) {
   render();
 }
 SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
-function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.paidPreview ? '무료로 보기' : '유료 속지로 보기'}</button><span style="font-size:11px;color:var(--muted)">개발용</span></div>` : ''; document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
+function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); renderCalBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.paidPreview ? '무료로 보기' : '유료 속지로 보기'}</button><span style="font-size:11px;color:var(--muted)">개발용</span></div>` : ''; document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
 function closeMore() { document.getElementById('more').classList.remove('on'); }
 function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); }
 function render() { setTimeout(maybeGroup, 800); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.paidPreview ? '' : 'none'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
@@ -490,6 +497,7 @@ function renderToday() {
   const cv = curVol(); const full = cv && today() > volLast(cv);
   let h = `${full ? `<button class="banner" onclick="go('close')"><span>${volName(cv)} 속지가 다 찼어요. 1년을 돌아보고 새 속지를 끼울 시간이에요</span><b>속지 닫기 ›</b></button>` : ''}<div class="sp"></div>
   ${firstHtml(ds)}
+  ${calHtml(ds)}
   <div class="lbl">의도</div>
   <input class="wr" style="font-size:18px;font-weight:600" placeholder="" value="${esc(day.intent)}" onchange="dayOf('${ds}').intent=this.value;save()">
   <div class="sp"></div>
@@ -525,6 +533,7 @@ const GUIDES = [
   { id: 'sun', tab: 'review', text: '일요일 저녁 10분, 한 주 돌아보기', hint: '리뷰가 여기에 붙어요', done: () => Object.values(D.reviews || {}).some(r => r && r.summary) },
   { id: 'write', text: '오늘 할 것 하나 적기', hint: '위의 빈 줄에', done: () => Object.values(D.days).some(d => d && (d.picks||[]).length) },
   { id: 'check', text: '끝낸 건 왼쪽 칸에 체크', done: () => D.rocks.some(r => r && r.checks && Object.keys(r.checks).length) },
+  { id: 'cal', text: '캘린더 일정 불러오기', hint: '구글·네이버 캘린더', act: ['연결', 'openMore()'], done: () => !!(D.settings && D.settings.calUrl) },
   { id: 'note', text: '저녁엔 한 줄 일기', hint: '맨 아래 줄에', done: () => Object.values(D.days).some(d => d && d.note) },
   { id: 'agent', text: '쓰는 AI 비서 데려오기', hint: 'Claude, ChatGPT…', act: ['연결', 'openMore()'], done: () => agentOn() },
 ];
@@ -605,6 +614,41 @@ function stickiesHtml(list, gs) {
       <div class="act">${todo ? `<button onclick="moveToRock('${x.id}')">할 일로</button>` : ''}<button onclick="dropInbox('${x.id}')">떼기</button></div></div>`;
   });
   return h + `</div>`;
+}
+// ── 일정: 캘린더의 iCal 주소를 서버가 받아 펼쳐 준다(앱에서는 아이폰 캘린더를 직접 읽게 바꿀 예정) ──
+let _calLoading = false;
+async function loadCal(force) {
+  const url = (D.settings || {}).calUrl; if (!url || !baseUrl() || _calLoading) return;
+  const c = D.calCache;
+  if (!force && c && c.url === url && c.from <= addDays(today(), -1) && Date.now() - c.at < 15 * 60000) return;
+  _calLoading = true;
+  try {
+    const from = addDays(today(), -7), to = addDays(today(), 35);
+    const r = await fetch(baseUrl() + '/u/' + D.token + '/cal', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url, from, to }) });
+    const j = await r.json();
+    if (!r.ok) { D.calCache = { url, at: Date.now(), from, events: [], error: j.error || '불러오지 못했어요' }; }
+    else D.calCache = { url, at: Date.now(), from, events: j.events || [] };
+    _save0(); render(); if (document.getElementById('calBox')) renderCalBox();
+  } catch(e) {} finally { _calLoading = false; }
+}
+function eventsOn(ds) { const c = D.calCache; if (!c || c.url !== (D.settings || {}).calUrl) return []; return (c.events || []).filter(e => e.date === ds); }
+function calHtml(ds) {
+  const ev = eventsOn(ds); if (!ev.length) return '';
+  const now = new Date(), hm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'), isToday = ds === today();
+  return `<div class="lbl">일정</div>` + ev.map(e => `<div class="ev ruled ${isToday && !e.allDay && e.end && e.end <= hm ? 'past' : ''}"><span class="tm">${e.allDay ? '종일' : e.start}</span><span class="et">${esc(e.title)}</span>${e.allDay || !e.end ? '' : `<span class="te">~${e.end}</span>`}</div>`).join('');
+}
+function setCalUrl(v) {
+  v = String(v || '').trim();
+  D.settings = Object.assign({}, D.settings, { calUrl: v, u: new Date().toISOString() }); D._modified = D.settings.u;
+  D.calCache = null; _save0(); if (baseUrl()) pushState(); renderCalBox(); if (v) { toast('일정 불러오는 중'); loadCal(true); } else { toast('캘린더 연결을 뺐어요'); render(); }
+}
+function renderCalBox() {
+  const el = document.getElementById('calBox'); if (!el) return;
+  const u = (D.settings || {}).calUrl || '', c = D.calCache;
+  const st = !u ? '' : (c && c.error ? `<span style="color:var(--check)">${esc(c.error)}</span>` : c && c.url === u ? `일정 ${c.events.length}개 · ${Math.max(0, Math.round((Date.now() - c.at) / 60000))}분 전` : '불러오는 중');
+  el.innerHTML = `<div class="lbl" style="padding-left:0">캘린더</div>
+    <input class="wr" id="calIn" style="padding-left:0;font-size:13px" placeholder="iCal 주소" value="${esc(u)}" onchange="setCalUrl(this.value)">
+    <div style="font-size:12px;color:var(--muted);line-height:1.7;padding:4px 0 10px">${st ? st + '<br>' : ''}구글 캘린더 › 설정 › 내 캘린더 › 캘린더 통합 › 비공개 주소(iCal 형식)${u ? ` · <button style="font-size:12px;color:var(--ink-2);text-decoration:underline" onclick="setCalUrl('')">빼기</button>` : ''}</div>`;
 }
 function addDays(ds, n) { const d = new Date(ds + 'T00:00:00'); d.setDate(d.getDate() + n); return dstr(d); }
 function setFirst(ds, v) { const d = dayOf(ds); d.first = v.trim(); d.firstOff = false; save(); if (v.trim()) toast('내일 아침 맨 위에 붙여 둘게요'); }
@@ -830,13 +874,14 @@ function baseUrl() { return (D.api || '').trim().replace(/\/+$/, ''); }
 function stateUrl() { return baseUrl() + '/u/' + D.token + '/state'; }
 function mcpUrl() { return baseUrl() ? baseUrl() + '/u/' + D.token + '/mcp' : '(API 주소를 먼저 넣어 주세요)'; }
 function mergeState(a, b) {
-  const em = () => ({ roles: [], rocks: [], days: {}, reviews: {}, seen: {}, vols: [], _modified: '' });
+  const em = () => ({ roles: [], rocks: [], days: {}, reviews: {}, seen: {}, vols: [], settings: {}, _modified: '' });
   a = Object.assign(em(), a || {}); b = Object.assign(em(), b || {}); const out = em();
   const rm = new Map(); [...a.rocks, ...b.rocks].forEach(r => { if (!r || !r.id) return; const p = rm.get(r.id); if (!p || (r.u || '') >= (p.u || '')) rm.set(r.id, r); }); out.rocks = [...rm.values()];
   for (const k of new Set([...Object.keys(a.days), ...Object.keys(b.days)])) { const x = a.days[k], y = b.days[k]; out.days[k] = !x ? y : !y ? x : ((y.u || '') >= (x.u || '') ? y : x); }
   for (const k of new Set([...Object.keys(a.reviews), ...Object.keys(b.reviews)])) { const x = a.reviews[k], y = b.reviews[k]; out.reviews[k] = !x ? y : !y ? x : ((y.u || '') >= (x.u || '') ? y : x); }
   const vm = new Map(); [...(a.vols||[]), ...(b.vols||[])].forEach(v => { if (!v || !v.id) return; const p = vm.get(v.id); if (!p || (v.u || '') >= (p.u || '')) vm.set(v.id, v); }); out.vols = [...vm.values()];
   out.roles = ((b._modified || '') >= (a._modified || '') ? b : a).roles || [];
+  out.settings = (((b.settings || {}).u || '') >= ((a.settings || {}).u || '') ? b.settings : a.settings) || {};
   out.seen = Object.assign({}, a.seen, b.seen); out._modified = [a._modified, b._modified].sort().pop() || '';
   return out;
 }
@@ -851,8 +896,8 @@ function stamp() { const now = new Date().toISOString(), n = sigOf(); let change
 _sig = sigOf();
 const _save0 = save;
 save = function() { const ch = stamp(); _save0(); if (ch && baseUrl()) { clearTimeout(save._t); save._t = setTimeout(pushState, 1500); } };
-function pickState() { return { v: 1, roles: D.roles, rocks: D.rocks, days: D.days, reviews: D.reviews, seen: D.seen, vols: D.vols, _modified: D._modified }; }
-function applyState(S) { if (S && S.agent) D.agent = S.agent; const m = mergeState(pickState(), S); D.roles = m.roles.length ? m.roles : D.roles; D.rocks = m.rocks; D.days = m.days; D.reviews = m.reviews; D.seen = m.seen; D.vols = m.vols.length ? m.vols : (D.vols||[]); D._modified = m._modified; _sig = sigOf(); _save0(); }
+function pickState() { return { v: 1, settings: D.settings || {}, roles: D.roles, rocks: D.rocks, days: D.days, reviews: D.reviews, seen: D.seen, vols: D.vols, _modified: D._modified }; }
+function applyState(S) { if (S && S.agent) D.agent = S.agent; const m = mergeState(pickState(), S); D.roles = m.roles.length ? m.roles : D.roles; const calBefore = (D.settings || {}).calUrl; D.settings = m.settings || {}; if ((D.settings.calUrl || '') !== (calBefore || '')) setTimeout(() => loadCal(true), 0); D.rocks = m.rocks; D.days = m.days; D.reviews = m.reviews; D.seen = m.seen; D.vols = m.vols.length ? m.vols : (D.vols||[]); D._modified = m._modified; _sig = sigOf(); _save0(); }
 async function pushState() { if (!baseUrl()) return; try { const r = await fetch(stateUrl(), { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pickState()) }); if (r.ok) { applyState(await r.json()); render(); setConn(''); } } catch(e) { setConn(''); } }
 async function pullState(manual) { if (!baseUrl()) { if (manual) toast('서버 주소를 먼저 넣어 주세요'); return; } try { const r = await fetch(stateUrl() + '?_=' + Date.now()); if (!r.ok) throw 0; const before = JSON.stringify(pickState()); applyState(await r.json()); if (JSON.stringify(pickState()) !== before) { render(); if (manual) toast('비서가 적은 게 들어왔어요'); } else if (manual) toast('새 항목 없음'); setConn(''); } catch(e) { if (manual) toast('연결 실패'); setConn(''); } }
 function agentAgo() { const a = D.agent; if (!a || !a.at) return ''; const m = Math.round((Date.now() - new Date(a.at)) / 60000); return m < 1 ? '방금' : m < 60 ? m + '분 전' : m < 1440 ? Math.round(m/60) + '시간 전' : Math.round(m/1440) + '일 전'; }
@@ -951,9 +996,10 @@ ensureVol();
 syncPages();
 render();
 showIntro();
+setTimeout(() => loadCal(false), 400);
 loadAuthConf().then(() => { if (!D.account && !D.skipLogin && hasProviders()) setTimeout(openLogin, 950); });
 pullState(false).then(() => { ensureVol(); render(); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden) pullState(false); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { pullState(false); loadCal(false); } });
 // 같은 기기의 다른 창(미리보기의 접은/펼친 화면 등)에서 바뀌면 바로 반영
 window.addEventListener('storage', e => { if (e.key !== KEY) return; const a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return; D = load(); _sig = sigOf(); render(); });
 if (location.hash === '#week') go('week'); else if (location.hash === '#review') go('review');
