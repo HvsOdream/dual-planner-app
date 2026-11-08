@@ -131,6 +131,20 @@ a { color: inherit; }
 .item.ghost { opacity: .32; pointer-events: none; }
 .item.ghost .t { font-style: italic; }
 
+
+/* 로그인 */
+.login { position: fixed; inset: 0; z-index: 110; background: var(--paper); display: none; flex-direction: column; align-items: center; justify-content: center; padding: calc(24px + env(safe-area-inset-top)) 28px calc(24px + env(safe-area-inset-bottom)); }
+.login.on { display: flex; }
+.login .wm { width: min(68%, 250px); height: auto; margin-bottom: 44px; }
+.login .btns { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 12px; }
+.abtn { height: 44px; border-radius: 6px; background: #000; color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 16px; font-weight: 600; }
+#gbtn { min-height: 44px; display: flex; justify-content: center; }
+.login .skip { margin-top: 22px; font-size: 14px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; padding: 8px; }
+.login .fine { margin-top: 28px; font-size: 12px; color: var(--muted); text-align: center; }
+.acct { display: flex; align-items: center; gap: 10px; min-height: 52px; border-bottom: 1px solid var(--rule); }
+.acct .who { flex: 1; min-width: 0; } .acct .who b { display: block; font-size: 15px; } .acct .who span { font-size: 12px; color: var(--muted); }
+.acts { display: flex; gap: 18px; padding: 10px 0 18px; } .acts button { font-size: 13px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; padding: 4px 0; } .acts .del { color: var(--check); margin-left: auto; }
+
 /* 큰 버튼 */
 .cta { margin-left: 52px; height: 44px; background: none; color: var(--cover); display: flex; align-items: center; justify-content: flex-start; font-weight: 700; font-size: 15px; width: calc(100% - 52px); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1.5px; cursor: pointer; }
 .cta.ghost { color: var(--muted); font-weight: 500; }
@@ -279,14 +293,25 @@ body.d-night .ptabs button.on { color: #0F1626; }
 
 <div class="more" id="more" onclick="if(event.target===this)closeMore()">
   <div class="box">
+    <div id="acctBox"></div>
     <div class="lbl" style="padding-left:0">비서 연결</div>
-    <input class="wr" id="apiIn" style="padding-left:0;font-family:var(--mono);font-size:13px" placeholder="서버 주소 붙여넣기" onchange="D.api=this.value.trim().replace(/\/+$/,'');save();pullState(true)">
-    <div id="connBox" style="font-size:13px;line-height:1.8;margin:8px 0"></div>
-    <div class="sp"></div>
-    <button class="cta" style="margin-left:0;width:100%" onclick="copyText(mcpUrl(),'MCP 주소 복사됨')">MCP 주소 복사</button>
-    <div style="height:14px"></div>
+    <div id="connBox" style="font-size:13px;line-height:1.8;margin:2px 0 4px"></div>
+    <button class="cta" style="margin-left:0;width:100%;height:40px" onclick="copyText(mcpUrl(),'MCP 주소 복사됨')">MCP 주소 복사</button>
+    <div style="height:10px"></div>
     <button class="line sub" style="padding-left:0;width:100%;text-align:center" onclick="closeMore()">닫기</button>
   </div>
+</div>
+<div class="login" id="login" aria-modal="true" role="dialog" aria-label="로그인">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -87.4 706.9 113.4" role="img" aria-label="DUAL Planner" class="wm">
+  <path fill="#1E2F4F" d="M30.615234375 0.0C52.880859375 0.0 66.2109375 -13.96484375 66.2109375 -36.474609375C66.2109375 -58.837890625 52.783203125 -72.75390625 31.15234375 -72.75390625H6.0546875V0.0ZM18.9453125 -11.03515625V-61.71875H30.322265625C45.654296875 -61.71875 53.173828125 -52.490234375 53.173828125 -36.474609375C53.173828125 -20.3125 45.751953125 -11.03515625 29.931640625 -11.03515625Z M103.731640625 1.171875C121.505078125 1.171875 133.126171875 -9.66796875 133.126171875 -25.146484375V-72.75390625H120.38203125V-26.171875C120.38203125 -16.89453125 113.93671875 -10.25390625 103.731640625 -10.25390625C93.5265625 -10.25390625 87.032421875 -16.943359375 87.032421875 -26.171875V-72.75390625H74.28828125V-25.146484375C74.28828125 -9.619140625 85.909375 1.171875 103.731640625 1.171875Z M138.32265625 0.0H152.18984375L158.146875 -17.3828125H186.36953125L192.180078125 0.0H206.3890625L180.51015625 -72.75390625H164.29921875ZM161.76015625 -27.978515625 165.27578125 -38.232421875C167.473046875 -44.921875 169.6703125 -51.904296875 172.4046875 -61.083984375C175.1390625 -51.904296875 177.2875 -44.921875 179.4359375 -38.232421875L182.85390625 -27.978515625Z M211.87851562499998 0.0H258.509375V-11.181640625H224.76914062499998V-72.75390625H211.87851562499998Z M286.0056640625 0.0H298.8962890625V-26.171875H313.5447265625C329.5115234375 -26.171875 339.7654296875 -35.205078125 339.7654296875 -49.51171875C339.7654296875 -63.76953125 329.7556640625 -72.75390625 313.7888671875 -72.75390625H286.0056640625ZM298.8962890625 -37.20703125V-61.71875H313.0564453125C321.7478515625 -61.71875 327.0701171875 -57.080078125 327.0701171875 -49.51171875C327.0701171875 -41.89453125 321.7478515625 -37.20703125 313.0564453125 -37.20703125Z M359.0244140625 -72.75390625H346.7197265625V0.0H359.0244140625Z M384.4845703125 0.830078125C392.8830078125 0.830078125 397.2287109375 -2.685546875 399.6701171875 -7.275390625H399.8654296875V0.0H411.9748046875V-35.15625C411.9748046875 -45.8984375 404.0158203125 -52.587890625 390.5880859375 -52.587890625C377.1115234375 -52.587890625 368.7130859375 -45.80078125 368.1271484375 -35.546875H379.9923828125C380.3341796875 -39.892578125 384.3380859375 -43.017578125 390.3439453125 -43.017578125C396.2521484375 -43.017578125 399.7677734375 -39.892578125 399.7677734375 -35.498046875V-35.107421875C399.7677734375 -31.591796875 396.4962890625 -31.4453125 386.9259765625 -30.37109375C376.2814453125 -29.248046875 366.6623046875 -26.3671875 366.6623046875 -14.6484375C366.6623046875 -4.345703125 374.2306640625 0.830078125 384.4845703125 0.830078125ZM387.5119140625 -8.30078125C382.1408203125 -8.30078125 378.6740234375 -10.693359375 378.6740234375 -14.74609375C378.6740234375 -19.43359375 383.1662109375 -21.337890625 388.4396484375 -22.119140625C393.5177734375 -22.900390625 398.3029296875 -23.681640625 399.8166015625 -24.658203125V-19.091796875C399.8166015625 -13.0859375 395.5685546875 -8.30078125 387.5119140625 -8.30078125Z M433.9681640625 -29.150390625C433.9681640625 -37.939453125 438.8021484375 -41.796875 445.2474609375 -41.796875C451.8392578125 -41.796875 455.6478515625 -37.841796875 455.6478515625 -30.2734375V0.0H468.0013671875V-32.2265625C468.0013671875 -45.458984375 460.3841796875 -52.587890625 449.5931640625 -52.587890625C442.5130859375 -52.587890625 437.2884765625 -49.462890625 433.7728515625 -43.65234375V-51.5625H421.6634765625V0.0H433.9681640625Z M490.04355468750003 -29.150390625C490.04355468750003 -37.939453125 494.87753906250003 -41.796875 501.32285156250003 -41.796875C507.91464843750003 -41.796875 511.72324218750003 -37.841796875 511.72324218750003 -30.2734375V0.0H524.0767578125001V-32.2265625C524.0767578125001 -45.458984375 516.4595703125001 -52.587890625 505.66855468750003 -52.587890625C498.58847656250003 -52.587890625 493.36386718750003 -49.462890625 489.84824218750003 -43.65234375V-51.5625H477.73886718750003V0.0H490.04355468750003Z M556.5681640625 1.171875C568.6287109375 1.171875 578.1990234375 -5.810546875 580.1521484375 -15.91796875H568.6287109375C567.2126953125 -11.5234375 563.0623046875 -8.544921875 556.8611328125 -8.544921875C548.5603515625 -8.544921875 543.7751953125 -14.16015625 543.4822265625 -22.55859375H580.7869140625V-25.927734375C580.7869140625 -41.748046875 570.9236328125 -52.734375 556.0798828125 -52.734375C541.6267578125 -52.734375 531.4216796875 -41.40625 531.4216796875 -25.732421875C531.4216796875 -10.107421875 541.0896484375 1.171875 556.5681640625 1.171875ZM543.5798828125 -31.0546875C544.4099609375 -38.427734375 549.1462890625 -42.96875 556.2751953125 -42.96875C563.4041015625 -42.96875 568.1892578125 -38.427734375 568.9705078125 -31.0546875Z M587.9365234375 0.0H600.2412109375V-29.19921875C600.2412109375 -37.255859375 604.7822265625 -41.30859375 610.6416015625 -41.30859375C613.0830078125 -41.30859375 615.5244140625 -41.064453125 616.4521484375 -40.91796875V-51.85546875C615.4755859375 -51.953125 614.1083984375 -52.05078125 612.4482421875 -52.05078125C605.8076171875 -52.05078125 601.8525390625 -48.92578125 599.9482421875 -43.017578125H599.8017578125V-51.5625H587.9365234375Z"/>
+  <path d="M640.9,-29.1 Q648.9,-18.9 657.9,-1.5 Q670.9,-42.2 692.9,-69.8" fill="none" stroke="#D7452E" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+  <div class="btns">
+    <button class="abtn" id="abtn" onclick="appleLogin()"><svg width="16" height="19" viewBox="0 0 17 20" aria-hidden="true"><path fill="#fff" d="M14.1 10.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.7-1-2.7-4.1zM11.5 3c.7-.9 1.2-2 1.1-3.1-1 0-2.2.7-2.9 1.6-.6.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.8-1.5z"/></svg>Apple로 계속하기</button>
+    <div id="gbtn"></div>
+  </div>
+  <button class="skip" onclick="closeLogin(true)">로그인 없이 쓰기</button>
+  <div class="fine">로그인하면 폰과 다른 기기에서 같은 플래너를 써요</div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -367,7 +392,7 @@ function go(t) {
   render();
 }
 SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
-function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); const ai = document.getElementById('apiIn'); if (ai) ai.value = D.api || ''; setConn(''); document.getElementById('more').classList.add('on'); }
+function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
 function closeMore() { document.getElementById('more').classList.remove('on'); }
 function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); }
 function render() { applyDesign(); renderCover(); if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
@@ -703,7 +728,7 @@ function connBanner() {
 function setConn(t) { const el = document.getElementById('connBox'); if (!el) return;
   const srv = baseUrl() ? '● 서버 연결됨' : '○ 서버 미연결';
   const ag = agentOn() ? `● ${agentLabel(D.agent.name)} · ${agentAgo()}` : '○ 비서 미연결';
-  el.innerHTML = `<div style="color:${baseUrl()?'var(--ink)':'var(--muted)'}">${srv}</div><div style="color:${agentOn()?'var(--check)':'var(--muted)'}">${esc(ag)}</div>`; }
+  el.innerHTML = `<div style="color:${agentOn()?'var(--check)':'var(--muted)'}">${esc(ag)}</div>`; }
 async function copyText(t, msg) { try { await navigator.clipboard.writeText(t); toast(msg || '복사됨'); } catch(e) { prompt('복사하세요', t); } }
 // ── 더보기 ──
 async function exportData() { const t = JSON.stringify(D); try { await navigator.clipboard.writeText(t); toast('JSON 복사됨'); } catch(e) { prompt('복사하세요', t); } }
@@ -726,11 +751,74 @@ function showIntro() {
 }
 SPREAD_MQ.addEventListener('change', introWide);
 
+// ── 계정: 애플·구글 로그인 ──
+const DEFAULT_API = 'https://dual-planner-api.withsky0.workers.dev';
+if (!D.api) { D.api = DEFAULT_API; save(); }
+let authConf = null;
+async function loadAuthConf() { if (authConf) return authConf; try { authConf = await (await fetch(baseUrl() + '/auth/config')).json(); } catch(e) { authConf = {}; } return authConf; }
+function hasProviders() { return !!(authConf && (authConf.google || authConf.apple)); }
+function loadScript(src) { return new Promise((res, rej) => { if (document.querySelector(`script[src="${src}"]`)) return res(); const el = document.createElement('script'); el.src = src; el.async = true; el.onload = res; el.onerror = rej; document.head.appendChild(el); }); }
+async function openLogin() {
+  await loadAuthConf(); if (!hasProviders()) return;
+  closeMore(); document.getElementById('login').classList.add('on');
+  document.getElementById('abtn').style.display = authConf.apple ? '' : 'none';
+  if (authConf.google) {
+    try { await loadScript('https://accounts.google.com/gsi/client');
+      google.accounts.id.initialize({ client_id: authConf.google, callback: r => authWith('google', { credential: r.credential }) });
+      google.accounts.id.renderButton(document.getElementById('gbtn'), { theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular', width: 320, locale: 'ko' });
+    } catch(e) { document.getElementById('gbtn').innerHTML = ''; }
+  }
+}
+function closeLogin(skip) { document.getElementById('login').classList.remove('on'); if (skip) { D.skipLogin = true; save(); } }
+async function appleLogin() {
+  try {
+    await loadScript('https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/ko_KR/appleid.auth.js');
+    AppleID.auth.init({ clientId: authConf.apple, scope: 'name email', redirectURI: location.origin + location.pathname, usePopup: true });
+    const r = await AppleID.auth.signIn();
+    const nm = r.user && r.user.name ? [r.user.name.lastName, r.user.name.firstName].filter(Boolean).join('') : '';
+    await authWith('apple', { id_token: r.authorization.id_token, name: nm });
+  } catch(e) { if (!(e && /popup_closed|user_cancelled/.test(e.error || ''))) toast('Apple 로그인 실패'); }
+}
+async function authWith(p, body) {
+  try {
+    const r = await fetch(baseUrl() + '/auth/' + p, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(Object.assign({ token: D.token }, body)) });
+    const j = await r.json(); if (!r.ok || !j.token) throw j;
+    const local = pickState(); D.token = j.token; D.account = j.account; save();
+    // 이 기기에서 쓰던 기록과 계정에 있던 기록을 합친다
+    const m = await fetch(stateUrl(), { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(local) });
+    if (m.ok) applyState(await m.json());
+    markStarted(); closeLogin(); ensureVol(); render(); toast('로그인했어요');
+  } catch(e) { toast('로그인 실패'); }
+}
+function resetLocal() {
+  try { localStorage.removeItem(KEY); } catch(e) {}
+  D = empty(); D.token = newToken(); D.api = DEFAULT_API; _sig = sigOf(); save(); ensureVol(); closeMore(); render();
+}
+function logout() { if (!confirm('로그아웃하면 이 기기의 기록이 지워져요. 계정에는 그대로 남아요.')) return; resetLocal(); openLogin(); }
+async function deleteAccount() {
+  if (!confirm('계정과 모든 기록을 지울까요? 되돌릴 수 없어요.')) return;
+  try { const r = await fetch(baseUrl() + '/auth/account', { method: 'DELETE', headers: { authorization: 'Bearer ' + D.token } }); if (!r.ok) throw 0; } catch(e) { toast('지우지 못했어요. 연결을 확인해 주세요'); return; }
+  resetLocal(); toast('계정을 지웠어요');
+}
+function exportData() { const blob = new Blob([JSON.stringify(pickState(), null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `dual-planner-${today()}.json`; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+function renderAccount() {
+  const el = document.getElementById('acctBox'); if (!el) return;
+  const a = D.account;
+  if (a) {
+    const pv = a.provider === 'apple' ? 'Apple' : 'Google';
+    el.innerHTML = `<div class="lbl" style="padding-left:0">계정</div><div class="acct"><div class="who"><b>${esc(a.name || a.email || pv + ' 계정')}</b><span>${pv}${a.email && a.name ? ' · ' + esc(a.email) : ''}</span></div></div>
+      <div class="acts"><button onclick="exportData()">내 데이터 받기</button><button onclick="logout()">로그아웃</button><button class="del" onclick="deleteAccount()">계정 삭제</button></div>`;
+  } else if (hasProviders()) {
+    el.innerHTML = `<div class="lbl" style="padding-left:0">계정</div><button class="cta" style="margin-left:0;width:100%;height:40px" onclick="openLogin()">로그인</button><div class="acts"><button onclick="exportData()">내 데이터 받기</button></div>`;
+  } else el.innerHTML = '';
+}
+
 // ── 시작 ──
 ensureVol();
 syncPages();
 render();
 showIntro();
+loadAuthConf().then(() => { if (!D.account && !D.skipLogin && hasProviders()) setTimeout(openLogin, 950); });
 pullState(false).then(() => { ensureVol(); render(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pullState(false); });
 // 같은 기기의 다른 창(미리보기의 접은/펼친 화면 등)에서 바뀌면 바로 반영

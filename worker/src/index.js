@@ -2,10 +2,10 @@
 // 경로:  /u/:token/state (GET 전체, PUT 병합 저장)
 //        /u/:token/items (POST 비서가 항목 추가/수정)
 //        /u/:token/mcp   (MCP Streamable HTTP: planner_read / planner_add / planner_update)
-const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET,POST,PUT,OPTIONS', 'access-control-allow-headers': 'content-type,authorization,mcp-session-id,mcp-protocol-version', 'access-control-expose-headers': 'mcp-session-id' };
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type,authorization,mcp-session-id,mcp-protocol-version', 'access-control-expose-headers': 'mcp-session-id' };
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', ...CORS, ...h } });
 const DOW = ['월','화','수','목','금','토','일'];
-const BUCKETS = { urgent:'urgent', important:'important', light:'light', nice:'nice', a:'urgent', b:'important', c:'light', d:'nice', '급하고 꼭':'urgent', '꼭 해야':'important', '급하지만 가벼운':'light', '하면 좋은':'nice' };
+const BUCKETS = { urgent:'urgent', important:'important', light:'light', nice:'nice', a:'urgent', b:'important', c:'light', d:'nice', '급하고 꼭':'urgent', '꼭 해야':'important', '급하지만 가벼운':'light', '하면 좋은':'nice', '급함·중요':'urgent', '중요':'important', '급함':'light', '나중에':'nice' };
 const KST = 9 * 3600 * 1000;
 const nowKST = () => new Date(Date.now() + KST);
 const dstr = d => d.toISOString().slice(0, 10);
@@ -76,7 +76,7 @@ function summary(S) {
   const td = today(), wk = weekKey(nowKST()), ds = []; const ws = new Date(wk); for (let i = 0; i < 7; i++) { const x = new Date(ws); x.setUTCDate(x.getUTCDate() + i); ds.push(dstr(x)); }
   const live = S.rocks.filter(r => r && !r._deleted && !r.tomb);
   const openI = live.filter(r => !r.done);
-  const names = { urgent: 'A 급하고 꼭', important: 'B 꼭 해야(장기)', light: 'C 급하지만 가벼운', nice: 'D 하면 좋은 일' };
+  const names = { urgent: 'A 급함·중요', important: 'B 중요(장기)', light: 'C 급함', nice: 'D 나중에' };
   const cv = (S.vols || []).filter(x => x && !x.closedAt && !x._deleted).sort((x, y) => x.start < y.start ? -1 : 1).pop();
   const lines = [`# DUAL Planner · ${td} · W${wk}`, `역할: ${(S.roles || []).join(' / ')}`, cv ? `지금 속지: ${cv.start}부터 12개월 · 목표: ${(cv.goals || []).join(' / ') || '-'}` : '', ''];
   ['urgent', 'important', 'light', 'nice'].forEach(b => { lines.push(`## ${names[b]}`); openI.filter(r => (r.bucket || 'nice') === b).forEach(r => lines.push(`- id=${r.id} (${r.role}) ${r.title}${r.due ? ' — ' + r.due + '까지만' : ''}${r.routine ? ' — 주 ' + r.routine + '회, 이번 주 ' + Object.keys(r.checks || {}).filter(k => ds.includes(k)).length : ''}`)); lines.push(''); });
@@ -93,7 +93,7 @@ function summary(S) {
 // ── MCP ──
 const INSTRUCTIONS = `DUAL Planner — 사용자의 노트형 플래너. 앱은 사용자의 정리 양식이고, 정리는 비서(너)가 한다.
 1) 플래너 관련 대화나 일을 시작하면 planner_read로 먼저 읽는다(역할, A/B/C/D 할 일, 오늘, 이번 주 일별 기록, 방치 항목).
-2) 대화 중 생긴 할 일·결정은 대화 끝에 한 번에 planner_add로 적는다. 분류해서 적어라: kind=item + bucket A(급하고 꼭) | B(꼭 해야 하는 장기 일, due 필수) | C(급하지만 가벼운) | D(하면 좋은 일). role은 사용자 역할 중 하나, 루틴은 routine=주당 횟수. 결정·메모는 kind=note.
+2) 대화 중 생긴 할 일·결정은 대화 끝에 한 번에 planner_add로 적는다. 분류해서 적어라: kind=item + bucket A(급함·중요) | B(중요한 장기 일, due 필수) | C(급함, 가벼운 일) | D(나중에). role은 사용자 역할 중 하나, 루틴은 routine=주당 횟수. 결정·메모는 kind=note.
 3) 끝난 일은 planner_update로 done=true. 2주 넘게 방치된 것은 분할·묘비를 제안만 하고, 사용자 허락 없이 tomb 하지 않는다.
 4) "속지 1년 리뷰" 요청: 속지 기간의 기록을 읽고(필요하면 사용자에게 달력 요약을 물어) 5~8문장 1년 리뷰를 kind=yearreview로 적는다.
 5) "주간 리뷰" 요청이나 일요일: planner_read의 일별 기록을 근거로 3~5문장 리뷰를 kind=review로 적고, 다음 주 B 후보를 kind=candidate(due 필수)로 최대 4개 적는다. 채택은 사용자가 앱에서 한다.
@@ -133,12 +133,66 @@ async function mcp(req, env, token) {
   return json(Array.isArray(msg) ? out : out[0], 200, { 'mcp-session-id': token.slice(0, 8) });
 }
 
+// ── 로그인(애플·구글): 각 회사가 서명한 ID 토큰을 공개키로 검증하고, 계정 ↔ 플래너 토큰을 잇는다 ──
+// KV: a:<provider>:<sub> → {token, provider, email, name, created} · acct:<token> → a:<provider>:<sub>
+const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
+const b64url = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return s; };
+const b64bytes = s => Uint8Array.from(atob(b64url(s)), c => c.charCodeAt(0));
+const b64json = s => JSON.parse(new TextDecoder().decode(b64bytes(s)));
+function newToken() { const a = new Uint8Array(18); crypto.getRandomValues(a); return btoa(String.fromCharCode(...a)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+async function verifyJwt(jwt, jwksUrl, issuers, aud) {
+  const parts = String(jwt || '').split('.'); if (parts.length !== 3) throw new Error('bad token');
+  const [h, p, sig] = parts; const header = b64json(h), payload = b64json(p);
+  if (header.alg !== 'RS256') throw new Error('bad alg');
+  const jwks = await (await fetch(jwksUrl, { cf: { cacheTtl: 3600, cacheEverything: true } })).json();
+  const jwk = (jwks.keys || []).find(k => k.kid === header.kid); if (!jwk) throw new Error('unknown key');
+  const key = await crypto.subtle.importKey('jwk', { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: 'RS256', ext: true }, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+  const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64bytes(sig), new TextEncoder().encode(h + '.' + p));
+  if (!ok) throw new Error('bad signature');
+  if (!issuers.includes(payload.iss)) throw new Error('bad issuer');
+  const auds = Array.isArray(payload.aud) ? payload.aud : [payload.aud]; if (!auds.includes(aud)) throw new Error('bad audience');
+  if (!payload.exp || payload.exp * 1000 < Date.now() - 60000) throw new Error('expired');
+  if (!payload.sub) throw new Error('no subject');
+  return payload;
+}
+const PROVIDERS = {
+  google: env => env.GOOGLE_CLIENT_ID && { jwks: 'https://www.googleapis.com/oauth2/v3/certs', iss: ['accounts.google.com', 'https://accounts.google.com'], aud: env.GOOGLE_CLIENT_ID },
+  apple: env => env.APPLE_SERVICES_ID && { jwks: 'https://appleid.apple.com/auth/keys', iss: ['https://appleid.apple.com'], aud: env.APPLE_SERVICES_ID },
+};
+async function auth(req, env, path) {
+  if (path === 'config') return json({ google: env.GOOGLE_CLIENT_ID || null, apple: env.APPLE_SERVICES_ID || null });
+  if (path === 'account') {
+    if (req.method !== 'DELETE') return json({ error: 'method' }, 405);
+    const tok = String(req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+    if (!TOKEN_RE.test(tok)) return json({ error: 'no token' }, 401);
+    const ak = await env.PLANNER.get('acct:' + tok);
+    await env.PLANNER.delete('u:' + tok); await env.PLANNER.delete('acct:' + tok); if (ak) await env.PLANNER.delete(ak);
+    return json({ ok: true, deleted: true });
+  }
+  const conf = PROVIDERS[path] && PROVIDERS[path](env);
+  if (!conf) return json({ error: 'provider not configured' }, 503);
+  if (req.method !== 'POST') return json({ error: 'method' }, 405);
+  let body; try { body = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  let claims; try { claims = await verifyJwt(body.credential || body.id_token, conf.jwks, conf.iss, conf.aud); } catch (e) { return json({ error: 'login failed', reason: String(e.message || e) }, 401); }
+  const ak = `a:${path}:${claims.sub}`;
+  let acct = JSON.parse(await env.PLANNER.get(ak) || 'null');
+  if (!acct) {
+    // 처음 로그인: 이 기기에서 쓰던 토큰이 아직 다른 계정에 묶여 있지 않으면 그대로 이어 쓴다(데이터·비서 연결 주소 유지)
+    let tok = TOKEN_RE.test(body.token || '') && !(await env.PLANNER.get('acct:' + body.token)) ? body.token : newToken();
+    acct = { token: tok, provider: path, email: claims.email || '', name: (body.name || claims.name || '').trim(), created: new Date().toISOString() };
+    await env.PLANNER.put(ak, JSON.stringify(acct)); await env.PLANNER.put('acct:' + tok, ak);
+  } else if (!acct.email && claims.email) { acct.email = claims.email; await env.PLANNER.put(ak, JSON.stringify(acct)); }
+  return json({ token: acct.token, account: { provider: acct.provider, email: acct.email, name: acct.name } });
+}
+
 export default {
   async fetch(req, env) {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const url = new URL(req.url);
+    const am = url.pathname.match(/^\/auth\/(config|google|apple|account)\/?$/);
+    if (am) return auth(req, env, am[1]);
     const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp)\/?$/);
-    if (!m) return json({ ok: true, name: 'dual-planner-api', usage: '/u/:token/state | /u/:token/items | /u/:token/mcp' });
+    if (!m) return json({ ok: true, name: 'dual-planner-api', usage: '/u/:token/state | /u/:token/items | /u/:token/mcp | /auth/config | /auth/google | /auth/apple | /auth/account' });
     const token = m[1], kind = m[2], key = 'u:' + token;
     if (kind === 'mcp') return mcp(req, env, token);
     const cur = Object.assign(empty(), JSON.parse(await env.PLANNER.get(key) || 'null') || {});
