@@ -9,4 +9,4 @@ id = "82e7f317dbe74a3eba8d26f4a5fbb3dc"
 # 로그인용 공개 ID(비밀 아님). 비어 있으면 그 로그인은 꺼진 상태.
 [vars]
 GOOGLE_CLIENT_ID = "992928610624-qivktlsooc8tifhdt6g0mmvckqdji7v2.apps.googleusercontent.com"
-APPLE_SERVICES_ID = ""
+APPLE_SERVICES_ID = "com.hvsodream.dualplanner.web"
