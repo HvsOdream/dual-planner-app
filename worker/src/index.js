@@ -274,6 +274,17 @@ async function group(req, env, token) {
   await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
   const known = new Set(items.map(x => x.id)), seen = new Set();
   const groups = ((out && out.groups) || []).map(g => ({ name: String(g.name || '').replace(/[\[\]"'`]/g, '').trim().slice(0, 8), ids: (g.ids || []).map(String).filter(id => known.has(id) && !seen.has(id) && seen.add(id)) })).filter(g => g.name && g.ids.length);
+  // 사람 사전으로 내 자리가 드러나면 이름을 사람 말로: 배우자=아내 → 남편, 아이 일 → 준서 아빠
+  if (!roles.length && people.length) {
+    const rel = Object.fromEntries(people), vals = Object.values(rel);
+    const me = vals.includes('아내') ? '남편' : vals.includes('남편') ? '아내' : '';
+    const kid = Object.keys(rel).find(n => rel[n] === '아들' || rel[n] === '딸');
+    const pw = me === '남편' ? '아빠' : me === '아내' ? '엄마' : '';
+    groups.forEach(g => {
+      if (g.name === '부모' && pw) g.name = kid ? kid + ' ' + pw : pw;
+      else if (g.name === '배우자' && me) g.name = me;
+    });
+  }
   const known2 = new Set(people.map(([n]) => n));
   const ppl = ((out && out.people) || []).map(x => ({ name: String(x.name || '').replace(/[^가-힣A-Za-z0-9]/g, '').slice(0, 6), guess: String(x.guess || '모름').slice(0, 6) })).filter(x => x.name.length >= 2 && !known2.has(x.name) && items.some(it => it.title.includes(x.name))).slice(0, 5);
   return json(Object.assign({ groups, people: ppl, model: env.LLM_URL ? 'sllm' : 'workers-ai' }, body.debug ? { raw: String(raw).slice(0, 1500) } : {}));
