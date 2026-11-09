@@ -240,7 +240,7 @@ async function group(req, env, token) {
   let body; try { body = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
   const items = (body.items || []).filter(x => x && x.id && x.title).slice(0, 40).map(x => ({ id: String(x.id), title: String(x.title).slice(0, 80) }));
   const roles = (body.roles || []).map(String).slice(0, 12);
-  const people = Object.entries(body.people || {}).slice(0, 20).map(([n, r]) => [String(n).slice(0, 10), String(r).slice(0, 10)]).filter(([n, r]) => n && r && r !== '모름');
+  const people = Object.entries(body.people || {}).slice(0, 20).map(([n, r]) => [String(n).slice(0, 10), String(r).replace(/[\n=,]/g, ' ').slice(0, 30)]).filter(([n, r]) => n && r && r !== '모름');
   if (items.length < 3) return json({ groups: [] });
   const sys = [
     '너는 종이 플래너를 함께 쓰는 비서다. 할 일 목록을 보고, 이 사람이 삶에서 맡고 있는 "역할"을 찾아 할 일을 역할별로 묶는다.',
@@ -270,7 +270,7 @@ async function group(req, env, token) {
     { role: 'user', content: '기존 역할: 없음\n할 일:\n- id=c1: 서윤 담임 김지은 선생님께 상담 답장\n- id=c2: 박 과장에게 출하 검사표 보내기\n- id=c3: 전기기사 기출 2회분 풀기\n- id=c4: 언니랑 엄마 생신 선물 정하기\n- id=c5: 요가 주 3회\n- id=c6: [일정] 주간 회의\n- id=c7: [일정] 서윤 피아노 픽업' },
     { role: 'assistant', content: '{"groups":[{"name":"품질관리","ids":["c2","c6"]},{"name":"부모","ids":["c1","c7"]},{"name":"수험생","ids":["c3"]},{"name":"가족","ids":["c4"]},{"name":"나 자신","ids":["c5"]}],"people":[{"name":"서윤","guess":"딸"},{"name":"김지은","guess":"선생님"},{"name":"박 과장","guess":"동료"}]}' }
   ];
-  const user = '기존 역할: ' + (roles.join(', ') || '없음') + '\n사람: ' + (people.map(([n, r]) => n + '=' + r).join(', ') || '없음') + '\n할 일:\n' + items.map(x => `- id=${x.id}: ${x.title}`).join('\n');
+  const user = '기존 역할: ' + (roles.join(', ') || '없음') + '\n사람(사용자가 적은 설명. 그 사람이 나오는 할 일은 이 설명으로 역할을 정한다): ' + (people.map(([n, r]) => n + '=' + r).join(', ') || '없음') + '\n할 일:\n' + items.map(x => `- id=${x.id}: ${x.title}`).join('\n');
   const msgs = [{ role: 'system', content: sys }, ...example, { role: 'user', content: user }];
   let raw = '', out;
   try {
@@ -282,7 +282,9 @@ async function group(req, env, token) {
   const groups = ((out && out.groups) || []).map(g => ({ name: String(g.name || '').replace(/[\[\]"'`]/g, '').trim().slice(0, 8), ids: (g.ids || []).map(String).filter(id => known.has(id) && !seen.has(id) && seen.add(id)) })).filter(g => g.name && g.ids.length);
   // 사람 사전으로 내 자리가 드러나면 이름을 사람 말로: 배우자=아내 → 남편, 아이 일 → 준서 아빠
   if (!roles.length && people.length) {
-    const rel = Object.fromEntries(people), vals = Object.values(rel);
+    // 사람 설명은 자유롭게 적힌다('와이프', '아들 민준', '진흥원 연구원'): 앞쪽 관계 단어만 뽑아 쓴다
+    const relOf = t => /아내|와이프|부인/.test(t) ? '아내' : /남편/.test(t) ? '남편' : /^아들|아들$/.test(t) ? '아들' : /^딸|딸$/.test(t) ? '딸' : t;
+    const rel = Object.fromEntries(people.map(([n, r]) => [n, relOf(r)])), vals = Object.values(rel);
     const me = vals.includes('아내') ? '남편' : vals.includes('남편') ? '아내' : '';
     const kid = Object.keys(rel).find(n => rel[n] === '아들' || rel[n] === '딸');
     const pw = me === '남편' ? '아빠' : me === '아내' ? '엄마' : '';

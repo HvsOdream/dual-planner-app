@@ -16,6 +16,7 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "widgetSave", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "takePending", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "appleSignIn", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "calendarAdd", returnType: CAPPluginReturnPromise),
     ]
     private let store = EKEventStore()
     private var appleDelegate: AppleSignInDelegate?
@@ -82,6 +83,21 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
             if out.count >= 400 { break }
         }
         call.resolve(["events": out, "status": "granted"])
+    }
+
+    // { date: "YYYY-MM-DD", start: "HH:mm", minutes, title } → 기본 캘린더에 일정 하나
+    @objc func calendarAdd(_ call: CAPPluginCall) {
+        guard status() == "granted" else { call.resolve(["ok": false, "status": status()]); return }
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm"; f.timeZone = .current
+        guard let st = f.date(from: (call.getString("date") ?? "") + " " + (call.getString("start") ?? "")),
+              let cal = store.defaultCalendarForNewEvents else { call.reject("bad time"); return }
+        let e = EKEvent(eventStore: store)
+        e.title = call.getString("title") ?? ""
+        e.startDate = st
+        e.endDate = st.addingTimeInterval(Double(call.getInt("minutes") ?? 60) * 60)
+        e.calendar = cal
+        do { try store.save(e, span: .thisEvent); call.resolve(["ok": true, "id": e.eventIdentifier ?? ""]) }
+        catch { call.reject(error.localizedDescription) }
     }
 
     // { date, items: [{id, title, done}], first } → 위젯
