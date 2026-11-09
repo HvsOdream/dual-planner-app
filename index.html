@@ -80,8 +80,8 @@ a { color: inherit; }
 .item { display: flex; align-items: flex-start; }
 .item .mg { width: 40px; height: var(--row); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .item .bd { flex: 1; min-width: 0; padding-left: 12px; }
-.item .t { height: var(--row); line-height: var(--row); font-size: 16px; font-weight: 500; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
-.item .t .tx { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.item .t { min-height: var(--row); line-height: 1.45; padding: 9px 0 3px; font-size: 16px; font-weight: 500; display: flex; align-items: flex-start; gap: 8px; }
+.item .t .tx { flex: 1; min-width: 0; word-break: keep-all; overflow-wrap: anywhere; }
 .item .m { height: var(--row); line-height: var(--row); font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--rule); white-space: nowrap; overflow: hidden; }
 .item .m .sp1 { flex: 1; }
 .item .m button, .item .t button { font-size: 12px; color: var(--muted); text-decoration: underline; padding: 0; }
@@ -227,6 +227,9 @@ a { color: inherit; }
 /* 접은 화면: 메뉴는 아래 탭에서(위쪽 오른쪽은 카메라 자리) */
 body:not(.spread) .cover .ibtn[aria-label="더보기"] { display: none; }
 html.native body:not(.spread) .cover .streak { display: none; }
+html.native body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+html.native .tabbar { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+#saProbe { position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 .more h3 { font-size: 11px; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; }
 .more .mi { display: flex; align-items: center; justify-content: space-between; height: 48px; border-bottom: 1px solid var(--rule); font-size: 15px; width: 100%; text-align: left; }
 .more .mi span { font-size: 12px; color: var(--muted); }
@@ -428,7 +431,7 @@ body { background-image: var(--paper-tex); }
   <div class="fine">로그인하면 폰과 다른 기기에서 같은 플래너를 써요<br>계속하면 <a href="legal/terms.html" target="_blank">이용약관</a>과 <a href="legal/privacy.html" target="_blank">개인정보처리방침</a>에 동의하게 돼요</div>
 </div>
 <div class="toast" id="toast"></div>
-<div class="dev-on" id="devTag" style="display:none">미리보기</div>
+<div id="saProbe"></div><div class="dev-on" id="devTag" style="display:none">미리보기</div>
 
 <script>
 'use strict';
@@ -507,10 +510,10 @@ function go(t) {
   render();
 }
 SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
-function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용</span></div>` : ''; document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
+function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
 function closeMore() { document.getElementById('more').classList.remove('on'); }
 function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); }
-function render() { ensureTrial(); setTimeout(maybeGroup, 800); widgetSync(); applyTheme(); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.preview ? '' : 'none'; if (db) db.textContent = D.preview === 'free' ? '구독 안 한 화면' : '구독한 화면'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
+function render() { ensureTrial(); syncRoles(); setTimeout(maybeGroup, 800); widgetSync(); applyTheme(); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.preview ? '' : 'none'; if (db) db.textContent = D.preview === 'free' ? '구독 안 한 화면' : '구독한 화면'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
 
 function renderCover() {
   const s = streak(), dots = Math.min(s,3);
@@ -563,7 +566,7 @@ function renderToday() {
   // 오늘 고를 만한 것: A 전부 + 3일 안에 끝나는 B (아직 안 고른 것)
   const soon = dstr(new Date(Date.now()+3*86400000));
   const sugg = openItems().filter(r => !(day.picks||[]).includes(r.id) && (r.bucket==='urgent' || (r.bucket==='important' && r.due && r.due <= soon) || (r.routine && checkedCount(r) < r.routine)));
-  const cv = curVol(); const full = cv && today() > volLast(cv);
+  const cv = curVol(); const full = false; // 속지 닫기 화면은 당분간 숨김
   let h = `${full ? `<button class="banner" onclick="go('close')"><span>${volName(cv)} 속지가 다 찼어요. 1년을 돌아보고 새 속지를 끼울 시간이에요</span><b>속지 닫기 ›</b></button>` : ''}<div class="sp"></div>
   ${firstHtml(ds)}
   ${calHtml(ds)}
@@ -658,7 +661,8 @@ function backSticky(label, count, text, cls) {
     <div class="tx" aria-hidden="true">${esc(String(text || '').slice(0, 160))}</div><div class="unlock">구독하면 또렷해져요</div></div>`;
 }
 // ── 속지 비서: 역할 없는 할 일이 3개 넘게 쌓이면 묶음을 제안한다 ──
-function unroled() { return openItems().filter(r => !r.role || !D.roles.includes(r.role)); }
+function syncRoles() { D.roles = D.roles || []; live().forEach(r => { if (r.role && !D.roles.includes(r.role)) D.roles.push(r.role); }); }
+function unroled() { return openItems().filter(r => !r.role); }
 function groupSig(list) { return list.map(r => r.id).sort().join(','); }
 let _grouping = false;
 async function maybeGroup() {
@@ -679,7 +683,7 @@ function groupHtml() {
   const groups = g.groups.map(x => ({ name: x.name, ids: x.ids.filter(id => live.has(id)) })).filter(x => x.ids.length);
   if (!groups.length) return '';
   const n = groups.reduce((k, x) => k + x.ids.length, 0);
-  if (!paid()) return backSticky('묶음', `할 일 ${n}개 → ${groups.length}묶음`, groups.map(x => x.name + ' ' + (x.items || []).length).join(' · ') + ' 이렇게 묶어 볼까요');
+  if (!paid()) return backSticky('역할로 묶기', `역할 없는 할 일 ${n}개`, groups.map(x => x.name + ' ' + (x.items || []).length).join(' · ') + ' 이렇게 묶어 볼까요');
   return `<div class="sticky wide"><div class="who"><span>비서</span><span>묶어 볼까요</span></div>
     <div class="tx">${groups.map(x => `<b>${esc(x.name)}</b> ${x.ids.length}  <span style="font-size:12px;opacity:.75">${x.ids.map(id => esc((rock(id) || {}).title || '')).join(', ')}</span>`).join('<br>')}</div>
     <div class="act"><button onclick="applyGroups()">이대로 묶기</button><button onclick="D.groupSug.off=D.groupSug.sig;_save0();render()">떼기</button></div></div>`;
@@ -925,7 +929,7 @@ function renderReview() {
   const nd = new Date(wk); nd.setDate(nd.getDate()+7); const nwk = weekKey(nd);
   const stale = staleItems();
   const v = curVol();
-  let h = `<div class="sp"></div><button class="row ruled" style="padding-left:52px;width:100%;gap:10px;text-align:left" onclick="go('shelf')"><span class="vcover ${v.design}" style="width:18px;height:24px;border-width:1.5px"></span><span style="flex:1;font-size:14px"><b>${volName(v)} 속지</b> <span style="color:var(--muted);font-size:12px">· 남은 ${weeksLeft(v)}주</span></span><span style="font-size:12px;color:var(--muted);text-decoration:underline">책장 ›</span></button>` + calendarHtml() + `<div class="sp"></div><div class="lbl" style="color:var(--accent);font-weight:700">이번 주 리뷰 · W${weekNo(new Date(wk))}</div>`;
+  let h = `<div class="sp"></div>` + calendarHtml() + `<div class="sp"></div><div class="lbl" style="color:var(--accent);font-weight:700">이번 주 리뷰 · W${weekNo(new Date(wk))}</div>`;
   h += reviewSection(wk, nwk, rv, stale);
   document.getElementById('review').innerHTML = h;
 }
