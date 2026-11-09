@@ -802,7 +802,9 @@ async function maybeGroup() {
   if (g && g.at && Date.now() - g.at < 60000) return;
   _grouping = true;
   try {
-    const r = await fetch(baseUrl() + '/u/' + D.token + '/group', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: list.map(x => ({ id: x.id, title: x.title })), roles: D.roles }) });
+    const req = () => fetch(baseUrl() + '/u/' + D.token + '/group', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: list.map(x => ({ id: x.id, title: x.title })), roles: D.roles }) });
+    let r = await req();
+    if (r.status === 404) { await pushState(); r = await req(); } // 처음 쓰는 사람: 플래너를 먼저 서버에 만든다
     const j = await r.json();
     if (r.ok && (j.groups || []).length) { D.groupSug = { sig, at: Date.now(), groups: j.groups }; _save0(); if (tab === 'today' || tab === 'week' || spread()) render(); }
   } catch(e) {} finally { _grouping = false; }

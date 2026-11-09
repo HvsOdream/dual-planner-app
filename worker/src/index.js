@@ -230,12 +230,30 @@ async function group(req, env, token) {
   const items = (body.items || []).filter(x => x && x.id && x.title).slice(0, 40).map(x => ({ id: String(x.id), title: String(x.title).slice(0, 80) }));
   const roles = (body.roles || []).map(String).slice(0, 12);
   if (items.length < 3) return json({ groups: [] });
-  const sys = '너는 종이 플래너를 정리해 주는 비서다. 할 일 목록을 그 사람이 맡은 역할·생활 영역별로 2~5묶음으로 나눈다. 묶음 이름은 2~6자 한국어 명사로 짧게(예: 연구, 학과 행정, 집안일, 운동, 가족). 기존 역할 이름과 맞으면 그 이름을 그대로 쓴다. 모든 id를 정확히 한 번씩 넣는다. 설명 없이 JSON만 출력: {"groups":[{"name":"...","ids":["..."]}]}';
+  const sys = [
+    '너는 종이 플래너를 함께 쓰는 비서다. 할 일 목록을 보고, 이 사람이 삶에서 맡고 있는 "역할"을 찾아 할 일을 역할별로 묶는다.',
+    '역할은 일의 주제가 아니라 그 일을 하는 사람의 자리다. 좋은 예: 연구자, 교수, 학과장, 직장인, 팀장, 창업가, 학생, 아빠, 엄마, 남편, 아내, 아들, 딸, 친구, 나 자신.',
+    '나쁜 예(주제·프로젝트 이름): 논문, 회의, 행정, 운동, 신진, 앱개발, 과제. 이런 건 그 일을 하는 자리로 바꾼다(논문·연구비 → 연구자, 회의 안건·교과목 → 학과장 또는 교수, 운동·건강·취미 → 나 자신, 자녀 숙제 → 아빠 또는 엄마).',
+    '[대괄호] 안의 말은 프로젝트 표시일 뿐 역할이 아니다.',
+    '역할은 2~5개. 비슷한 자리는 합친다. 이름은 2~5자 한국어 명사 하나.',
+    '기존 역할이 주어지면, 뜻이 맞는 할 일은 기존 이름을 그대로 쓴다.',
+    '모든 id를 정확히 한 번씩, 하나의 역할에만 넣는다.',
+    '설명 없이 JSON 하나만 출력한다: {"groups":[{"name":"역할","ids":["id",...]}]}'
+  ].join('\n');
+  const example = [
+    { role: 'user', content: '기존 역할: 없음\n할 일:\n- id=a1: 분기 보고서 초안\n- id=a2: 팀원 1:1 면담\n- id=a3: 어린이집 상담 예약\n- id=a4: 요가 3번\n- id=a5: 아이 예방접종' },
+    { role: 'assistant', content: '{"groups":[{"name":"팀장","ids":["a1","a2"]},{"name":"엄마","ids":["a3","a5"]},{"name":"나 자신","ids":["a4"]}]}' }
+  ];
   const user = '기존 역할: ' + (roles.join(', ') || '없음') + '\n할 일:\n' + items.map(x => `- id=${x.id}: ${x.title}`).join('\n');
-  let raw = '', out; try { raw = await llm(env, [{ role: 'system', content: sys }, { role: 'user', content: user }], 700); out = jsonIn(raw); } catch (e) { return json({ error: 'model failed', reason: String(e.message || e) }, 502); }
+  const msgs = [{ role: 'system', content: sys }, ...example, { role: 'user', content: user }];
+  let raw = '', out;
+  try {
+    raw = await llm(env, msgs, 700); out = jsonIn(raw);
+    if (!out || !Array.isArray(out.groups)) { raw = await llm(env, msgs.concat([{ role: 'assistant', content: String(raw).slice(0, 400) }, { role: 'user', content: 'JSON 형식이 아니다. {"groups":[...]} 하나만 다시 출력해.' }]), 700); out = jsonIn(raw); }
+  } catch (e) { return json({ error: 'model failed', reason: String(e.message || e) }, 502); }
   await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
   const known = new Set(items.map(x => x.id)), seen = new Set();
-  const groups = ((out && out.groups) || []).map(g => ({ name: String(g.name || '').trim().slice(0, 12), ids: (g.ids || []).map(String).filter(id => known.has(id) && !seen.has(id) && seen.add(id)) })).filter(g => g.name && g.ids.length);
+  const groups = ((out && out.groups) || []).map(g => ({ name: String(g.name || '').replace(/[\[\]"'`]/g, '').trim().slice(0, 8), ids: (g.ids || []).map(String).filter(id => known.has(id) && !seen.has(id) && seen.add(id)) })).filter(g => g.name && g.ids.length);
   return json(Object.assign({ groups, model: env.LLM_URL ? 'sllm' : 'workers-ai' }, body.debug ? { raw: String(raw).slice(0, 1500) } : {}));
 }
 
