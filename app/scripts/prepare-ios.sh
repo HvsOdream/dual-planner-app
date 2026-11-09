@@ -18,6 +18,18 @@ ruby scripts/add-native.rb
 # 시작 화면을 DualViewController 로(앱 전용 플러그인 등록)
 sed -i '' -E 's/customClass="CAPBridgeViewController" customModule="Capacitor"/customClass="DualViewController" customModule="App" customModuleProvider="target"/' ios/App/App/Base.lproj/Main.storyboard
 grep -q 'DualViewController' ios/App/App/Base.lproj/Main.storyboard || { echo 'Main.storyboard 교체 실패'; exit 1; }
+# 앱 전용 플러그인을 Capacitor 기본 플러그인 목록에도 올린다(웹에 기능 목록이 실리도록)
+python3 - <<'PY'
+import json
+p = 'ios/App/App/capacitor.config.json'
+c = json.load(open(p))
+l = c.get('packageClassList') or []
+if 'DualNativePlugin' not in l: l.append('DualNativePlugin')
+c['packageClassList'] = l
+json.dump(c, open(p, 'w'), indent=2)
+print('[prepare-ios] packageClassList:', l)
+PY
+grep -q DualNativePlugin ios/App/App/capacitor.config.json || { echo 'packageClassList 등록 실패'; exit 1; }
 
 PLIST=ios/App/App/Info.plist
 PB="/usr/libexec/PlistBuddy -c"
@@ -25,12 +37,12 @@ set_plist() { $PB "Delete :$1" "$PLIST" 2>/dev/null || true; $PB "Add :$1 $2 $3"
 set_plist CFBundleDisplayName string "DUAL"
 set_plist ITSAppUsesNonExemptEncryption bool false
 set_plist UIRequiresFullScreen bool false
-set_plist UIStatusBarStyle string UIStatusBarStyleLightContent
+set_plist UIStatusBarStyle string UIStatusBarStyleDarkContent
 set_plist UIViewControllerBasedStatusBarAppearance bool true
 set_plist NSCalendarsFullAccessUsageDescription string "오늘 일정을 플래너 맨 위 일정 칸에 보여 줘요"
 set_plist NSCalendarsUsageDescription string "오늘 일정을 플래너 맨 위 일정 칸에 보여 줘요"
 
-# 앱 아이콘: 레포의 1024 아이콘(네이비 천 표지 + 빨간 밴드)
+# 앱 아이콘: 레포의 1024 아이콘(테라코타 천 + 접힌 D)
 ICON_DIR=ios/App/App/Assets.xcassets/AppIcon.appiconset
 for f in "$ICON_DIR"/*.png; do sips -s format png -z 1024 1024 www/icons/icon-1024.png --out "$f" >/dev/null; done
 # 알파 채널 없애기(App Store 아이콘 규칙)
