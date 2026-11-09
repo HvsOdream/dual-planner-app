@@ -623,8 +623,8 @@ const GUIDES = [
   { id: 'sun', tab: 'review', text: '일요일 저녁 10분, 한 주 돌아보기', hint: '리뷰가 여기에 붙어요', done: () => Object.values(D.reviews || {}).some(r => r && r.summary) },
   { id: 'write', text: '오늘 할 것 하나 적기', hint: '위의 빈 줄에', done: () => Object.values(D.days).some(d => d && (d.picks||[]).length) },
   { id: 'check', text: '끝낸 건 왼쪽 칸에 체크', done: () => D.rocks.some(r => r && r.checks && Object.keys(r.checks).length) },
-  { id: 'cal', text: '캘린더 일정 불러오기', hint: '구글·네이버 캘린더', act: ['연결', 'openMore()'], done: () => !!(D.settings && (D.settings.calUrl || D.settings.calNative)) },
-  { id: 'notify', native: true, text: '아침·저녁 알림 받기', hint: '아침 3분, 저녁 1분', act: ['켜기', 'enableNotifs()'], done: () => !!(D.settings && D.settings.notify && D.settings.notify.on) },
+  { id: 'cal', text: '캘린더 일정 불러오기', hint: '일정을 보고 역할과 빈 시간을 찾아요', act: ['연결', "isNative() ? setCalNative(true) : openMore()"], done: () => !!(D.settings && (D.settings.calUrl || D.settings.calNative)) },
+  { id: 'notify', native: true, text: '아침 8시 브리핑 받기', hint: '일정·마감·빈 시간을 알림으로', act: ['켜기', 'enableNotifs()'], done: () => !!(D.settings && D.settings.notify && D.settings.notify.on) },
   { id: 'note', text: '저녁엔 한 줄 일기', hint: '맨 아래 줄에', done: () => Object.values(D.days).some(d => d && d.note) },
   { id: 'agent', text: '쓰는 AI 비서 데려오기', hint: 'Claude, ChatGPT…', act: ['연결', 'openMore()'], done: () => agentOn() },
 ];
