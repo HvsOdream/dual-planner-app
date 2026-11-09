@@ -5,7 +5,7 @@
   "ios": {
     "contentInset": "never",
     "scheme": "dualplanner",
-    "backgroundColor": "#1E2F4F"
+    "backgroundColor": "#A9503A"
   },
   "server": { "iosScheme": "capacitor" },
   "plugins": {

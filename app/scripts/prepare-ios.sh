@@ -36,7 +36,7 @@ for f in "$ICON_DIR"/*.png; do sips -s format png -z 1024 1024 www/icons/icon-10
 # 알파 채널 없애기(App Store 아이콘 규칙)
 for f in "$ICON_DIR"/*.png; do sips -s format jpeg "$f" --out /tmp/i.jpg >/dev/null && sips -s format png /tmp/i.jpg --out "$f" >/dev/null; done
 
-# 실행 화면: 네이비 단색(곧바로 앱 표지가 이어진다)
+# 실행 화면: 테라코타 단색(곧바로 앱 표지가 이어진다)
 SPLASH_DIR=ios/App/App/Assets.xcassets/Splash.imageset
 if [ -d "$SPLASH_DIR" ]; then
   python3 - "$SPLASH_DIR" <<'PY'
@@ -47,7 +47,7 @@ def png(path, w, h, rgb):
     def chunk(t, data): c = struct.pack('>I', len(data)) + t + data; return c + struct.pack('>I', zlib.crc32(t + data) & 0xffffffff)
     open(path, 'wb').write(b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(raw, 9)) + chunk(b'IEND', b''))
 for f in os.listdir(d):
-    if f.endswith('.png'): png(os.path.join(d, f), 2732, 2732, (0x1E, 0x2F, 0x4F))
+    if f.endswith('.png'): png(os.path.join(d, f), 2732, 2732, (0xA9, 0x50, 0x3A))
 PY
 fi
 plutil -lint "$PLIST"
