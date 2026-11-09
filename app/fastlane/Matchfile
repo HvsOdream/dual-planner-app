@@ -2,3 +2,5 @@ git_url(ENV.fetch("MATCH_GIT_URL", "https://github.com/HvsOdream/ios-certs.git")
 storage_mode("git")
 type("appstore")
 readonly(false)
+# 듀얼플래너 전용 칸: 서일 오피스(master)와 비밀번호를 따로 쓴다
+git_branch(ENV.fetch("MATCH_GIT_BRANCH", "dual-planner"))
