@@ -147,18 +147,11 @@ a { color: inherit; }
 .sticky .inp { width: 100%; border: none; background: transparent; font: inherit; font-size: 15px; font-weight: 600; color: inherit; outline: none; padding: 4px 0; border-bottom: 1px dashed rgba(74,42,51,.3); }
 .sticky .inp::placeholder { color: rgba(74,42,51,.35); font-weight: 500; }
 /* 뒤집힌 포스트잇: 뒷면만 보이고 글씨가 비친다. 누르면 귀퉁이가 들린다 */
-.sticky.back { background: #EDE3A2; cursor: pointer; transition: transform .25s ease; }
-.sticky.back:nth-child(even) { background: #EADF9C; }
-.sticky.back.orange { background: #F1CDA6; }
-.sticky.back .seep { position: absolute; left: 14px; right: 18px; top: 30px; height: 48px; opacity: .22; transform: scaleX(-1); filter: blur(1.2px);
-  background: repeating-linear-gradient(to bottom, #6B5B1E 0 2px, transparent 2px 12px); -webkit-mask-image: linear-gradient(90deg, #000 0 70%, transparent 95%); mask-image: linear-gradient(90deg, #000 0 70%, transparent 95%); }
-.sticky.back .cnt { position: relative; margin-top: auto; font-size: 13px; font-weight: 700; color: #6B5B1E; }
-.sticky.back .flip { display: none; position: relative; font-size: 12px; color: #4A3F12; margin-top: 6px; }
-.sticky.back .flip button { text-decoration: underline; font-size: 12px; color: #4A3F12; margin-left: 6px; }
-.sticky.back.lift { transform: rotate(-3deg) translateY(-4px); box-shadow: 0 1px 1px rgba(60,50,0,.10), 6px 14px 16px -8px rgba(60,50,0,.5); }
-.sticky.back.lift .flip { display: block; }
-.sticky.back.lift .peek { filter: blur(3px); }
-.sticky.back .peek { position: relative; font-size: 14px; color: #4A3F12; opacity: .55; filter: blur(4px); user-select: none; }
+.sticky.blur { cursor: pointer; }
+.sticky.blur.orange { background: #F1CDA6; }
+.sticky.blur .tx { filter: blur(4.5px); opacity: .75; user-select: none; pointer-events: none; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.sticky.blur .unlock { position: relative; margin-top: 8px; font-size: 12px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; opacity: .8; }
+.subst { font-size: 14px; color: var(--ink-2); margin: 2px 0 10px; }
 .dev-on { position: fixed; left: 8px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; font-size: 11px; background: var(--check); color: #fff; padding: 2px 8px; border-radius: 10px; }
 @keyframes peel { 0%, 55% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px) rotate(-5deg); } }
 .sticky::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 18px; background: rgba(120,100,0,.07); }
@@ -407,7 +400,7 @@ body { background-image: var(--paper-tex); }
 
 <div class="more" id="more" onclick="if(event.target===this)closeMore()">
   <div class="box">
-    <div id="acctBox"></div><div id="calBox"></div><div id="notifyBox"></div><div id="coverBox"></div><div id="devBox"></div>
+    <div id="acctBox"></div><div id="subBox"></div><div id="calBox"></div><div id="notifyBox"></div><div id="coverBox"></div><div id="devBox"></div>
     <div class="lbl" style="padding-left:0">비서 연결</div>
     <div id="connBox" style="font-size:13px;line-height:1.8;margin:2px 0 4px"></div>
     <button class="cta" style="margin-left:0;width:100%;height:40px" onclick="copyText(mcpUrl(),'MCP 주소 복사됨')">MCP 주소 복사</button>
@@ -426,7 +419,7 @@ body { background-image: var(--paper-tex); }
   <div class="fine">로그인하면 폰과 다른 기기에서 같은 플래너를 써요<br>계속하면 <a href="legal/terms.html" target="_blank">이용약관</a>과 <a href="legal/privacy.html" target="_blank">개인정보처리방침</a>에 동의하게 돼요</div>
 </div>
 <div class="toast" id="toast"></div>
-<div class="dev-on" id="devTag" style="display:none">유료 속지 미리보기</div>
+<div class="dev-on" id="devTag" style="display:none">미리보기</div>
 
 <script>
 'use strict';
@@ -505,10 +498,10 @@ function go(t) {
   render();
 }
 SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
-function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); renderCalBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.paidPreview ? '무료로 보기' : '유료 속지로 보기'}</button><span style="font-size:11px;color:var(--muted)">개발용</span></div>` : ''; document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
+function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용</span></div>` : ''; document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
 function closeMore() { document.getElementById('more').classList.remove('on'); }
 function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); }
-function render() { setTimeout(maybeGroup, 800); widgetSync(); applyTheme(); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.paidPreview ? '' : 'none'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
+function render() { ensureTrial(); setTimeout(maybeGroup, 800); widgetSync(); applyTheme(); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.preview ? '' : 'none'; if (db) db.textContent = D.preview === 'free' ? '구독 안 한 화면' : '구독한 화면'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
 
 function renderCover() {
   const s = streak(), dots = Math.min(s,3);
@@ -630,13 +623,30 @@ function guideHtml(x) {
 }
 // 유료 속지: 지금은 결제 전이라 속지의 paid 표시 또는 개발용 미리보기로만 켠다
 function isDev() { try { if (/[?&]dev\b/.test(location.search)) localStorage.setItem('dpa_dev', '1'); return localStorage.getItem('dpa_dev') === '1' || ((D.account || {}).email === 'withsky0@gmail.com'); } catch(e) { return false; } }
-function paid() { const v = curVol(); return !!((v && v.paid) || D.paidPreview); }
-function togglePaidPreview() { D.paidPreview = !D.paidPreview; _save0(); closeMore(); render(); toast(D.paidPreview ? '유료 속지로 보는 중' : '무료로 보는 중'); }
+// ── 비서 포스트잇 구독: 연 15,000원, 처음 2주는 무료 ──
+const SUB_PRICE = '연 15,000원', TRIAL_DAYS = 14;
+function ensureTrial() { if (!D.trialStart) { D.trialStart = today(); _save0(); } }
+function trialLeft() { if (!D.trialStart) return TRIAL_DAYS; return Math.max(0, TRIAL_DAYS - Math.round((new Date(today()) - new Date(D.trialStart)) / 86400000)); }
+function subActive() { return !!(D.sub && D.sub.until && D.sub.until >= today()); }
+function paid() {
+  if (D.preview === 'free') return false;
+  if (D.preview === 'paid') return true;
+  const v = curVol(); return !!((v && v.paid) || subActive() || trialLeft() > 0);
+}
+function togglePaidPreview() { D.preview = D.preview === 'free' ? 'paid' : D.preview === 'paid' ? '' : 'free'; delete D.paidPreview; _save0(); closeMore(); render(); toast(D.preview === 'free' ? '구독 안 한 화면으로 보는 중' : D.preview === 'paid' ? '구독한 화면으로 보는 중' : '실제 상태로 보는 중'); }
+function subscribe() { toast(isNative() ? '결제는 다음 업데이트에서 열려요' : '구독은 앱에서 할 수 있어요'); }
+function renderSubBox() {
+  const el = document.getElementById('subBox'); if (!el) return;
+  const t = trialLeft(), on = subActive();
+  const st = on ? `구독 중 · ${D.sub.until.replace(/-/g, '.')}까지` : t > 0 ? `무료로 보는 중 · ${t}일 남음` : '비서 포스트잇이 흐리게 보여요';
+  el.innerHTML = `<div class="lbl" style="padding-left:0">비서 포스트잇</div><div class="subst">${st}</div>` +
+    (on ? '' : `<button class="cta" style="margin-left:0;width:100%;height:40px" onclick="subscribe()">구독하기 · ${SUB_PRICE}</button>`);
+}
 // 뒤집힌 포스트잇: 내용은 숫자만 비치고, 누르면 귀퉁이가 들린다
-function backSticky(label, count, peek, cls) {
-  return `<div class="sticky back ${cls || ''}" role="button" tabindex="0" onclick="this.classList.toggle('lift')"><div class="who"><span>속지 비서</span><span></span></div><div class="seep" aria-hidden="true"></div>
-    <div class="peek" aria-hidden="true">${esc(peek || '')}</div><div class="cnt">${esc(label)} · ${esc(count)}</div>
-    <div class="flip">속지를 끼우면 펼쳐져요<button onclick="event.stopPropagation();go('shelf')">속지 보기</button></div></div>`;
+// 구독 전: 비서 포스트잇은 붙어 있되 글씨가 흐리다. 누르면 구독 안내
+function backSticky(label, count, text, cls) {
+  return `<div class="sticky blur ${cls || ''}" role="button" tabindex="0" onclick="openMore()"><div class="who"><span>비서</span><span>${esc(label)} · ${esc(count)}</span></div>
+    <div class="tx" aria-hidden="true">${esc(String(text || '').slice(0, 160))}</div><div class="unlock">구독하면 또렷해져요</div></div>`;
 }
 // ── 속지 비서: 역할 없는 할 일이 3개 넘게 쌓이면 묶음을 제안한다 ──
 function unroled() { return openItems().filter(r => !r.role || !D.roles.includes(r.role)); }
@@ -660,8 +670,8 @@ function groupHtml() {
   const groups = g.groups.map(x => ({ name: x.name, ids: x.ids.filter(id => live.has(id)) })).filter(x => x.ids.length);
   if (!groups.length) return '';
   const n = groups.reduce((k, x) => k + x.ids.length, 0);
-  if (!paid()) return backSticky('묶음', `할 일 ${n}개 → ${groups.length}묶음`, groups.map(x => x.name).join(' · '));
-  return `<div class="sticky wide"><div class="who"><span>속지 비서</span><span>묶어 볼까요</span></div>
+  if (!paid()) return backSticky('묶음', `할 일 ${n}개 → ${groups.length}묶음`, groups.map(x => x.name + ' ' + (x.items || []).length).join(' · ') + ' 이렇게 묶어 볼까요');
+  return `<div class="sticky wide"><div class="who"><span>비서</span><span>묶어 볼까요</span></div>
     <div class="tx">${groups.map(x => `<b>${esc(x.name)}</b> ${x.ids.length}  <span style="font-size:12px;opacity:.75">${x.ids.map(id => esc((rock(id) || {}).title || '')).join(', ')}</span>`).join('<br>')}</div>
     <div class="act"><button onclick="applyGroups()">이대로 묶기</button><button onclick="D.groupSug.off=D.groupSug.sig;_save0();render()">떼기</button></div></div>`;
 }
@@ -913,17 +923,17 @@ function reviewSection(wk, nwk, rv, stale) {
   if (rv.summary) {
     const lines = rv.summary.split(/(?<=[.!?。다요])\s+|\n/).filter(Boolean).length;
     h += P ? `<div class="sticky wide"><div class="who"><span>${esc(agentLabel(rv.summaryBy || (D.agent||{}).name))}</span><span>W${weekNo(new Date(wk))} 리뷰</span></div><div class="tx">${esc(rv.summary)}</div></div>`
-           : backSticky('이번 주 리뷰', lines + '줄', rv.summary.slice(0, 14), 'wide');
+           : backSticky('이번 주 리뷰', lines + '줄', rv.summary, 'wide');
   }
   // 2주 방치: 주황
   if (stale.length) {
     if (P) stale.forEach(r => { h += `<div class="sticky orange"><div class="who"><span>2주째 그대로</span><span>${esc(r.role)}</span></div><div class="tx">${esc(r.title)}</div><div class="act"><button onclick="splitRock('${r.id}')">쪼개기</button><button onclick="tombRock('${r.id}')">묘비</button></div></div>`; });
-    else h += backSticky('2주째 그대로', stale.length + '개', stale[0].title.slice(0, 10), 'orange');
+    else h += backSticky('2주째 그대로', stale.length + '개', stale.map(r => r.title).join(' · '), 'orange');
   }
   // 다음 주 후보: 작은 장 여러 장, 채택하면 떨어져 할 일로
   if (cands.length) {
     if (P) cands.forEach(c => { h += `<div class="sticky ${c.state==='y' ? 'fin' : ''}"><div class="who"><span>다음 주 후보</span><span>${esc(c.role)}</span></div><span class="ok">${CHECK}</span><div class="tx">${esc(c.title)}</div><div class="hint">${c.routine ? '주 ' + c.routine + '회' : (c.due ? md(c.due) + '까지만' : '')}</div><div class="act"><button onclick="adoptCand('${wk}','${c.id}')">B로 옮기기</button><button onclick="cand('${wk}','${c.id}','n');dropCand('${wk}','${c.id}')">떼기</button></div></div>`; });
-    else h += backSticky('다음 주 후보', cands.length + '장', cands[0].title.slice(0, 10));
+    else h += backSticky('다음 주 후보', cands.length + '장', cands.map(c => c.title).join(' · '));
   }
   h += `</div><div class="sp"></div>`;
   return h;
@@ -978,7 +988,7 @@ function renderShelf() {
 function renderVol() {
   const v = liveVols().find(x => x.id === volSel); if (!v) { go('shelf'); return; }
   let h = `<div class="sp"></div><div class="lbl">1년 한눈에</div>` + heatHtml(v) + `<div class="sp"></div>` + volStats(v) + `<div class="sp"></div>`;
-  if (v.summary && !paid()) h += `<div class="stickies">${backSticky('1년 리뷰', v.summary.split(/\n|(?<=다\.)\s/).filter(Boolean).length + '줄', v.summary.slice(0, 14), 'wide')}</div>`;
+  if (v.summary && !paid()) h += `<div class="stickies">${backSticky('1년 리뷰', v.summary.split(/\n|(?<=다\.)\s/).filter(Boolean).length + '줄', v.summary, 'wide')}</div>`;
   else if (v.summary) h += `<div class="postit"><div class="ph"><span>비서의 1년 리뷰</span></div><div style="line-height:var(--row);white-space:pre-wrap;padding-bottom:6px">${esc(v.summary)}</div></div><div class="sp"></div>`;
   if ((v.goals||[]).length) { h += `<div class="lbl">이 속지에서 이루고 싶었던 것</div>`; v.goals.forEach(g => { h += `<div class="line ruled" style="font-size:15px">${esc(g)}</div>`; }); h += `<div class="sp"></div>`; }
   h += `<div class="cta ghost" style="margin-left:52px" onclick="calMonth='${volFirst(v)}';calSel='${volFirst(v)}';go('review')">이 속지 달력 펼치기 ›</div><div class="sp"></div>`;
@@ -987,7 +997,7 @@ function renderVol() {
 function renderClose() {
   const v = curVol(); const open = openItems();
   let h = `<div class="sp"></div><div class="lbl">1년 한눈에</div>` + heatHtml(v) + `<div class="sp"></div>` + volStats(v) + `<div class="sp"></div>`;
-  if (v.summary && !paid()) h += `<div class="stickies">${backSticky('1년 리뷰', v.summary.split(/\n|(?<=다\.)\s/).filter(Boolean).length + '줄', v.summary.slice(0, 14), 'wide')}</div>`;
+  if (v.summary && !paid()) h += `<div class="stickies">${backSticky('1년 리뷰', v.summary.split(/\n|(?<=다\.)\s/).filter(Boolean).length + '줄', v.summary, 'wide')}</div>`;
   else if (v.summary) h += `<div class="postit"><div class="ph"><span>비서의 1년 리뷰</span></div><div style="line-height:var(--row);white-space:pre-wrap;padding-bottom:6px">${esc(v.summary)}</div></div>`;
   else if (false) h += `<div class="postit"><div class="ph"><span>비서의 1년 리뷰</span></div><div class="pl" style="white-space:normal;line-height:20px;padding:4px 0">${agentOn() ? '비서에게 "듀얼플래너 속지 1년 리뷰 해줘"라고 하면 여기에 붙어요.' : '비서를 연결하면 1년 리뷰를 써 줘요. 없어도 속지는 닫을 수 있어요.'}</div></div>`;
   if (today() < volLast(v)) h += `<div class="sp"></div><div class="line sub" style="white-space:normal;height:auto;line-height:20px">아직 ${weeksLeft(v)}주 남았어요. 지금 닫으면 남은 기간은 새 속지로 넘어가요.</div>`;
