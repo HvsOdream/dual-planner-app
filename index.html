@@ -585,6 +585,7 @@ function renderToday() {
   const cv = curVol(); const full = false; // 속지 닫기 화면은 당분간 숨김
   let h = `${full ? `<button class="banner" onclick="go('close')"><span>${volName(cv)} 속지가 다 찼어요. 1년을 돌아보고 새 속지를 끼울 시간이에요</span><b>속지 닫기 ›</b></button>` : ''}<div class="sp"></div>
   ${firstHtml(ds)}
+  ${trialHtml(ds)}
   ${briefHtml(ds)}
   ${calHtml(ds)}
   <div class="lbl">의도</div>
@@ -826,8 +827,10 @@ function recordNotes(wk) {
   return h;
 }
 
-// ── 비서 포스트잇 구독: 연 15,000원, 처음 2주는 무료 ──
-const SUB_PRICE = '연 15,000원', TRIAL_DAYS = 14;
+// ── 비서 포스트잇 구독: 처음 한 달 무료, 그 뒤 첫해 할인가 (정가 연 22,000원) ──
+const SUB_LIST = 22000, SUB_FIRST = 16900, TRIAL_DAYS = 30;
+const won = n => n.toLocaleString('ko-KR') + '원';
+const SUB_PRICE = `첫해 ${won(SUB_FIRST)}`;
 function ensureTrial() { if (!D.trialStart) { D.trialStart = today(); _save0(); } }
 function trialLeft() { if (!D.trialStart) return TRIAL_DAYS; return Math.max(0, TRIAL_DAYS - Math.round((new Date(today()) - new Date(D.trialStart)) / 86400000)); }
 function subActive() { return !!(D.sub && D.sub.until && D.sub.until >= today()); }
@@ -843,7 +846,7 @@ function renderSubBox() {
   const t = trialLeft(), on = subActive();
   const st = on ? `구독 중 · ${D.sub.until.replace(/-/g, '.')}까지` : t > 0 ? `무료로 보는 중 · ${t}일 남음` : '비서 포스트잇이 흐리게 보여요';
   el.innerHTML = `<div class="lbl" style="padding-left:0">비서 포스트잇</div><div class="subst">${st}</div>` +
-    (on ? '' : `<button class="cta" style="margin-left:0;width:100%;height:40px" onclick="subscribe()">구독하기 · ${SUB_PRICE}</button>`) +
+    (on ? '' : `<button class="cta" style="margin-left:0;width:100%;height:40px" onclick="subscribe()">구독하기 · ${SUB_PRICE}</button><div class="subst" style="font-size:12px;margin-top:4px">정가 연 ${won(SUB_LIST)} · 둘째 해부터 정가</div>`) +
     `<div class="feats">${FEATS.map(([id, n, w, d]) => { const f = featOn(id); return `<button class="feat ${f ? 'on' : ''}" onclick="setFeat('${id}', ${!f})" aria-pressed="${f}"><span class="nm"><b>${n}</b><i>${w} · ${d}</i></span><span class="sw" aria-hidden="true"></span></button>`; }).join('')}</div>` +
     (paid() ? '' : `<div class="subst" style="font-size:12px;margin-top:6px">구독하면 켜 둔 포스트잇이 또렷해져요</div>`);
 }
@@ -985,6 +988,14 @@ function briefOf(ds) {
   const fm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
   const bTop = open.filter(r => r.bucket === 'important' && !picks.includes(r)).sort((a, b) => (a.due || '9999') < (b.due || '9999') ? -1 : 1)[0];
   return { ev, timed, due, soon, picks, gap: gap && [fm(gap[0]), fm(gap[1])], bTop };
+}
+// 무료 한 달이 끝나 갈 때: 오늘 칸 위에 한 장만
+function trialHtml(ds) {
+  if (ds !== today() || subActive() || D.preview) return '';
+  const t = trialLeft(), k = t > 0 ? 'trial:' + ds : 'trialend';
+  if (t > 3 || noteOff(k)) return '';
+  const msg = t > 0 ? `무료로 받는 비서 포스트잇이 <b>${t}일</b> 남았어요` : '무료 한 달이 끝났어요. 이제 비서 포스트잇은 흐리게 붙어요';
+  return `<div class="stickies"><div class="sticky wide"><div class="who"><span>비서</span><span>${t > 0 ? 'D-' + t : '무료 끝'}</span></div><div class="tx">${msg}<div class="hint">계속 받으려면 첫해 ${won(SUB_FIRST)} · 정가 연 ${won(SUB_LIST)}</div></div><div class="act"><button onclick="subscribe()">구독하기</button><button onclick="dropNote('${k}')">나중에</button></div></div></div>`;
 }
 function briefHtml(ds) {
   if (ds !== today() || !featOn('brief') || new Date().getHours() >= 12 || noteOff('brief:' + ds)) return '';
