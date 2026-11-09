@@ -153,6 +153,10 @@ a { color: inherit; }
 .sticky.blur .unlock { position: relative; margin-top: 8px; font-size: 12px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; opacity: .8; }
 .subst { font-size: 14px; color: var(--ink-2); margin: 2px 0 10px; }
 .feats { margin: 12px 0 4px; border-top: 1px solid var(--rule); }
+.rq { font-size: 18px; font-weight: 800; margin: 6px 0 4px; } .rh { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; } .chips button { padding: 8px 14px; border: 1.5px solid var(--rule); border-radius: 18px; font-size: 14px; color: var(--ink-2); }
+.chips button.on { border-color: var(--accent); background: var(--accent); color: var(--paper); font-weight: 700; }
+.rrow { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--rule); padding: 6px 0; } .rrow b { flex: none; min-width: 64px; font-size: 14px; } .rrow input { flex: 1; border: none; background: transparent; font: inherit; font-size: 15px; padding: 8px 0; color: var(--ink); }
 .feat { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 9px 0; border-bottom: 1px solid var(--rule); text-align: left; gap: 12px; }
 .feat .nm { display: flex; flex-direction: column; gap: 2px; } .feat .nm b { font-size: 14px; font-weight: 700; color: var(--ink); } .feat .nm i { font-style: normal; font-size: 12px; color: var(--muted); }
 .feat .sw { flex: none; width: 38px; height: 22px; border-radius: 11px; background: var(--rule); position: relative; transition: background .15s; }
@@ -415,10 +419,11 @@ body { background-image: var(--paper-tex); }
   <button data-tab="more" onclick="openMore()"><i></i>메뉴</button>
 </nav>
 
+<div class="more" id="rolesSheet" onclick="if(event.target===this)closeRoles()"><div class="box" id="rolesBox"></div></div>
 <div class="more" id="more" onclick="if(event.target===this)closeMore()">
   <div class="box">
     <div class="mhead"><b>메뉴</b><button onclick="closeMore()" aria-label="메뉴 닫기">닫기 ✕</button></div>
-    <div id="acctBox"></div><div id="subBox"></div><div id="calBox"></div><div id="notifyBox"></div><div id="coverBox"></div><div id="devBox"></div>
+    <div id="acctBox"></div><div id="subBox"></div><div id="roleBox"></div><div id="calBox"></div><div id="notifyBox"></div><div id="coverBox"></div><div id="devBox"></div>
     <div class="lbl" style="padding-left:0">비서 연결</div>
     <div id="connBox" style="font-size:13px;line-height:1.8;margin:2px 0 4px"></div>
     <button class="cta" style="margin-left:0;width:100%;height:40px" onclick="copyText(mcpUrl(),'MCP 주소 복사됨')">MCP 주소 복사</button>
@@ -516,7 +521,7 @@ function go(t) {
   render();
 }
 SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
-function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
+function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
 function closeMore() { document.getElementById('more').classList.remove('on'); }
 function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); }
 function render() { ensureTrial(); syncRoles(); rescheduleSoon(); setTimeout(maybeGroup, 800); widgetSync(); applyTheme(); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.preview ? '' : 'none'; if (db) db.textContent = D.preview === 'free' ? '구독 안 한 화면' : '구독한 화면'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
@@ -606,6 +611,7 @@ function stuckNotes() { const out = []; Object.keys(D.days).sort().reverse().for
 function findNote(id) { for (const ds in D.days) { const x = (D.days[ds].inbox||[]).find(i => i.id === id); if (x) return x; } return null; }
 // 처음부터 붙어 있는 안내: 한 번에 두 장, 해내면 체크되고 떨어진다
 const GUIDES = [
+  { id: 'roles', tab: 'week', text: '내 역할부터 정하기', hint: '역할마다 고르게 챙겨요', act: ['정하기', 'openRoles()'], done: () => rolesSet() },
   { id: 'b', tab: 'week', text: '오래 걸리는 일은 B에', hint: '언제까지만 할지 날짜도', done: () => D.rocks.some(r => r && !r._deleted && r.bucket === 'important' && (r.due || r.routine)) },
   { id: 'done', tab: 'week', text: '끝낸 일은 체크', hint: '기록 달력에 쌓여요', done: () => D.rocks.some(r => r && r.done) },
   { id: 'cal', tab: 'review', text: '날짜를 누르면 그날 기록', done: () => !!(D.guide && D.guide.calTap) },
@@ -641,6 +647,40 @@ function guideHtml(x) {
 }
 // 유료 속지: 지금은 결제 전이라 속지의 paid 표시 또는 개발용 미리보기로만 켠다
 function isDev() { try { if (/[?&]dev\b/.test(location.search)) localStorage.setItem('dpa_dev', '1'); return localStorage.getItem('dpa_dev') === '1' || ((D.account || {}).email === 'withsky0@gmail.com'); } catch(e) { return false; } }
+// ── 내 역할 찾기: 고르고 → 역할마다 이번 주 한 가지 ──
+const ROLE_PRESETS = ['나 자신', '가족', '배우자', '부모', '직장', '팀장', '학생', '연구자', '교사', '창업가', '친구', '봉사'];
+const ROLE_EX = { '나 자신': '30분 걷기', '가족': '저녁 같이 먹기', '배우자': '주말 산책', '부모': '숙제 같이 보기', '직장': '보고서 초안', '팀장': '1:1 면담', '학생': '과제 제출', '연구자': '논문 한 편 읽기', '교사': '수업 자료 정리', '창업가': '고객 한 명 만나기', '친구': '안부 연락', '봉사': '한 시간 돕기' };
+let roleStep = 1, roleSel = [], roleFirst = {};
+function openRoles() { roleStep = 1; roleSel = D.roles.slice(); roleFirst = {}; renderRoles(); document.getElementById('rolesSheet').classList.add('on'); closeMore && document.getElementById('more').classList.remove('on'); }
+function rolesSet() { return !!((D.settings || {}).rolesAt); }
+function closeRoles() { document.getElementById('rolesSheet').classList.remove('on'); }
+function toggleRole(n) { n = n.trim(); if (!n) return; const i = roleSel.indexOf(n); if (i >= 0) roleSel.splice(i, 1); else if (roleSel.length < 7) roleSel.push(n); else toast('역할은 일곱 개까지'); renderRoles(); }
+function renderRoles() {
+  const el = document.getElementById('rolesBox'); const extra = roleSel.filter(x => !ROLE_PRESETS.includes(x));
+  const head = `<div class="mhead"><b>내 역할 ${roleStep}/2</b><button onclick="closeRoles()">닫기 ✕</button></div>`;
+  if (roleStep === 1) {
+    el.innerHTML = head + `<div class="rq">나는 요즘 어떤 자리에 있나요</div><div class="rh">두세 개면 충분해요. 나를 돌보는 자리도 하나 넣어 보세요</div>
+      <div class="chips">${ROLE_PRESETS.concat(extra).map(n => `<button class="${roleSel.includes(n) ? 'on' : ''}" onclick="toggleRole('${esc(n)}')">${esc(n)}</button>`).join('')}</div>
+      <div class="acts" style="gap:8px;margin:10px 0 0"><input id="roleIn" class="line" style="flex:1;border:none;border-bottom:1px solid var(--rule);background:transparent;font:inherit;font-size:15px" placeholder="직접 쓰기 (예: 학과장)" onkeydown="if(event.key==='Enter'){toggleRole(this.value);}"><button class="cta" style="margin:0" onclick="toggleRole(document.getElementById('roleIn').value)">추가</button></div>
+      <button class="mclose" ${roleSel.length ? '' : 'disabled style="opacity:.4"'} onclick="roleStep=2;renderRoles()">다음 · ${roleSel.length}개</button>`;
+  } else {
+    el.innerHTML = head + `<div class="rq">역할마다, 이번 주에 챙길 한 가지</div><div class="rh">비워 둬도 돼요. 적은 건 B에 일요일까지로 들어가요</div>
+      ${roleSel.map((n, i) => `<div class="rrow"><b>${esc(n)}</b><input class="line" value="${esc(roleFirst[n] || '')}" placeholder="예: ${ROLE_EX[n] || '이번 주 한 가지'}" oninput="roleFirst['${esc(n)}']=this.value"></div>`).join('')}
+      <div class="acts" style="gap:10px;margin-top:14px"><button class="mclose" style="margin:0;flex:1;border-style:dashed" onclick="roleStep=1;renderRoles()">이전</button><button class="mclose" style="margin:0;flex:2;background:var(--ink);color:var(--paper)" onclick="saveRoles()">이렇게 시작</button></div>`;
+  }
+}
+function saveRoles() {
+  D.roles = roleSel.slice(); D.settings = Object.assign({}, D.settings, { rolesAt: today(), u: new Date().toISOString() });
+  const sun = dstr((() => { const x = weekStart(new Date()); x.setDate(x.getDate() + 6); return x; })());
+  let n = 0;
+  roleSel.forEach(r => { const t = (roleFirst[r] || '').trim(); if (t) { D.rocks.push({ id: uid(), week: weekKey(new Date()), bucket: 'important', role: r, title: t, done: false, carry: 0, checks: {}, due: sun }); n++; } });
+  save(); closeRoles(); go('week'); toast(n ? `역할 ${roleSel.length}개 · 이번 주 할 일 ${n}개를 B에 적었어요` : `역할 ${roleSel.length}개를 정했어요`);
+}
+function renderRoleBox() {
+  const el = document.getElementById('roleBox'); if (!el) return;
+  el.innerHTML = `<div class="lbl" style="padding-left:0">내 역할</div><div class="subst">${D.roles.length ? D.roles.map(esc).join(' · ') : '아직 정하지 않았어요'}</div><button class="cta" style="margin:0 0 12px" onclick="openRoles()">${D.roles.length ? '고치기' : '정하기'}</button>`;
+}
+
 // ── 비서 포스트잇: 무엇을 붙이는지(메뉴에서 켜고 끈다) ──
 const FEATS = [
   ['notify', '비서가 쓰는 알림', '알림', '그날 마감·남은 일로 문구를 써요'],
@@ -680,7 +720,7 @@ function weekNotes() {
     const items = openItems().filter(r => r.role), cnt = {};
     items.forEach(r => cnt[r.role] = (cnt[r.role] || 0) + 1);
     const ks = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]);
-    if (items.length >= 6 && D.roles.length >= 2 && cnt[ks[0]] / items.length >= 0.7) {
+    if (rolesSet() && items.length >= 6 && D.roles.length >= 2 && cnt[ks[0]] / items.length >= 0.7) {
       const low = D.roles.filter(x => x !== ks[0]).map(x => `${x} ${cnt[x] || 0}`).join(', ');
       h += aNote({ label: '역할 쏠림', text: `할 일 ${items.length}개 중 ${cnt[ks[0]]}개가 ${ks[0]}이에요. ${low}. 이번 주에 하나쯤 챙겨 볼까요`, acts: `<button onclick="dropNote('bal:${weekKey(new Date())}')">떼기</button>` });
     }
