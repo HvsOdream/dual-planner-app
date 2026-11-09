@@ -3,8 +3,8 @@
   var C = window.Capacitor;
   if (!C || !C.isNativePlatform || !C.isNativePlatform()) return;
   document.documentElement.classList.add('native');
-  var P = C.Plugins || {};
-  // 상태 표시줄: 네이비 표지 위에 흰 글씨
+  var P = {}; ['StatusBar', 'App'].forEach(function (k) { P[k] = (C.Plugins && C.Plugins[k]) || (C.registerPlugin ? C.registerPlugin(k) : null); });
+  // 상태 표시줄: 종이색 머리띠 위에 짙은 글씨
   try { P.StatusBar && P.StatusBar.setStyle({ style: 'LIGHT' }); } catch (e) {}
   // 앱이 다시 앞으로 오면 서버에서 비서가 적은 것 받아오기
   try { P.App && P.App.addListener('appStateChange', function (s) { if (!s.isActive) return; if (window.pullState) window.pullState(false); if (window.takePending) window.takePending(); if (window.loadCal) window.loadCal(false); }); } catch (e) {}

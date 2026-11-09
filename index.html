@@ -689,7 +689,8 @@ function stickiesHtml(list, gs) {
 }
 // ── 일정: 캘린더의 iCal 주소를 서버가 받아 펼쳐 준다(앱에서는 아이폰 캘린더를 직접 읽게 바꿀 예정) ──
 let _calLoading = false;
-function natPlugin() { const C = window.Capacitor; if (!C) return null; if (!natPlugin._p) natPlugin._p = (C.Plugins && C.Plugins.DualNative) || (C.registerPlugin ? C.registerPlugin('DualNative') : null); return natPlugin._p; }
+function capPlugin(n) { const C = window.Capacitor; if (!C) return null; capPlugin._c = capPlugin._c || {}; if (!capPlugin._c[n]) capPlugin._c[n] = (C.Plugins && C.Plugins[n]) || (C.registerPlugin ? C.registerPlugin(n) : null); return capPlugin._c[n]; }
+function natPlugin() { return capPlugin('DualNative'); }
 function nat() { return isNative() && natPlugin(); }
 async function loadCal(force) {
   if (nat() && (D.settings || {}).calNative) {
@@ -743,7 +744,7 @@ async function setCalNative(on) {
 const NOTIFY = [{ id: 101, k: 'morning', name: '아침', t: '08:30', title: '오늘', body: '오늘 할 것, 세 줄만' }, { id: 102, k: 'evening', name: '저녁', t: '21:30', title: '오늘 닫기', body: '체크하고 한 줄 일기' }, { id: 103, k: 'sunday', name: '일요일', t: '20:00', title: '한 주 돌아보기', body: '일요일 저녁 10분' }];
 function notifyCfg() { return Object.assign({ on: false, morning: '08:30', evening: '21:30', sunday: '20:00', off: {} }, (D.settings || {}).notify || {}); }
 async function scheduleNotifs() {
-  const LN = isNative() && window.Capacitor.Plugins.LocalNotifications; if (!LN) return;
+  const LN = isNative() && capPlugin('LocalNotifications'); if (!LN) return;
   const c = notifyCfg();
   try { await LN.cancel({ notifications: NOTIFY.map(n => ({ id: n.id })) }); } catch(e) {}
   if (!c.on) return;
@@ -751,7 +752,7 @@ async function scheduleNotifs() {
   if (list.length) await LN.schedule({ notifications: list });
 }
 async function enableNotifs() {
-  const LN = isNative() && window.Capacitor.Plugins.LocalNotifications; if (!LN) return;
+  const LN = isNative() && capPlugin('LocalNotifications'); if (!LN) return;
   const p = await LN.requestPermissions(); if (p.display !== 'granted') { toast('아이폰 설정 › 알림에서 허용해 주세요'); return; }
   setNotify({ on: true }); toast('아침 8:30 · 저녁 9:30 · 일요일 8시');
 }
