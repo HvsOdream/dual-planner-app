@@ -682,7 +682,7 @@ function toggleRole(n) { n = n.trim(); if (!n) return; const i = roleSel.indexOf
 function renameRole(i, v) { v = v.trim(); if (!v) return; const o = roleSel[i]; roleSel[i] = v; if (roleItems) Object.keys(roleItems).forEach(k => { if (roleItems[k] === o) roleItems[k] = v; }); renderRoles(); }
 function dropRole(i) { const o = roleSel[i]; roleSel.splice(i, 1); if (roleItems) Object.keys(roleItems).forEach(k => { if (roleItems[k] === o) roleItems[k] = roleSel[0] || ''; }); renderRoles(); }
 function renderRoles() {
-  const items = roleItems ? Object.keys(roleItems).map(rock).filter(Boolean) : [];
+  const items = roleItems ? Object.keys(roleItems).map(id => ({ id, title: titleOf(id) })).filter(x => x.title) : [];
   document.getElementById('rolesBox').innerHTML = `<div class="mhead"><b>내 역할</b><button onclick="closeRoles()">닫기 ✕</button></div>
     <div class="rh">${roleItems ? '이름을 내 말로 바꾸고, 잘못 들어간 할 일은 옮겨 주세요' : '이름을 고치거나 빼고, 빠진 게 있으면 더하세요'}</div>
     ${roleSel.map((n, i) => `<div class="rrow"><input value="${esc(n)}" onchange="renameRole(${i}, this.value)"><button onclick="dropRole(${i})" aria-label="빼기" style="color:var(--muted);font-size:18px;padding:0 6px">×</button></div>`).join('')}
@@ -695,8 +695,10 @@ function saveRoles() {
   const old = D.roles.slice(), t = new Date().toISOString();
   D.roles = roleSel.filter(Boolean);
   if (roleItems) {
-    Object.entries(roleItems).forEach(([id, n]) => { const r = rock(id); if (r && n) { r.role = n; r.u = t; } });
-    sendFeedback(roleSuggest, Object.entries(roleItems).map(([id, n]) => ({ title: (rock(id) || {}).title || '', role: n })));
+    const evs = Object.fromEntries(groupInputs().filter(x => x.ev).map(x => [x.id, x.ev])), evp = {};
+    Object.entries(roleItems).forEach(([id, n]) => { if (!n) return; if (evs[id]) { evp[evs[id]] = n; return; } const r = rock(id); if (r) { r.role = n; r.u = t; } });
+    if (Object.keys(evp).length) setEvRoles(evp);
+    sendFeedback(roleSuggest, Object.entries(roleItems).map(([id, n]) => ({ title: titleOf(id), role: n })));
     D.groupSug = null;
   } else {
     old.forEach((o, i) => { const nw = roleSel[i]; if (nw && nw !== o && !old.includes(nw)) live().forEach(r => { if (r.role === o) { r.role = nw; r.u = t; } }); });
@@ -706,7 +708,7 @@ function saveRoles() {
 function confirmRoles() { syncRoles(); markRoles(); save(); render(); toast(`역할 ${D.roles.length}개로 정했어요`); }
 function sugGroups() {
   const g = D.groupSug; if (!g || !g.groups) return null;
-  const ids = new Set(unroled().map(r => r.id));
+  const ids = new Set(groupInputs().map(r => r.id));
   return g.groups.map(x => ({ name: x.name, ids: x.ids.filter(id => ids.has(id)) })).filter(x => x.ids.length);
 }
 // 할 일 맨 앞: 역할을 아직 안 정했을 때(무료)
@@ -714,21 +716,23 @@ function roleFinder() {
   if (rolesSet()) return '';
   const items = openItems(), roled = items.filter(r => r.role), un = unroled();
   const head = sub => `<div class="who"><span>비서</span><span>${sub}</span></div>`;
-  if (roled.length >= 3 && un.length < 3) {
+  if (roled.length >= 3 && un.length < 3 && evTitles().length < 3) {
     const cnt = {}; roled.forEach(r => cnt[r.role] = (cnt[r.role] || 0) + 1);
     const ks = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]);
     return `<div class="sticky wide">${head('내 역할')}<div class="tx">적어 둔 할 일을 보니 이런 역할이 보여요. 맞는지 봐 주세요<br><b>${ks.map(k => `${esc(k)} ${cnt[k]}`).join(' · ')}</b></div>
       <div class="act"><button onclick="syncRoles();openRoles()">고치기</button><button onclick="confirmRoles()">맞아요</button></div></div>`;
   }
-  if (items.length < 5) return `<div class="sticky guide"><div class="who"><span>DUAL</span><span>${items.length}/5</span></div><div class="tx">할 일을 다섯 개쯤 적어 보세요<div class="hint">적어 둔 걸 보고 비서가 내 역할을 찾아 줘요</div></div></div>`;
+  const evn = evTitles().length, total = items.length + evn;
+  if (total < 5) return `<div class="sticky guide"><div class="who"><span>DUAL</span><span>${total}/5</span></div><div class="tx">할 일을 다섯 개쯤 적어 보세요<div class="hint">적어 둔 할 일과 캘린더 일정을 보고 비서가 내 역할을 찾아 줘요</div></div></div>`;
   const g = D.groupSug;
-  if (!g || !g.groups) return `<div class="sticky wide">${head('내 역할')}<div class="tx">할 일 ${items.length}개를 읽는 중이에요</div></div>`;
+  const what = `할 일 ${items.length}개${evn ? `와 일정 ${evn}개` : ''}`;
+  if (!g || !g.groups) return `<div class="sticky wide">${head('내 역할')}<div class="tx">${what}를 읽는 중이에요</div></div>`;
   // 사람 먼저: 할 일에 나온 이름을 한 번 묻는다
   const pm = peopleMap(), ask = (g.people || []).filter(x => !(x.name in pm)).slice(0, 3);
   if (ask.length) return `<div class="sticky wide">${head('사람')}<div class="tx">할 일에 나온 사람, 누구예요?<div class="hint" style="opacity:.75">알려 주면 역할을 더 정확히 찾아요</div>
       ${ask.map(x => `<div class="ppl"><b>${esc(x.name)}</b><span>${REL.map(r => `<button class="${r === x.guess ? 'g' : ''}" onclick="setPerson('${esc(x.name)}','${r}')">${r}</button>`).join('')}</span></div>`).join('')}</div></div>`;
   const groups = sugGroups(); if (!groups || !groups.length) return '';
-  return `<div class="sticky wide">${head('내 역할')}<div class="tx">할 일 ${items.length}개를 보니 이런 역할이 보여요. 맞는지 봐 주세요<br>${groups.map(x => `<b>${esc(x.name)}</b> ${x.ids.length} <span style="font-size:12px;opacity:.75">${x.ids.slice(0, 3).map(id => esc((rock(id) || {}).title || '')).join(', ')}</span>`).join('<br>')}</div>
+  return `<div class="sticky wide">${head('내 역할')}<div class="tx">${what}를 보니 이런 역할이 보여요. 맞는지 봐 주세요<br>${groups.map(x => `<b>${esc(x.name)}</b> ${x.ids.length} <span style="font-size:12px;opacity:.75">${x.ids.slice(0, 3).map(id => esc(titleOf(id))).join(', ')}</span>`).join('<br>')}</div>
     <div class="act"><button onclick="openRoles(sugGroups())">고치기</button><button onclick="acceptGroups()">맞아요</button></div></div>`;
 }
 function acceptGroups() { const g = sugGroups(); if (g) sendFeedback(g, null); applyGroups(); }
@@ -745,6 +749,7 @@ const FEATS = [
   ['balance', '역할 쏠림', '할 일', '한 역할에 몰리면 알려요'],
   ['group', '역할로 묶기', '할 일', '역할 없는 할 일을 묶어 줘요'],
   ['weeknum', '이번 주 숫자', '기록', '끝낸 일과 많이 한 역할'],
+  ['time', '시간 쓰임', '기록', '일정이 어느 역할에 쓰였는지'],
   ['ago', '한 달 전 오늘', '기록', '그날 적은 한 줄 일기'],
   ['review', '주간 리뷰', '기록', '일요일에 한 주 정리'],
   ['cands', '다음 주 후보', '기록', '다음 주 B를 골라 줘요'],
@@ -800,6 +805,18 @@ function recordNotes(wk) {
     const prom = live().filter(r => ds.includes(r.promotedAt || '')).length;
     if (done.length || notes || prom) h += aNote({ label: '이번 주 숫자', text: `끝낸 일 ${done.length}개${top ? `, 가장 많이 한 역할은 ${top}(${by[top]})` : ''}. 한 줄 일기 ${notes}일.${prom ? ` B에서 A로 넘어간 일 ${prom}개, 다음엔 조금 일찍.` : ''}` });
   }
+  if (featOn('time') && rolesSet()) {
+    const er = evRoles(), hrs = {}; let tot = 0, none = 0;
+    calEvents().filter(e => ds.includes(e.date) && !e.allDay && e.start && e.end).forEach(e => {
+      const [a, b] = [e.start, e.end].map(x => x.split(':').map(Number)), h = Math.max(0, (b[0] * 60 + b[1] - a[0] * 60 - a[1]) / 60);
+      tot += h; const r = er[(e.title || '').trim()]; if (r) hrs[r] = (hrs[r] || 0) + h; else none += h;
+    });
+    if (tot >= 1) {
+      const f = h => Math.round(h * 10) / 10, ks = D.roles.slice().sort((a, b) => (hrs[b] || 0) - (hrs[a] || 0));
+      const zero = ks.filter(k => !hrs[k]);
+      h += aNote({ label: '시간 쓰임', meta: f(tot) + '시간', text: ks.filter(k => hrs[k]).map(k => `${k} ${f(hrs[k])}`).join(' · ') + (none >= 0.5 ? ` · 역할 없음 ${f(none)}` : '') + (zero.length ? `. ${zero.join(', ')}에는 일정이 없었어요` : '') });
+    }
+  }
   if (featOn('ago')) {
     const a = new Date(today()); a.setMonth(a.getMonth() - 1); const ad = dstr(a), d = D.days[ad];
     if (d && d.note) h += aNote({ label: '한 달 전 오늘', meta: md(ad), text: d.note });
@@ -835,13 +852,21 @@ function backSticky(label, count, text, cls) {
     <div class="tx" aria-hidden="true">${esc(String(text || '').slice(0, 160))}</div><div class="unlock">구독하면 또렷해져요</div></div>`;
 }
 // ── 속지 비서: 역할 없는 할 일이 3개 넘게 쌓이면 묶음을 제안한다 ──
-function syncRoles() { D.roles = D.roles || []; live().forEach(r => { if (r.role && !D.roles.includes(r.role)) D.roles.push(r.role); }); }
+function syncRoles() { D.roles = D.roles || []; live().forEach(r => { if (r.role && !D.roles.includes(r.role)) D.roles.push(r.role); }); Object.values(evRoles()).forEach(n => { if (n && !D.roles.includes(n)) D.roles.push(n); }); }
 function unroled() { return openItems().filter(r => !r.role); }
+// 일정 제목도 역할 찾기에 쓴다(같은 제목은 한 번만, 자주 나오는 순)
+function calEvents() { const c = D.calCache, want = (D.settings || {}).calNative && isNative() ? 'native' : (D.settings || {}).calUrl; return (c && c.url === want && c.events) || []; }
+function evRoles() { return Object.assign({}, (D.settings || {}).evRoles); }
+function evId(t) { let h = 0; for (const ch of t) h = (h * 31 + ch.charCodeAt(0)) | 0; return 'e' + (h >>> 0).toString(36); }
+function evTitles() { const er = evRoles(), cnt = {}; calEvents().forEach(e => { const t = (e.title || '').trim(); if (t && !(t in er)) cnt[t] = (cnt[t] || 0) + 1; }); return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).slice(0, 15); }
+function groupInputs() { return unroled().map(r => ({ id: r.id, title: r.title })).concat(evTitles().map(t => ({ id: evId(t), title: '[일정] ' + t, ev: t }))); }
+function titleOf(id) { const r = rock(id); if (r) return r.title; const t = evTitles().concat(Object.keys(evRoles())).find(x => evId(x) === id); return t ? '📅 ' + t : ''; }
+function setEvRoles(patch) { D.settings = Object.assign({}, D.settings, { evRoles: Object.assign(evRoles(), patch), u: new Date().toISOString() }); D._modified = D.settings.u; }
 function groupSig(list) { return list.map(r => r.id).sort().join(',') + '|' + JSON.stringify(peopleMap()); }
 let _grouping = false;
 async function maybeGroup() {
-  const list = unroled(); if (list.length < 3 || _grouping || !baseUrl()) return;
-  if (rolesSet() ? !featOn('group') : openItems().length < 5) return;
+  const list = groupInputs(); if (list.length < 3 || _grouping || !baseUrl()) return;
+  if (rolesSet() ? !featOn('group') : openItems().length + evTitles().length < 5) return;
   const sig = groupSig(list), g = D.groupSug;
   if (g && (g.sig === sig || g.off === sig)) return;
   if (g && g.at && Date.now() - g.at < 60000) return;
@@ -867,9 +892,13 @@ function groupHtml() {
     <div class="act"><button onclick="applyGroups()">이대로 묶기</button><button onclick="D.groupSug.off=D.groupSug.sig;_save0();render()">떼기</button></div></div>`;
 }
 function applyGroups() {
-  const g = D.groupSug; if (!g) return; let k = 0;
-  g.groups.forEach(x => { if (!D.roles.includes(x.name)) D.roles.push(x.name); x.ids.forEach(id => { const r = rock(id); if (r && (!r.role || !D.roles.includes(r.role) || r.role === x.name)) { r.role = x.name; r.u = new Date().toISOString(); k++; } }); });
-  D.groupSug = null; markRoles(); save(); render(); toast(`역할 ${D.roles.length}개 · 할 일 ${k}개에 붙였어요`);
+  const g = D.groupSug; if (!g) return; let k = 0, e = 0; const t = new Date().toISOString(), evp = {};
+  const evs = Object.fromEntries(groupInputs().filter(x => x.ev).map(x => [x.id, x.ev]));
+  g.groups.forEach(x => { if (!D.roles.includes(x.name)) D.roles.push(x.name); x.ids.forEach(id => {
+    if (evs[id]) { evp[evs[id]] = x.name; e++; return; }
+    const r = rock(id); if (r && (!r.role || !D.roles.includes(r.role) || r.role === x.name)) { r.role = x.name; r.u = t; k++; } }); });
+  if (e) setEvRoles(evp);
+  D.groupSug = null; markRoles(); save(); render(); toast(`역할 ${D.roles.length}개 · 할 일 ${k}개${e ? ` · 일정 ${e}개` : ''}에 붙였어요`);
 }
 function stickiesHtml(list, gs) {
   gs = gs || [];
