@@ -891,6 +891,7 @@ function ensureTrial() {}
 // 쓴 날: 또렷한 비서 포스트잇이 한 장이라도 붙은 날만 센다(열기만 한 날, 비운 날은 안 깎인다). 계정 상태에 같이 저장
 function useDays() { return ((D.settings || {}).useDays || []).slice(); }
 function trialLeft() { const td = today(); return Math.max(0, TRIAL_DAYS - useDays().filter(d => d < td).length); }
+function trialShown() { return Math.max(0, TRIAL_DAYS - useDays().length); } // 오늘 받은 날까지 뺀 남은 날
 function useMark() {
   if (subActive() || D.preview) return; const td = today(), u = useDays();
   if (u.includes(td) || u.length >= TRIAL_DAYS || trialLeft() <= 0) return;
@@ -907,7 +908,7 @@ function subscribe() { toast(isNative() ? '결제는 다음 업데이트에서 �
 function renderSubBox() {
   const el = document.getElementById('subBox'); if (!el) return;
   const t = trialLeft(), on = subActive();
-  const st = on ? `구독 중 · ${D.sub.until.replace(/-/g, '.')}까지` : t > 0 ? `무료 · 비서 포스트잇을 받은 날로 ${t}일 남음` : '비서 포스트잇이 흐리게 보여요';
+  const st = on ? `구독 중 · ${D.sub.until.replace(/-/g, '.')}까지` : t > 0 ? `무료 · ${useDays().length}일 받았어요 · ${trialShown()}일 남음` : '비서 포스트잇이 흐리게 보여요';
   el.innerHTML = `<div class="lbl" style="padding-left:0">비서 포스트잇</div><div class="subst">${st}</div>` +
     (on ? '' : `<button class="cta" style="margin-left:0;width:100%;height:40px" onclick="subscribe()">구독하기 · ${SUB_PRICE}</button><div class="subst" style="font-size:12px;margin-top:4px">정가 연 ${won(SUB_LIST)} · 둘째 해부터 정가</div>`) +
     `<div class="feats">${FEATS.map(([id, n, w, d]) => { const f = featOn(id); return `<button class="feat ${f ? 'on' : ''}" onclick="setFeat('${id}', ${!f})" aria-pressed="${f}"><span class="nm"><b>${n}</b><i>${w} · ${d}</i></span><span class="sw" aria-hidden="true"></span></button>`; }).join('')}</div>` +
@@ -1062,18 +1063,22 @@ function briefOf(ds) {
 // 무료 한 달이 끝나 갈 때: 오늘 칸 위에 한 장만
 function trialHtml(ds) {
   if (ds !== today() || subActive() || D.preview) return '';
-  const t = trialLeft(), k = t > 0 ? 'trial:' + ds : 'trialend';
-  if (t > 3 || noteOff(k)) return '';
-  const msg = t > 0 ? `비서 포스트잇 무료가 <b>${t}일</b> 남았어요<div class="hint" style="margin-top:2px">포스트잇을 받은 날만 세요</div>` : '무료 20일을 다 썼어요. 이제 비서 포스트잇은 흐리게 붙어요';
+  const t = trialLeft(), n = trialShown(), k = t > 0 ? 'trial:' + ds : 'trialend';
+  if (n > 3 || noteOff(k)) return '';
+  // 무엇을 받아 왔는지: 가격보다 먼저
+  const rvs = Object.values(D.reviews || {}).filter(r => r && r.summary).length, cds = Object.values(D.reviews || {}).reduce((a, r) => a + ((r && r.candidates) || []).length + ((r && r.adopted) || 0), 0);
+  const got = `${useDays().length}일 동안 아침 브리핑과 마감·멈춘 일 포스트잇${rvs ? `, 주간 리뷰 ${rvs}번` : ''}${cds ? `, 다음 주 후보 ${cds}장` : ''}을 받았어요`;
+  const msg = t > 0 ? (n > 0 ? `비서 포스트잇 무료가 <b>${n}일</b> 남았어요` : '오늘이 비서 포스트잇 무료 마지막 날이에요') + `<div class="hint" style="margin-top:2px">${got}. 포스트잇을 받은 날만 세요</div>` : `무료 20일을 다 썼어요. 이제 비서 포스트잇은 흐리게 붙어요<div class="hint" style="margin-top:2px">${got}</div>`;
   return `<div class="stickies"><div class="sticky wide"><div class="who"><span>비서</span><span>${t > 0 ? 'D-' + t : '무료 끝'}</span></div><div class="tx">${msg}<div class="hint">계속 받으려면 첫해 ${won(SUB_FIRST)} · 정가 연 ${won(SUB_LIST)}</div></div><div class="act"><button onclick="subscribe()">구독하기</button><button onclick="dropNote('${k}')">나중에</button></div></div></div>`;
 }
 function briefHtml(ds) {
   if (ds !== today() || !featOn('brief') || new Date().getHours() >= 12 || noteOff('brief:' + ds)) return '';
-  const b = briefOf(ds); if (!b.ev.length && !b.due.length && !b.soon.length && !b.picks.length) return '';
+  const b = briefOf(ds); if (!b.ev.length && !b.due.length && !b.soon.length && !b.picks.length && !overdueItems().length) return '';
   const lines = [];
   if (b.ev.length) lines.push(`일정 ${b.ev.length}개 · ${b.ev.slice(0, 3).map(e => `${e.allDay ? '종일' : e.start} ${esc(e.title)}`).join(', ')}`);
   if (b.due.length) lines.push(`<b>오늘 마감</b> ${b.due.map(r => esc(r.title)).join(', ')}`);
   else if (b.soon.length) lines.push(`곧 마감 ${b.soon.slice(0, 2).map(r => `${esc(r.title)} <b>D-${dleft(r.due)}</b>`).join(', ')}`);
+  const ov = overdueItems(); if (ov.length) lines.push(`날짜 지난 일 ${ov.length}개 · ${esc(ov[0].title)}${ov.length > 1 ? ' 외' : ''}`);
   if (b.picks.length) lines.push(`오늘 칸 ${b.picks.length}개`);
   const ask = b.gap && b.bTop ? `<div style="margin-top:6px;font-size:13px">${b.gap[0]}~${b.gap[1]}에 일정이 없어요. B의 "${esc(b.bTop.title)}" 넣을까요</div>` : '';
   return `<div class="stickies">${aNote({ label: '아침 브리핑', meta: md(ds), cls: 'wide', text: lines.join(' / '), html: lines.join('<br>') + ask, acts: (ask ? `<button onclick="pick('${b.bTop.id}')">오늘 칸에 넣기</button>` : '') + `<button onclick="dropNote('brief:${ds}')">떼기</button>` })}</div>`;
@@ -1321,8 +1326,8 @@ function lastWeekHtml(wk, rv) {
   if (!paid()) return `<div class="stickies">${backSticky('지난주 리뷰', '', rv.summary || '', 'wide')}</div>`;
   useMark();
   const cands = (rv.candidates || []).filter(c => c.state !== 'y');
-  return `<div class="stickies">${rv.summary ? `<div class="sticky wide"><div class="who"><span>${esc(agentLabel(rv.summaryBy || (D.agent||{}).name))}</span><span>W${weekNo(new Date(wk))} 리뷰</span></div><div class="tx">${esc(rv.summary)}</div></div>` : ''}` +
-    (featOn('cands') ? cands.map(c => `<div class="sticky"><div class="who"><span>이번 주 후보</span><span>${esc(c.role)}</span></div><div class="tx">${esc(c.title)}</div><div class="hint">${c.due ? md(c.due) + '까지만' : ''}</div><div class="act"><button onclick="adoptCand('${wk}','${c.id}')">B로 옮기기</button><button onclick="dropCand('${wk}','${c.id}')">떼기</button></div></div>`).join('') : '') + `</div>`;
+  return `<div class="stickies">${rv.summary ? `<div class="sticky wide"><div class="who"><span>${esc(agentLabel(rv.summaryBy || (D.agent||{}).name))}</span><span>${md(wk)}~${md(weekDates(new Date(wk))[6])} 리뷰</span></div><div class="tx">${esc(rv.summary)}</div></div>` : ''}` +
+    (featOn('cands') ? cands.map(c => `<div class="sticky"><div class="who"><span>이번 주 후보</span><span>${esc(c.role)}</span></div><div class="tx">${esc(c.title)}</div><div class="hint">${c.due ? md(c.due) + '에 해 보기' : ''}</div><div class="act"><button onclick="adoptCand('${wk}','${c.id}')">B로 옮기기</button><button onclick="dropCand('${wk}','${c.id}')">떼기</button></div></div>`).join('') : '') + `</div>`;
 }
 // 일요일: 외부 비서가 없어도 앱이 한 주 리뷰와 다음 주 후보를 쓴다(구독·무료 기간)
 let _reviewing = false;
@@ -1371,7 +1376,7 @@ function reviewSection(wk, nwk, rv, stale) {
   h += rn;
   // 다음 주 후보: 작은 장 여러 장, 채택하면 떨어져 할 일로
   if (featOn('cands') && cands.length) {
-    if (P) cands.forEach(c => { h += `<div class="sticky ${c.state==='y' ? 'fin' : ''}"><div class="who"><span>다음 주 후보</span><span>${esc(c.role)}</span></div><span class="ok">${CHECK}</span><div class="tx">${esc(c.title)}</div><div class="hint">${c.routine ? '주 ' + c.routine + '회' : (c.due ? md(c.due) + '까지만' : '')}</div><div class="act"><button onclick="adoptCand('${wk}','${c.id}')">B로 옮기기</button><button onclick="cand('${wk}','${c.id}','n');dropCand('${wk}','${c.id}')">떼기</button></div></div>`; });
+    if (P) cands.forEach(c => { h += `<div class="sticky ${c.state==='y' ? 'fin' : ''}"><div class="who"><span>다음 주 후보</span><span>${esc(c.role)}</span></div><span class="ok">${CHECK}</span><div class="tx">${esc(c.title)}</div><div class="hint">${c.routine ? '주 ' + c.routine + '회' : (c.due ? md(c.due) + '에 해 보기' : '')}</div><div class="act"><button onclick="adoptCand('${wk}','${c.id}')">B로 옮기기</button><button onclick="cand('${wk}','${c.id}','n');dropCand('${wk}','${c.id}')">떼기</button></div></div>`; });
     else h += backSticky('다음 주 후보', cands.length + '장', cands.map(c => c.title).join(' · '));
   }
   h += `</div><div class="sp"></div>`;
