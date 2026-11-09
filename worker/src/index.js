@@ -323,8 +323,9 @@ async function review(req, env, token) {
   let b; try { b = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
   const cut = (a, n, f) => (Array.isArray(a) ? a : []).slice(0, n).map(f);
   const done = cut(b.done, 30, x => `- ${String(x.title).slice(0, 60)}${x.role ? ' (' + String(x.role).slice(0, 8) + ')' : ''}`);
-  const open = cut(b.open, 25, x => `- ${String(x.title).slice(0, 60)}${x.role ? ' (' + String(x.role).slice(0, 8) + ')' : ''}${x.due ? ' 마감 ' + String(x.due).slice(0, 10) : ''}${x.wait ? ' 남의 답 기다리는 중' : ''}`);
-  const hours = Object.entries(b.hours || {}).slice(0, 10).map(([k, v]) => `${String(k).slice(0, 8)} ${Number(v) || 0}시간`).join(', ');
+  const td = String(b.today || '').slice(0, 10);
+  const open = cut(b.open, 25, x => `- ${String(x.title).slice(0, 60)}${x.role ? ' (' + String(x.role).slice(0, 8) + ')' : ''}${x.due ? (String(x.due) < td ? ' 마감 지남(' + String(x.due).slice(0, 10) + ')' : ' 마감 ' + String(x.due).slice(0, 10)) : ''}${x.wait ? ' 남의 답 기다리는 중' : ''}`);
+  const hours = Object.entries(b.hours || {}).slice(0, 10).map(([k, v]) => `${k === '역할 없음' ? '역할을 아직 안 정한 일정' : String(k).slice(0, 8)} ${Number(v) || 0}시간`).join(', ');
   const notes = cut(b.notes, 7, x => '- ' + String(x).slice(0, 80));
   const sys = [
     '너는 종이 플래너를 같이 쓰는 비서다. 한 주의 사실만 보고 일요일 리뷰를 쓴다.',
@@ -343,6 +344,8 @@ async function review(req, env, token) {
   let out;
   try { out = jsonIn(await llm(env, [{ role: 'system', content: sys }, ...ex, { role: 'user', content: user }], 600)); } catch (e) { return json({ error: 'model failed' }, 502); }
   if (!out || !out.summary) return json({ error: 'no summary' }, 502);
+  // 끝낸 일이 있는데 '체크한 일이 없다'고 하면 그 문장을 뺀다
+  if ((b.done || []).length) out.summary = String(out.summary).split(/(?<=[.요])\s+/).filter(x => !/체크한 일이 없|끝낸 일이 없/.test(x)).join(' ');
   await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
   const roles = new Set(cut(b.roles, 8, String));
   const cands = cut(out.cands, 3, c => ({ title: String(c.title || '').slice(0, 60), role: roles.has(String(c.role)) ? String(c.role) : '', due: /^\d{4}-\d{2}-\d{2}$/.test(String(c.due)) ? String(c.due) : '' })).filter(c => c.title);
