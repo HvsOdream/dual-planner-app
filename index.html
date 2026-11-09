@@ -393,10 +393,35 @@ body { background-image: var(--paper-tex); }
   --mine: #F1D9C2; --mine-ink: #553522; --mark: #D9B36A;
   --cover-tex: radial-gradient(circle at 30% 20%, rgba(255,255,255,.08), transparent 60%), radial-gradient(circle at 80% 90%, rgba(0,0,0,.18), transparent 55%);
 }
+
+/* ── 0.6.0 스킨: 네이비 표지(기본) · 머리의 D · 가름끈 ── */
+:root { --ribbon: #B23A2A; --dot: var(--check); }
+:root[data-theme="navy"] {
+  --accent: #1E2F4F; --cover: #1E2F4F; --cover-ink: #F3F1EA; --band: #B23A2A; --desk: #18253F;
+  --head: #1E2F4F; --head-ink: #F3F1EA; --head-line: rgba(243,241,234,.32); --head-edge: transparent;
+  --ribbon: #B23A2A; --dot: #E8A33D;
+  --cover-tex: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 1px, transparent 1px 3px);
+}
+:root[data-theme="navy"] .cover { border-bottom: 0; box-shadow: none; }
+:root[data-theme="terra"] { --ribbon: #2E2622; }
+:root[data-theme="cream"] { --ribbon: #7A3527; }
+:root[data-theme="leather"] { --ribbon: #D9B36A; }
+.cover { overflow: visible; }
+.cover > .nav::before, .cover .half:first-child .nav::before { content: ""; width: 24px; height: 22px; flex: none; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='14 14 78 72'%3E%3Crect x='16' y='16' width='26' height='68' rx='5'/%3E%3Cpath d='M48 16 H55 A34 34 0 0 1 55 84 H48 Z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='14 14 78 72'%3E%3Crect x='16' y='16' width='26' height='68' rx='5'/%3E%3Cpath d='M48 16 H55 A34 34 0 0 1 55 84 H48 Z'/%3E%3C/svg%3E") center / contain no-repeat; opacity: .9; }
+.cover::after { content: ""; position: absolute; right: 6px; top: 0; width: 10px; height: calc(100% + 28px); background: var(--ribbon); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 86%, 0 100%); pointer-events: none; }
+body.spread .cover::after { right: calc(50% + var(--gutter) / 2 + 6px); }
+.cover .right { margin-right: 12px; }
+body.spread .cover .half:first-child .streak { margin-right: 20px; }
+.streak i { background: var(--dot); }
+/* 타이틀: 네이비는 D를 표지에 눌러 찍고, 고무밴드 대신 아래로 가름끈 */
+:root[data-theme="navy"] .intro .seal { color: #18263F; }
+:root[data-theme="navy"] .intro .seal svg { filter: drop-shadow(0 1px 0 rgba(255,255,255,.10)) drop-shadow(0 -1px 0 rgba(0,0,0,.35)); }
+:root[data-theme="navy"] .intro .seal b { color: #C9CFDA; font-weight: 500; font-size: 15px; letter-spacing: .04em; }
+:root[data-theme="navy"] .intro .band { top: auto; bottom: -6px; right: 56px; width: 16px; height: 120px; background: var(--ribbon); box-shadow: none; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 88%, 0 100%); }
 </style>
 </head>
 <body>
-<script>try{var _t=new URLSearchParams(location.search).get('theme')||((JSON.parse(localStorage.getItem('dpa_v1')||'{}').settings||{}).theme);document.documentElement.dataset.theme=_t||'terra'}catch(e){}</script>
+<script>try{var _t=new URLSearchParams(location.search).get('theme')||((JSON.parse(localStorage.getItem('dpa_v1')||'{}').settings||{}).theme);document.documentElement.dataset.theme=_t||'navy'}catch(e){}</script>
 
 <div class="intro" id="intro" aria-live="polite">
   <div class="cv" onclick="introTap()">
@@ -1128,8 +1153,8 @@ function notifyPreview() {
   return `<div class="subst" style="font-size:12px;margin:6px 0 0;line-height:1.6">오늘 저녁: <b>${esc(e.title)}</b> ${esc(e.body)}<br>내일 아침: <b>${esc(t.title)}</b> ${esc(t.body)}</div>`;
 }
 // ── 표지 ──
-const COVERS = [['terra', '테라코타', '#A9503A', '#FBF1E4'], ['cream', '크림', '#E4DCC6', '#2B2925'], ['leather', '가죽', '#6B4E36', '#F2E6D0']];
-function curTheme() { return new URLSearchParams(location.search).get('theme') || (D.settings && D.settings.theme) || 'terra'; }
+const COVERS = [['navy', '네이비', '#1E2F4F', '#F3F1EA'], ['terra', '테라코타', '#A9503A', '#FBF1E4'], ['cream', '크림', '#E4DCC6', '#2B2925'], ['leather', '가죽', '#6B4E36', '#F2E6D0']];
+function curTheme() { return new URLSearchParams(location.search).get('theme') || (D.settings && D.settings.theme) || 'navy'; }
 function applyTheme() { const t = curTheme(); if (document.documentElement.dataset.theme !== t) document.documentElement.dataset.theme = t; }
 function setCover(t) { D.settings = Object.assign({}, D.settings, { theme: t, u: new Date().toISOString() }); D._modified = D.settings.u; _save0(); if (baseUrl()) pushState(); applyTheme(); renderCoverBox(); }
 function renderCoverBox() {
