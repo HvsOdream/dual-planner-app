@@ -293,9 +293,11 @@ async function group(req, env, token) {
   }
   const fixName = { '형제': '가족', '자매': '가족', '부모님': '가족', '엄마': '가족', '아빠': '가족', '자녀': '부모', '도서관': '봉사자', '회사': '직장인' };
   groups.forEach(g => { if (fixName[g.name]) g.name = fixName[g.name]; if (g.name === '연인' || g.name === '애인') g.name = '연인'; });
+  // 시험 준비가 보이면 '학생'은 따로 두지 않는다(학교 다니는 흔적은 드물고, 둘로 갈라지면 헷갈린다)
+  if (groups.some(g => g.name === '수험생')) groups.forEach(g => { if (g.name === '학생') g.name = '수험생'; });
   for (let i = groups.length - 1; i > 0; i--) { const j = groups.findIndex(x => x.name === groups[i].name); if (j < i) { groups[j].ids.push(...groups[i].ids); groups.splice(i, 1); } }
   const known2 = new Set(people.map(([n]) => n));
-  const ppl = ((out && out.people) || []).map(x => ({ name: String(x.name || '').replace(/[^가-힣A-Za-z0-9 ]/g, '').trim().slice(0, 8), guess: String(x.guess || '모름').slice(0, 6) })).filter(x => x.name.length >= 2 && !known2.has(x.name) && items.some(it => it.title.includes(x.name))).slice(0, 5);
+  const ppl = ((out && out.people) || []).map(x => ({ name: String(x.name || '').replace(/[^가-힣A-Za-z0-9 ]/g, '').trim().replace(/^([가-힣]{2})이$/, '$1').slice(0, 8), guess: String(x.guess || '모름').slice(0, 6) })).filter(x => x.name.length >= 2 && !known2.has(x.name) && items.some(it => it.title.includes(x.name))).slice(0, 5);
   // 모델이 사람을 못 뽑았을 때: 호칭·조사 앞의 이름을 글에서 직접 찾는다
   if (!ppl.length) {
     const stop = new Set(['다음', '이번', '지난', '학과', '팀원', '고객', '회사', '학생', '수업', '강의', '주말', '오늘', '내일', '부모님', '선생님', '친구', '동료', '가족', '엄마', '아빠', '언니', '누나', '오빠', '동생', '아내', '남편', '담임', '교수', '부모', '대리', '대표', '선생', '과장', '팀장']);
