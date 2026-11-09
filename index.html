@@ -402,10 +402,15 @@ body { background-image: var(--paper-tex); }
   --ribbon: #B23A2A; --dot: #E8A33D;
   --cover-tex: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 1px, transparent 1px 3px);
 }
-:root[data-theme="navy"] .cover { border-bottom: 0; box-shadow: none; }
-:root[data-theme="terra"] { --ribbon: #2E2622; }
-:root[data-theme="cream"] { --ribbon: #7A3527; }
-:root[data-theme="leather"] { --ribbon: #D9B36A; }
+/* 표지 넷 모두 같은 방식: 머리는 표지 색, 표지 위 D는 각인, 아래로 가름끈 */
+:root[data-theme] .cover { border-bottom: 0; box-shadow: none; }
+:root { --seal: #18263F; --seal-name: #C9CFDA; --seal-hi: rgba(255,255,255,.10); --seal-lo: rgba(0,0,0,.35); }
+:root[data-theme="terra"] { --head: #A9503A; --head-ink: #FBF1E4; --head-line: rgba(251,241,228,.35); --head-edge: transparent;
+  --ribbon: #2E2622; --dot: #F3D9A4; --seal: #96442F; --seal-name: #F1D9C6; }
+:root[data-theme="cream"] { --head: #E4DCC6; --head-ink: #2B2925; --head-line: rgba(43,41,37,.25); --head-edge: transparent;
+  --ribbon: #7A3527; --dot: #7A3527; --seal: #D5CBB0; --seal-name: #6E6655; --seal-hi: rgba(255,255,255,.55); --seal-lo: rgba(60,50,30,.18); }
+:root[data-theme="leather"] { --head: #6B4E36; --head-ink: #F2E6D0; --head-line: rgba(242,230,208,.32); --head-edge: transparent;
+  --ribbon: #D9B36A; --dot: #D9B36A; --seal: #5A412C; --seal-name: #DCCBAE; }
 .cover { overflow: visible; }
 .cover > .nav::before, .cover .half:first-child .nav::before { content: ""; width: 24px; height: 22px; flex: none; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='14 14 78 72'%3E%3Crect x='16' y='16' width='26' height='68' rx='5'/%3E%3Cpath d='M48 16 H55 A34 34 0 0 1 55 84 H48 Z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='14 14 78 72'%3E%3Crect x='16' y='16' width='26' height='68' rx='5'/%3E%3Cpath d='M48 16 H55 A34 34 0 0 1 55 84 H48 Z'/%3E%3C/svg%3E") center / contain no-repeat; opacity: .9; }
 .cover::after { content: ""; position: absolute; right: 6px; top: 0; width: 10px; height: calc(100% + 28px); background: var(--ribbon); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 86%, 0 100%); pointer-events: none; }
@@ -413,11 +418,11 @@ body.spread .cover::after { right: calc(50% + var(--gutter) / 2 + 6px); }
 .cover .right { margin-right: 12px; }
 body.spread .cover .half:first-child .streak { margin-right: 20px; }
 .streak i { background: var(--dot); }
-/* 타이틀: 네이비는 D를 표지에 눌러 찍고, 고무밴드 대신 아래로 가름끈 */
-:root[data-theme="navy"] .intro .seal { color: #18263F; }
-:root[data-theme="navy"] .intro .seal svg { filter: drop-shadow(0 1px 0 rgba(255,255,255,.10)) drop-shadow(0 -1px 0 rgba(0,0,0,.35)); }
-:root[data-theme="navy"] .intro .seal b { color: #C9CFDA; font-weight: 500; font-size: 15px; letter-spacing: .04em; }
-:root[data-theme="navy"] .intro .band { top: auto; bottom: -6px; right: 56px; width: 16px; height: 120px; background: var(--ribbon); box-shadow: none; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 88%, 0 100%); }
+/* 타이틀: D를 표지에 눌러 찍고, 고무밴드 대신 아래로 가름끈 */
+:root[data-theme] .intro .seal { color: var(--seal); }
+:root[data-theme] .intro .seal svg { filter: drop-shadow(0 1px 0 var(--seal-hi)) drop-shadow(0 -1px 0 var(--seal-lo)); }
+:root[data-theme] .intro .seal b { color: var(--seal-name); font-weight: 500; font-size: 15px; letter-spacing: .04em; }
+:root[data-theme] .intro .band { top: auto; bottom: -6px; right: 56px; width: 16px; height: 120px; background: var(--ribbon); box-shadow: none; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 88%, 0 100%); }
 </style>
 </head>
 <body>
