@@ -232,7 +232,7 @@ a { color: inherit; }
 .more .mi span { font-size: 12px; color: var(--muted); }
 .roles-ed { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px; }
 .roles-ed .tag { height: 28px; line-height: 26px; padding: 0 10px; font-size: 12px; }
-.toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--accent); color: var(--paper); padding: 9px 16px; border-radius: 8px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 90; white-space: nowrap; }
+.toast { z-index: 200 !important; position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--accent); color: var(--paper); padding: 9px 16px; border-radius: 8px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 90; white-space: nowrap; }
 .toast.on { opacity: 1; }
 
 /* 빅록 추가 폼 */
@@ -689,7 +689,8 @@ function stickiesHtml(list, gs) {
 }
 // ── 일정: 캘린더의 iCal 주소를 서버가 받아 펼쳐 준다(앱에서는 아이폰 캘린더를 직접 읽게 바꿀 예정) ──
 let _calLoading = false;
-function nat() { return isNative() && window.Capacitor.Plugins && window.Capacitor.Plugins.DualNative; }
+function natPlugin() { const C = window.Capacitor; if (!C) return null; if (!natPlugin._p) natPlugin._p = (C.Plugins && C.Plugins.DualNative) || (C.registerPlugin ? C.registerPlugin('DualNative') : null); return natPlugin._p; }
+function nat() { return isNative() && natPlugin(); }
 async function loadCal(force) {
   if (nat() && (D.settings || {}).calNative) {
     try { const from = addDays(today(), -7), to = addDays(today(), 35); const r = await nat().calendarEvents({ from, to });
@@ -1105,7 +1106,7 @@ function closeLogin(skip) { document.getElementById('login').classList.remove('o
 async function appleLogin() {
   try {
     if (isNative()) {
-      const r = await Capacitor.Plugins.DualNative.appleSignIn();
+      toast('Apple 로그인 여는 중'); const r = await natPlugin().appleSignIn();
       return await authWith('apple', { id_token: r.idToken, name: r.name || '' });
     }
     await loadScript('https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/ko_KR/appleid.auth.js');
@@ -1113,7 +1114,7 @@ async function appleLogin() {
     const r = await AppleID.auth.signIn();
     const nm = r.user && r.user.name ? [r.user.name.lastName, r.user.name.firstName].filter(Boolean).join('') : '';
     await authWith('apple', { id_token: r.authorization.id_token, name: nm });
-  } catch(e) { if (!(e && /popup_closed|user_cancelled|canceled/.test(e.error || e.message || ''))) toast('Apple 로그인 실패'); }
+  } catch(e) { const m = (e && (e.error || e.message || e.code)) || ''; if (!/popup_closed|user_cancelled|canceled/.test(m)) toast('Apple 로그인 실패' + (m ? ' · ' + String(m).slice(0, 60) : '')); }
 }
 async function authWith(p, body) {
   try {
@@ -1124,7 +1125,7 @@ async function authWith(p, body) {
     const m = await fetch(stateUrl(), { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(local) });
     if (m.ok) applyState(await m.json());
     markStarted(); closeLogin(); ensureVol(); render(); toast('로그인했어요');
-  } catch(e) { toast('로그인 실패'); }
+  } catch(e) { const m = (e && (e.reason || e.error || e.message)) || ''; toast('로그인 실패' + (m ? ' · ' + String(m).slice(0, 60) : '')); }
 }
 function resetLocal() {
   try { localStorage.removeItem(KEY); } catch(e) {}
