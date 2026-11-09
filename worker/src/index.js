@@ -297,7 +297,7 @@ async function group(req, env, token) {
   if (groups.some(g => g.name === '수험생')) groups.forEach(g => { if (g.name === '학생') g.name = '수험생'; });
   for (let i = groups.length - 1; i > 0; i--) { const j = groups.findIndex(x => x.name === groups[i].name); if (j < i) { groups[j].ids.push(...groups[i].ids); groups.splice(i, 1); } }
   const known2 = new Set(people.map(([n]) => n));
-  const ppl = ((out && out.people) || []).map(x => ({ name: String(x.name || '').replace(/[^가-힣A-Za-z0-9 ]/g, '').trim().replace(/^([가-힣]{2})이$/, '$1').slice(0, 8), guess: String(x.guess || '모름').slice(0, 6) })).filter(x => x.name.length >= 2 && !known2.has(x.name) && items.some(it => it.title.includes(x.name))).slice(0, 5);
+  const ppl = ((out && out.people) || []).map(x => ({ name: String(x.name || '').replace(/[^가-힣A-Za-z0-9 ]/g, '').trim().replace(/^([가-힣]{2})이$/, '$1').slice(0, 8), guess: String(x.guess || '모름').slice(0, 6) })).filter(x => x.name.length >= 2 && !known2.has(x.name) && !known2.has(x.name.split(' ')[0]) && items.some(it => it.title.includes(x.name))).slice(0, 5);
   // 모델이 사람을 못 뽑았을 때: 호칭·조사 앞의 이름을 글에서 직접 찾는다
   if (!ppl.length) {
     const stop = new Set(['다음', '이번', '지난', '학과', '팀원', '고객', '회사', '학생', '수업', '강의', '주말', '오늘', '내일', '부모님', '선생님', '친구', '동료', '가족', '엄마', '아빠', '언니', '누나', '오빠', '동생', '아내', '남편', '담임', '교수', '부모', '대리', '대표', '선생', '과장', '팀장']);
@@ -309,7 +309,7 @@ async function group(req, env, token) {
       for (const m of t.matchAll(/(?:^|\s)([가-힣]{2,3})\s담임/g)) found.push([m[1], '아들']);
     });
     const seen2 = new Set();
-    found.filter(([n]) => !stop.has(n) && !known2.has(n) && !roles.includes(n) && !groups.some(g => g.name === n) && !seen2.has(n) && seen2.add(n)).slice(0, 5).forEach(([n, g]) => ppl.push({ name: n, guess: g === '아들' ? '모름' : g }));
+    found.filter(([n]) => !stop.has(n) && !known2.has(n) && !known2.has(n.split(' ')[0]) && !roles.includes(n) && !groups.some(g => g.name === n) && !seen2.has(n) && seen2.add(n)).slice(0, 5).forEach(([n, g]) => ppl.push({ name: n, guess: g === '아들' ? '모름' : g }));
   }
   return json(Object.assign({ groups, people: ppl, model: env.LLM_URL ? 'sllm' : 'workers-ai' }, body.debug ? { raw: String(raw).slice(0, 1500) } : {}));
 }
@@ -328,15 +328,20 @@ async function review(req, env, token) {
   const notes = cut(b.notes, 7, x => '- ' + String(x).slice(0, 80));
   const sys = [
     '너는 종이 플래너를 같이 쓰는 비서다. 한 주의 사실만 보고 일요일 리뷰를 쓴다.',
-    '3~4문장, 존댓말, 담백하게. 칭찬·격려·감탄·이모지 금지. 완료 개수로 사람을 평가하지 않는다.',
+    '3~4문장, 완전한 문장의 해요체("~했어요", "~예요"). 명사로 끊는 메모체 금지. 칭찬·격려·감탄·이모지 금지. 완료 개수로 사람을 평가하지 않는다.',
+    '끝낸 일이 없으면 그 사실은 "이번 주엔 체크한 일이 없어요" 정도로 한 번만 짧게 말하고 바로 다음 주 이야기로 넘어간다. "못했다"는 말은 쓰지 않는다.',
     '1) 이번 주 실제로 끝낸 일에서 눈에 띄는 것 하나 2) 캘린더 시간이 어느 역할에 몰렸는지(시간 자료가 있을 때만, "캘린더 일정 기준"이라고 밝힌다) 3) 남은 일 중 다음 주에 먼저 볼 것 하나와 그 이유(마감·오래 멈춤). 남의 답을 기다리는 일은 미룬 일로 보지 않는다.',
     '자료에 없는 사실을 지어내지 않는다. 일정이 없는 시간을 쉬었다고 단정하지 않는다.',
-    '다음 주 후보는 남은 일이나 끝낸 일의 다음 단계에서 최대 3개, 각각 바로 시작할 수 있는 크기의 행동으로 쓰고, 역할은 주어진 역할 이름 중 하나, due는 다음 주 안의 날짜(YYYY-MM-DD).',
+    '다음 주 후보는 최대 3개. 남은 일 제목을 그대로 베끼지 말고, 그 일을 시작하는 30분~1시간짜리 첫 행동으로 쓴다(예: "논문 초안 목차 다시 짜기" → "논문 목차 1장 소제목만 다시 적기"). 역할은 주어진 역할 이름 중 하나, due는 다음 주 월~일 사이 날짜(YYYY-MM-DD).',
     '설명 없이 JSON 하나만: {"summary":"...","cands":[{"title":"...","role":"...","due":"YYYY-MM-DD"}]}'
   ].join('\n');
   const user = `오늘: ${String(b.today || '').slice(0, 10)} / 다음 주 시작: ${String(b.next || '').slice(0, 10)}\n역할: ${cut(b.roles, 8, String).join(', ') || '없음'}\n이번 주 끝낸 일:\n${done.join('\n') || '- 없음'}\n남은 일:\n${open.join('\n') || '- 없음'}\n캘린더 시간: ${hours || '없음'}\n한 줄 일기:\n${notes.join('\n') || '- 없음'}`;
+  const ex = [
+    { role: 'user', content: '오늘: 2026-11-22 / 다음 주 시작: 2026-11-23\n역할: 교수, 학과장, 민준 아빠, 나 자신\n이번 주 끝낸 일:\n- 졸업작품 3팀 피드백 (교수)\n- 학과회의 안건 작성 (학과장)\n- 민준 담임 상담 답장 (민준 아빠)\n남은 일:\n- 논문 초안 목차 다시 짜기 (교수) 마감 2026-12-06\n- 건강검진 예약 (나 자신)\n캘린더 시간: 교수 9시간, 학과장 1시간\n한 줄 일기:\n- 없음' },
+    { role: 'assistant', content: '{"summary":"졸업작품 피드백과 학과회의 안건, 민준 담임 선생님 답장까지 끝냈어요. 캘린더 일정 기준으로 이번 주 시간은 교수 일에 9시간, 학과장 일에 1시간이 쓰였어요. 다음 주엔 12월 6일이 마감인 논문 목차를 먼저 보면 좋겠어요. 건강검진 예약은 아직 그대로예요.","cands":[{"title":"논문 목차 1장 소제목만 다시 적기","role":"교수","due":"2026-11-25"},{"title":"건강검진 병원 두 곳 빈 시간 확인","role":"나 자신","due":"2026-11-27"}]}' }
+  ];
   let out;
-  try { out = jsonIn(await llm(env, [{ role: 'system', content: sys }, { role: 'user', content: user }], 600)); } catch (e) { return json({ error: 'model failed' }, 502); }
+  try { out = jsonIn(await llm(env, [{ role: 'system', content: sys }, ...ex, { role: 'user', content: user }], 600)); } catch (e) { return json({ error: 'model failed' }, 502); }
   if (!out || !out.summary) return json({ error: 'no summary' }, 502);
   await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
   const roles = new Set(cut(b.roles, 8, String));

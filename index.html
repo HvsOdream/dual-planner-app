@@ -1336,13 +1336,13 @@ function weekFacts(wk) {
     later: openItems().filter(r => r.bucket === 'nice').slice(0, 8).map(r => r.title),
     hours: Object.fromEntries(Object.entries(hrs).map(([k, v]) => [k, Math.round(v * 10) / 10])),
     notes: ds.map(d => (D.days[d] || {}).note).filter(Boolean).slice(0, 7),
-    today: today(), next: weekKey(new Date(Date.now() + 7 * 86400000))
+    today: today(), week: wk, next: weekKey(new Date(new Date(wk).getTime() + 7 * 86400000))
   };
 }
 async function maybeReview(wk) {
   const rv = D.reviews[wk]; if (!rv || rv.summary || _reviewing || !baseUrl() || !paid() || !featOn('review')) return;
   if (today() < weekDates(new Date(wk))[6] || rv.askedAt === today()) return;
-  const f = weekFacts(wk); if (!f.done.length && !f.open.length) return;
+  const f = weekFacts(wk), wds = weekDates(new Date(wk)); if (!f.done.length && !useDays().some(d => wds.includes(d))) return; // 그 주에 쓴 흔적이 있어야
   _reviewing = true; rv.askedAt = today();
   try {
     const r = await fetch(baseUrl() + '/u/' + D.token + '/review', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(f) });
