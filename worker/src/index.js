@@ -196,7 +196,7 @@ async function adminStats(req, env) {
   let claims; try { claims = await verifyJwt(body.credential, conf.jwks, conf.iss, conf.aud); } catch (e) { return json({ error: 'login failed' }, 401); }
   const admins = String(env.ADMIN_EMAILS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
   if (!claims.email || !claims.email_verified || !admins.includes(String(claims.email).toLowerCase())) return json({ error: 'not admin' }, 403);
-  const acctKeys = await kvKeys(env, 'a:', 2000), userKeys = await kvKeys(env, 'u:', 5000);
+  const acctKeys = await kvKeys(env, 'a:', 2000), userKeys = await kvKeys(env, 'u:', 5000), fbKeys = await kvKeys(env, 'f:', 5000);
   const bound = new Set(), accounts = [];
   for (const k of acctKeys) {
     const a = JSON.parse(await env.PLANNER.get(k) || 'null'); if (!a) continue; bound.add(a.token);
@@ -205,7 +205,18 @@ async function adminStats(req, env) {
     accounts.push({ provider: a.provider, email: a.email || '', name: a.name || '', created: a.created || '', lastActive: S._modified || '', items: rocks.length, done: rocks.filter(r => r.done).length, days: Object.keys(S.days || {}).length, agent: S.agent ? { name: S.agent.name || '', at: S.agent.at || '' } : null, vols: (S.vols || []).filter(v => v && !v._deleted).length });
   }
   accounts.sort((x, y) => (y.created || '').localeCompare(x.created || ''));
-  return json({ now: new Date().toISOString(), accounts, planners: userKeys.length, anonymous: userKeys.filter(k => !bound.has(k.slice(2))).length, admin: claims.email });
+  return json({ now: new Date().toISOString(), accounts, planners: userKeys.length, anonymous: userKeys.filter(k => !bound.has(k.slice(2))).length, feedback: fbKeys.length, admin: claims.email });
+}
+
+async function feedback(req, env, token) {
+  if (req.method !== 'POST') return json({ error: 'method' }, 405);
+  if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
+  let b; try { b = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  if (!b || b.consent !== true) return json({ error: 'no consent' }, 400);
+  const rec = { at: new Date().toISOString(), kind: String(b.kind || 'roles').slice(0, 20), model: String(b.model || '').slice(0, 20), suggest: b.suggest || null, final: b.final || null, people: b.people || null };
+  const s = JSON.stringify(rec); if (s.length > 20000) return json({ error: 'too big' }, 413);
+  await env.PLANNER.put('f:' + rec.at.slice(0, 10) + ':' + token.slice(0, 8) + ':' + Math.random().toString(36).slice(2, 8), s, { expirationTtl: 31536000 });
+  return json({ ok: true });
 }
 
 // ── 속지 비서: 작은 모델 하나로 묶기 등을 한다. LLM_URL(OpenAI 호환, 예: 직접 만든 sLLM)이 있으면 그쪽, 없으면 Workers AI ──
@@ -229,6 +240,7 @@ async function group(req, env, token) {
   let body; try { body = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
   const items = (body.items || []).filter(x => x && x.id && x.title).slice(0, 40).map(x => ({ id: String(x.id), title: String(x.title).slice(0, 80) }));
   const roles = (body.roles || []).map(String).slice(0, 12);
+  const people = Object.entries(body.people || {}).slice(0, 20).map(([n, r]) => [String(n).slice(0, 10), String(r).slice(0, 10)]).filter(([n, r]) => n && r && r !== '모름');
   if (items.length < 3) return json({ groups: [] });
   const sys = [
     '너는 종이 플래너를 함께 쓰는 비서다. 할 일 목록을 보고, 이 사람이 삶에서 맡고 있는 "역할"을 찾아 할 일을 역할별로 묶는다.',
@@ -241,16 +253,18 @@ async function group(req, env, token) {
     '성별을 짐작하지 않는다. 아빠·엄마·남편·아내·딸·아들은 글에 그 단서가 분명할 때만 쓰고, 아니면 부모·배우자·가족을 쓴다.',
     '글에 보이지 않는 직책을 지어내지 않는다(동아리 일 → 동아리 회장은 "회장"이 보일 때만, 아니면 동아리).',
     '역할은 2~6개, 이름은 2~6자 한국어 명사. 기존 역할이 주어지면 뜻이 맞는 할 일은 그 이름을 그대로 쓴다.',
+    '"사람" 목록이 주어지면 그 관계를 그대로 믿는다(예: 준서=아들이면 준서 관련 일은 부모, 지영=아내면 배우자). 관계로 이 사람의 성별이 드러나면 아빠·엄마·남편·아내를 써도 된다(아내가 있으면 남편, 아들 일은 아빠).',
     '모든 id를 정확히 한 번씩, 가장 주된 역할 하나에만 넣는다.',
-    '설명 없이 JSON 하나만 출력한다: {"groups":[{"name":"역할","ids":["id",...]}]}'
+    '할 일에 나오는 사람 이름(2~4자, 별명 포함)을 최대 5개 골라 people에 넣고, 글로 보아 가장 그럴듯한 관계를 guess에 짧게 적는다(자녀, 배우자, 부모님, 동료, 팀원, 학생, 친구, 모름). "사람" 목록에 이미 있는 이름은 넣지 않는다. 역할명·회사명·과목명은 사람이 아니다.',
+    '설명 없이 JSON 하나만 출력한다: {"groups":[{"name":"역할","ids":["id",...]}],"people":[{"name":"이름","guess":"관계"}]}'
   ].join('\n');
   const example = [
     { role: 'user', content: '기존 역할: 없음\n할 일:\n- id=a1: [신규몰] 견적서 다시\n- id=a2: 거래처 미팅 자료\n- id=a3: 둘째 소아과 예약\n- id=a4: 아버지 칠순 식당 알아보기\n- id=a5: 수영 등록\n- id=a6: 분리수거' },
-    { role: 'assistant', content: '{"groups":[{"name":"직장인","ids":["a1","a2"]},{"name":"부모","ids":["a3"]},{"name":"가족","ids":["a4","a6"]},{"name":"나 자신","ids":["a5"]}]}' },
+    { role: 'assistant', content: '{"groups":[{"name":"직장인","ids":["a1","a2"]},{"name":"부모","ids":["a3"]},{"name":"가족","ids":["a4","a6"]},{"name":"나 자신","ids":["a5"]}],"people":[]}' },
     { role: 'user', content: '기존 역할: 없음\n할 일:\n- id=b1: [영상편집] 기말 과제 렌더링\n- id=b2: 편의점 토요일 대타 되는지\n- id=b3: 아빠 생일 케이크 예약\n- id=b4: [밴드부] 공연 포스터 인쇄\n- id=b5: 수강신청 장바구니\n- id=b6: 준호한테 책 돌려주기' },
-    { role: 'assistant', content: '{"groups":[{"name":"학생","ids":["b1","b5"]},{"name":"알바생","ids":["b2"]},{"name":"가족","ids":["b3"]},{"name":"동아리","ids":["b4"]},{"name":"친구","ids":["b6"]}]}' }
+    { role: 'assistant', content: '{"groups":[{"name":"학생","ids":["b1","b5"]},{"name":"알바생","ids":["b2"]},{"name":"가족","ids":["b3"]},{"name":"동아리","ids":["b4"]},{"name":"친구","ids":["b6"]}],"people":[{"name":"준호","guess":"친구"}]}' }
   ];
-  const user = '기존 역할: ' + (roles.join(', ') || '없음') + '\n할 일:\n' + items.map(x => `- id=${x.id}: ${x.title}`).join('\n');
+  const user = '기존 역할: ' + (roles.join(', ') || '없음') + '\n사람: ' + (people.map(([n, r]) => n + '=' + r).join(', ') || '없음') + '\n할 일:\n' + items.map(x => `- id=${x.id}: ${x.title}`).join('\n');
   const msgs = [{ role: 'system', content: sys }, ...example, { role: 'user', content: user }];
   let raw = '', out;
   try {
@@ -260,7 +274,9 @@ async function group(req, env, token) {
   await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
   const known = new Set(items.map(x => x.id)), seen = new Set();
   const groups = ((out && out.groups) || []).map(g => ({ name: String(g.name || '').replace(/[\[\]"'`]/g, '').trim().slice(0, 8), ids: (g.ids || []).map(String).filter(id => known.has(id) && !seen.has(id) && seen.add(id)) })).filter(g => g.name && g.ids.length);
-  return json(Object.assign({ groups, model: env.LLM_URL ? 'sllm' : 'workers-ai' }, body.debug ? { raw: String(raw).slice(0, 1500) } : {}));
+  const known2 = new Set(people.map(([n]) => n));
+  const ppl = ((out && out.people) || []).map(x => ({ name: String(x.name || '').replace(/[^가-힣A-Za-z0-9]/g, '').slice(0, 6), guess: String(x.guess || '모름').slice(0, 6) })).filter(x => x.name.length >= 2 && !known2.has(x.name) && items.some(it => it.title.includes(x.name))).slice(0, 5);
+  return json(Object.assign({ groups, people: ppl, model: env.LLM_URL ? 'sllm' : 'workers-ai' }, body.debug ? { raw: String(raw).slice(0, 1500) } : {}));
 }
 
 // ── 일정: 사용자가 준 iCal 주소(구글 캘린더 '비공개 주소' 등)를 받아 기간 안의 일정을 한국 시간으로 펼친다 ──
@@ -376,12 +392,13 @@ export default {
     const am = url.pathname.match(/^\/auth\/(config|google|apple|account)\/?$/);
     if (am) return auth(req, env, am[1]);
     if (url.pathname.replace(/\/$/, '') === '/admin/stats') return adminStats(req, env);
-    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group|cal)\/?$/);
+    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group|cal|feedback)\/?$/);
     if (!m) return json({ ok: true, name: 'dual-planner-api', usage: '/u/:token/state | /u/:token/items | /u/:token/mcp | /auth/config | /auth/google | /auth/apple | /auth/account' });
     const token = m[1], kind = m[2], key = 'u:' + token;
     if (kind === 'mcp') return mcp(req, env, token);
     if (kind === 'group') return group(req, env, token);
     if (kind === 'cal') return cal(req, env, token);
+    if (kind === 'feedback') return feedback(req, env, token);
     const cur = Object.assign(empty(), JSON.parse(await env.PLANNER.get(key) || 'null') || {});
     if (kind === 'state') {
       if (req.method === 'GET') return json(cur);

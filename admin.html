@@ -83,6 +83,7 @@ function render(d) {
     <div class="kpi"><b>${active7}</b><span>7일 안에 쓴 계정</span></div>
     <div class="kpi"><b>${agents}</b><span>비서 연결한 계정</span></div>
     <div class="kpi"><b>${d.anonymous}</b><span>로그인 없이 쓰는 플래너</span></div>
+    <div class="kpi"><b>${d.feedback || 0}</b><span>비서 학습용 고친 기록</span></div>
   </div>
   <h2>최근 30일 가입</h2>
   <div class="bars">${days.map((k, i) => `<i class="${cnt[k] ? '' : 'z'} ${i === 29 ? 'td' : ''}" style="height:${cnt[k] ? Math.max(6, cnt[k] / max * 100) : 2}%" title="${k} · ${cnt[k]}명"></i>`).join('')}</div>
