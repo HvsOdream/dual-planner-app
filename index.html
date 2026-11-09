@@ -152,6 +152,12 @@ a { color: inherit; }
 .sticky.blur .tx { filter: blur(4.5px); opacity: .75; user-select: none; pointer-events: none; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .sticky.blur .unlock { position: relative; margin-top: 8px; font-size: 12px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; opacity: .8; }
 .subst { font-size: 14px; color: var(--ink-2); margin: 2px 0 10px; }
+.feats { margin: 12px 0 4px; border-top: 1px solid var(--rule); }
+.feat { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 9px 0; border-bottom: 1px solid var(--rule); text-align: left; gap: 12px; }
+.feat .nm { display: flex; flex-direction: column; gap: 2px; } .feat .nm b { font-size: 14px; font-weight: 700; color: var(--ink); } .feat .nm i { font-style: normal; font-size: 12px; color: var(--muted); }
+.feat .sw { flex: none; width: 38px; height: 22px; border-radius: 11px; background: var(--rule); position: relative; transition: background .15s; }
+.feat .sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: left .15s; }
+.feat.on .sw { background: var(--accent); } .feat.on .sw::after { left: 18px; }
 .dev-on { position: fixed; left: 8px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; font-size: 11px; background: var(--check); color: #fff; padding: 2px 8px; border-radius: 10px; }
 @keyframes peel { 0%, 55% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px) rotate(-5deg); } }
 .sticky::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 18px; background: rgba(120,100,0,.07); }
@@ -635,6 +641,67 @@ function guideHtml(x) {
 }
 // 유료 속지: 지금은 결제 전이라 속지의 paid 표시 또는 개발용 미리보기로만 켠다
 function isDev() { try { if (/[?&]dev\b/.test(location.search)) localStorage.setItem('dpa_dev', '1'); return localStorage.getItem('dpa_dev') === '1' || ((D.account || {}).email === 'withsky0@gmail.com'); } catch(e) { return false; } }
+// ── 비서 포스트잇: 무엇을 붙이는지(메뉴에서 켜고 끈다) ──
+const FEATS = [
+  ['due', '마감 임박', '할 일', '사흘 안에 끝나야 할 일'],
+  ['stale', '2주째 그대로', '할 일', '오래 멈춘 일은 쪼개거나 묘비로'],
+  ['balance', '역할 쏠림', '할 일', '한 역할에 몰리면 알려요'],
+  ['group', '역할로 묶기', '할 일', '역할 없는 할 일을 묶어 줘요'],
+  ['weeknum', '이번 주 숫자', '기록', '끝낸 일과 많이 한 역할'],
+  ['ago', '한 달 전 오늘', '기록', '그날 적은 한 줄 일기'],
+  ['review', '주간 리뷰', '기록', '일요일에 한 주 정리'],
+  ['cands', '다음 주 후보', '기록', '다음 주 B를 골라 줘요'],
+];
+function featOn(id) { return !(((D.settings || {}).featOff) || {})[id]; }
+function setFeat(id, on) { const o = Object.assign({}, (D.settings || {}).featOff); if (on) delete o[id]; else o[id] = true; D.settings = Object.assign({}, D.settings, { featOff: o, u: new Date().toISOString() }); D._modified = D.settings.u; _save0(); if (baseUrl()) pushState(); renderSubBox(); render(); }
+function noteOff(k) { return (D.noteOff || {})[k]; }
+function dropNote(k) { D.noteOff = D.noteOff || {}; D.noteOff[k] = today(); _save0(); render(); }
+// 비서 포스트잇 한 장: 구독(또는 체험) 중이면 또렷하게, 아니면 흐리게
+function aNote(o) {
+  if (!paid()) return backSticky(o.label, o.meta || '', o.text, o.cls);
+  return `<div class="sticky ${o.cls || ''}"><div class="who"><span>비서</span><span>${esc(o.label)}${o.meta ? ' · ' + esc(o.meta) : ''}</span></div><div class="tx">${o.html || esc(o.text)}</div>${o.acts ? `<div class="act">${o.acts}</div>` : ''}</div>`;
+}
+function dleft(ds) { return Math.round((new Date(ds) - new Date(today())) / 86400000); }
+function weekNotes() {
+  let h = ''; const td = today();
+  if (featOn('due') && !noteOff('due:' + td)) {
+    const soon = openItems().filter(r => r.due && dleft(r.due) >= 0 && dleft(r.due) <= 3).sort((a, b) => a.due < b.due ? -1 : 1);
+    if (soon.length) {
+      const html = soon.slice(0, 3).map(r => `${esc(r.title)} <b style="white-space:nowrap">${dleft(r.due) ? 'D-' + dleft(r.due) : '오늘까지'}</b>`).join('<br>');
+      h += aNote({ label: '마감 임박', meta: soon.length + '개', text: soon.map(r => r.title).join(' · '), html, acts: `<button onclick="pick('${soon[0].id}')">맨 위 것 오늘로</button><button onclick="dropNote('due:${td}')">떼기</button>` });
+    }
+  }
+  if (featOn('stale')) staleItems().forEach(r => {
+    h += paid() ? `<div class="sticky orange"><div class="who"><span>비서</span><span>2주째 그대로${r.role ? ' · ' + esc(r.role) : ''}</span></div><div class="tx">${esc(r.title)}</div><div class="act"><button onclick="splitRock('${r.id}')">쪼개기</button><button onclick="tombRock('${r.id}')">묘비</button></div></div>` : '';
+  });
+  if (featOn('stale') && !paid() && staleItems().length) h += backSticky('2주째 그대로', staleItems().length + '개', staleItems().map(r => r.title).join(' · '), 'orange');
+  if (featOn('balance') && !noteOff('bal:' + weekKey(new Date()))) {
+    const items = openItems().filter(r => r.role), cnt = {};
+    items.forEach(r => cnt[r.role] = (cnt[r.role] || 0) + 1);
+    const ks = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]);
+    if (items.length >= 6 && D.roles.length >= 2 && cnt[ks[0]] / items.length >= 0.7) {
+      const low = D.roles.filter(x => x !== ks[0]).map(x => `${x} ${cnt[x] || 0}`).join(', ');
+      h += aNote({ label: '역할 쏠림', text: `할 일 ${items.length}개 중 ${cnt[ks[0]]}개가 ${ks[0]}이에요. ${low}. 이번 주에 하나쯤 챙겨 볼까요`, acts: `<button onclick="dropNote('bal:${weekKey(new Date())}')">떼기</button>` });
+    }
+  }
+  return h;
+}
+function recordNotes(wk) {
+  let h = ''; const ds = weekDates(new Date(wk));
+  if (featOn('weeknum')) {
+    const done = live().filter(r => r.done && ds.includes(r.doneAt || '')), by = {};
+    done.forEach(r => { if (r.role) by[r.role] = (by[r.role] || 0) + 1; });
+    const top = Object.keys(by).sort((a, b) => by[b] - by[a])[0];
+    const notes = ds.filter(d => D.days[d] && D.days[d].note).length;
+    if (done.length || notes) h += aNote({ label: '이번 주 숫자', text: `끝낸 일 ${done.length}개${top ? `, 가장 많이 한 역할은 ${top}(${by[top]})` : ''}. 한 줄 일기 ${notes}일.` });
+  }
+  if (featOn('ago')) {
+    const a = new Date(today()); a.setMonth(a.getMonth() - 1); const ad = dstr(a), d = D.days[ad];
+    if (d && d.note) h += aNote({ label: '한 달 전 오늘', meta: md(ad), text: d.note });
+  }
+  return h;
+}
+
 // ── 비서 포스트잇 구독: 연 15,000원, 처음 2주는 무료 ──
 const SUB_PRICE = '연 15,000원', TRIAL_DAYS = 14;
 function ensureTrial() { if (!D.trialStart) { D.trialStart = today(); _save0(); } }
@@ -652,7 +719,9 @@ function renderSubBox() {
   const t = trialLeft(), on = subActive();
   const st = on ? `구독 중 · ${D.sub.until.replace(/-/g, '.')}까지` : t > 0 ? `무료로 보는 중 · ${t}일 남음` : '비서 포스트잇이 흐리게 보여요';
   el.innerHTML = `<div class="lbl" style="padding-left:0">비서 포스트잇</div><div class="subst">${st}</div>` +
-    (on ? '' : `<button class="cta" style="margin-left:0;width:100%;height:40px" onclick="subscribe()">구독하기 · ${SUB_PRICE}</button>`);
+    (on ? '' : `<button class="cta" style="margin-left:0;width:100%;height:40px" onclick="subscribe()">구독하기 · ${SUB_PRICE}</button>`) +
+    `<div class="feats">${FEATS.map(([id, n, w, d]) => { const f = featOn(id); return `<button class="feat ${f ? 'on' : ''}" onclick="setFeat('${id}', ${!f})" aria-pressed="${f}"><span class="nm"><b>${n}</b><i>${w} · ${d}</i></span><span class="sw" aria-hidden="true"></span></button>`; }).join('')}</div>` +
+    (paid() ? '' : `<div class="subst" style="font-size:12px;margin-top:6px">구독하면 켜 둔 포스트잇이 또렷해져요</div>`);
 }
 // 뒤집힌 포스트잇: 내용은 숫자만 비치고, 누르면 귀퉁이가 들린다
 // 구독 전: 비서 포스트잇은 붙어 있되 글씨가 흐리다. 누르면 구독 안내
@@ -666,7 +735,7 @@ function unroled() { return openItems().filter(r => !r.role); }
 function groupSig(list) { return list.map(r => r.id).sort().join(','); }
 let _grouping = false;
 async function maybeGroup() {
-  const list = unroled(); if (list.length < 3 || _grouping || !baseUrl()) return;
+  const list = unroled(); if (!featOn('group') || list.length < 3 || _grouping || !baseUrl()) return;
   const sig = groupSig(list), g = D.groupSug;
   if (g && (g.sig === sig || g.off === sig)) return;
   if (g && g.at && Date.now() - g.at < 60000) return;
@@ -678,6 +747,7 @@ async function maybeGroup() {
   } catch(e) {} finally { _grouping = false; }
 }
 function groupHtml() {
+  if (!featOn('group')) return '';
   const g = D.groupSug, list = unroled(); if (!g || !g.groups || g.off === g.sig || list.length < 3) return '';
   const live = new Set(list.map(r => r.id));
   const groups = g.groups.map(x => ({ name: x.name, ids: x.ids.filter(id => live.has(id)) })).filter(x => x.ids.length);
@@ -859,7 +929,7 @@ function itemRow(r, n) {
 }
 function renderWeek() {
   const items = openItems();
-  const gh = groupHtml() + guidesNow('week').map(guideHtml).join('');
+  const gh = weekNotes() + groupHtml() + guidesNow('week').map(guideHtml).join('');
   let h = gh ? `<div class="stickies" style="padding-top:12px">${gh}</div>` : `<div class="sp"></div>`;
   let n = 0;
   BUCKETS.forEach(([b, name]) => {
@@ -937,22 +1007,18 @@ function reviewSection(wk, nwk, rv, stale) {
   const P = paid(), cands = rv.candidates || [];
   let h = '';
   const gd = guidesNow('review').map(guideHtml).join('');
-  const anyNote = rv.summary || stale.length || cands.length || gd;
+  const rn = recordNotes(wk); const anyNote = (featOn('review') && rv.summary) || (featOn('cands') && cands.length) || gd || rn;
   if (!anyNote) return '<div class="sp"></div>';
   h += `<div class="stickies">` + gd;
   // 이번 주 리뷰: 큰 노란 한 장
-  if (rv.summary) {
+  if (featOn('review') && rv.summary) {
     const lines = rv.summary.split(/(?<=[.!?。다요])\s+|\n/).filter(Boolean).length;
     h += P ? `<div class="sticky wide"><div class="who"><span>${esc(agentLabel(rv.summaryBy || (D.agent||{}).name))}</span><span>W${weekNo(new Date(wk))} 리뷰</span></div><div class="tx">${esc(rv.summary)}</div></div>`
            : backSticky('이번 주 리뷰', lines + '줄', rv.summary, 'wide');
   }
-  // 2주 방치: 주황
-  if (stale.length) {
-    if (P) stale.forEach(r => { h += `<div class="sticky orange"><div class="who"><span>2주째 그대로</span><span>${esc(r.role)}</span></div><div class="tx">${esc(r.title)}</div><div class="act"><button onclick="splitRock('${r.id}')">쪼개기</button><button onclick="tombRock('${r.id}')">묘비</button></div></div>`; });
-    else h += backSticky('2주째 그대로', stale.length + '개', stale.map(r => r.title).join(' · '), 'orange');
-  }
+  h += rn;
   // 다음 주 후보: 작은 장 여러 장, 채택하면 떨어져 할 일로
-  if (cands.length) {
+  if (featOn('cands') && cands.length) {
     if (P) cands.forEach(c => { h += `<div class="sticky ${c.state==='y' ? 'fin' : ''}"><div class="who"><span>다음 주 후보</span><span>${esc(c.role)}</span></div><span class="ok">${CHECK}</span><div class="tx">${esc(c.title)}</div><div class="hint">${c.routine ? '주 ' + c.routine + '회' : (c.due ? md(c.due) + '까지만' : '')}</div><div class="act"><button onclick="adoptCand('${wk}','${c.id}')">B로 옮기기</button><button onclick="cand('${wk}','${c.id}','n');dropCand('${wk}','${c.id}')">떼기</button></div></div>`; });
     else h += backSticky('다음 주 후보', cands.length + '장', cands.map(c => c.title).join(' · '));
   }
