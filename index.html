@@ -494,15 +494,18 @@ function weekDates(ws) { return Array.from({length:7},(_,i)=>{ const x=new Date(
 function weekNo(d) { const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()+3-(x.getDay()+6)%7); const y = new Date(x.getFullYear(),0,4); return 1+Math.round(((x-y)/86400000-3+(y.getDay()+6)%7)/7); }
 function md(ds) { const [y,m,d] = ds.split('-').map(Number); return m+'/'+d; }
 function dayOf(ds) { if (!D.days[ds]) D.days[ds] = { intent:'', note:'', picks:[], inbox:[] }; return D.days[ds]; }
-const BUCKETS = [['urgent','A 급함·중요'],['important','B 중요'],['light','C 급함'],['nice','D 나중에']];
+const BUCKETS = [['urgent','A 급함·중요'],['important','B 중요'],['light','C 급함·가벼움'],['nice','D 나중에']];
 function bucketName(b) { return (BUCKETS.find(x=>x[0]===b)||BUCKETS[2])[1]; }
 function live() { return D.rocks.filter(r => r && !r._deleted && !r.tomb); }
 function openItems() { return live().filter(r => !r.done); }
 function rocksOf(wk) { return live().filter(r => (r.week||'') <= wk); } // 리뷰용: 그 주까지 살아 있던 항목
 function lastTouched(r) { const ks = Object.keys(r.checks||{}).sort(); return ks.length ? ks[ks.length-1] : (r.week || today()); }
-function staleItems() { const cut = new Date(); cut.setDate(cut.getDate()-14); const c = dstr(cut); return openItems().filter(r => !r.routine && lastTouched(r) < c); }
+// 오래 멈춤: D(나중에)·기다리는 중·날짜 지난 일은 빼고 따로 다룬다
+function waiting(r) { return !!(r.wait && r.wait > dstr(new Date(Date.now() - 7 * 86400000))); }
+function overdueItems() { const td = today(); return openItems().filter(r => r.due && r.due < td && r.bucket !== 'nice' && !waiting(r)); }
+function staleItems() { const cut = new Date(); cut.setDate(cut.getDate()-14); const c = dstr(cut), td = today(); return openItems().filter(r => !r.routine && r.bucket !== 'nice' && !waiting(r) && !(r.due && r.due < td) && lastTouched(r) < c); }
 function rock(id) { return D.rocks.find(r => r.id === id); }
-function fmtDue(r) { return r.routine ? ('주 '+r.routine+'회') : r.due ? (md(r.due)+'까지만') : ''; }
+function fmtDue(r) { return (waiting(r) ? '기다리는 중 · ' : '') + (r.routine ? ('주 '+r.routine+'회') : r.due ? (md(r.due)+'까지만') : ''); }
 function checkedCount(r) { const ks = Object.keys(r.checks||{}); if (!r.routine) return ks.length; const ds = weekDates(weekStart(new Date())); return ks.filter(k => ds.includes(k)).length; }
 function streak() { let n = 0; const d = new Date(); for (let i=0;i<400;i++) { const ds = dstr(d); const day = D.days[ds]; const did = day && (day.picks||[]).some(id => (rock(id)||{}).checks && rock(id).checks[ds]); if (did) n++; else if (i>0) break; d.setDate(d.getDate()-1); } return n; }
 function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('on'), m.length > 30 ? 5000 : 1600); }
@@ -529,7 +532,19 @@ SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
 function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
 function closeMore() { document.getElementById('more').classList.remove('on'); }
 function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); }
-function render() { ensureTrial(); syncRoles(); rescheduleSoon(); setTimeout(maybeGroup, 800); widgetSync(); applyTheme(); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.preview ? '' : 'none'; if (db) db.textContent = D.preview === 'free' ? '구독 안 한 화면' : '구독한 화면'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
+function markSeen() { const td = today(); if (D.seenDay !== td) { D.seenPrev = D.seenDay || ''; D.seenDay = td; _save0(); } }
+function awayDays() { const p = D.seenPrev; return p ? Math.round((new Date(today()) - new Date(p)) / 86400000) : 0; }
+function backMode() { return awayDays() >= 4 && !noteOff('back:' + today()) && (overdueItems().length + staleItems().length) >= 2; }
+// 며칠 비우고 돌아온 날: 밀린 걸 한꺼번에 붙이지 않고 한 장으로
+function backHtml() {
+  if (!backMode()) return '';
+  const lag = [...new Set(overdueItems().concat(staleItems()))];
+  const order = { urgent: 0, important: 1, light: 2 }, top = openItems().filter(r => r.bucket !== 'nice' && !r.routine && !waiting(r)).sort((a, b) => (order[a.bucket] ?? 3) - (order[b.bucket] ?? 3) || (a.due || '9999').localeCompare(b.due || '9999')).slice(0, 3);
+  const rest = lag.filter(r => !top.includes(r) && r.bucket !== 'urgent');
+  const html = `${awayDays()}일 만이에요. 밀린 건 한꺼번에 보지 말고 셋만 다시 정해요<br>` + top.map(r => `<b>${esc(r.title)}</b>`).join('<br>') + (rest.length ? `<div style="margin-top:6px;font-size:13px">날짜 지나거나 오래 멈춘 ${rest.length}개는 D에 넣어 둘까요. 지우지 않아요</div>` : '');
+  return aNote({ label: '다시 왔어요', cls: 'wide', text: top.map(r => r.title).join(' · '), html, acts: `<button onclick="pickMany(${esc(JSON.stringify(top.map(r => r.id)))})">셋 오늘 칸에</button>` + (rest.length ? `<button onclick="toD(${esc(JSON.stringify(rest.map(r => r.id)))})">${rest.length}개 D로</button>` : '') + `<button onclick="dropNote('back:${today()}')">떼기</button>` });
+}
+function render() { markSeen(); ensureTrial(); syncRoles(); rescheduleSoon(); setTimeout(maybeGroup, 800); widgetSync(); applyTheme(); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.preview ? '' : 'none'; if (db) db.textContent = D.preview === 'free' ? '구독 안 한 화면' : '구독한 화면'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
 
 function renderCover() {
   const s = streak(), dots = Math.min(s,3);
@@ -586,6 +601,7 @@ function renderToday() {
   let h = `${full ? `<button class="banner" onclick="go('close')"><span>${volName(cv)} 속지가 다 찼어요. 1년을 돌아보고 새 속지를 끼울 시간이에요</span><b>속지 닫기 ›</b></button>` : ''}<div class="sp"></div>
   ${firstHtml(ds)}
   ${trialHtml(ds)}
+  ${ds === today() && backMode() ? `<div class="stickies">${backHtml()}</div>` : ''}
   ${briefHtml(ds)}
   ${calHtml(ds)}
   <div class="lbl">의도</div>
@@ -618,10 +634,10 @@ function stuckNotes() { const out = []; Object.keys(D.days).sort().reverse().for
 function findNote(id) { for (const ds in D.days) { const x = (D.days[ds].inbox||[]).find(i => i.id === id); if (x) return x; } return null; }
 // 처음부터 붙어 있는 안내: 한 번에 두 장, 해내면 체크되고 떨어진다
 const GUIDES = [
-  { id: 'b', tab: 'week', text: '오래 걸리는 일은 B에', hint: '언제까지만 할지 날짜도', done: () => D.rocks.some(r => r && !r._deleted && r.bucket === 'important' && (r.due || r.routine)) },
+  { id: 'b', tab: 'week', text: '중요하지만 급하지 않은 일은 B에', hint: '언제까지만 할지 날짜도', done: () => D.rocks.some(r => r && !r._deleted && r.bucket === 'important' && (r.due || r.routine)) },
   { id: 'done', tab: 'week', text: '끝낸 일은 체크', hint: '기록 달력에 쌓여요', done: () => D.rocks.some(r => r && r.done) },
   { id: 'cal', tab: 'review', text: '날짜를 누르면 그날 기록', done: () => !!(D.guide && D.guide.calTap) },
-  { id: 'sun', tab: 'review', text: '일요일 저녁 10분, 한 주 돌아보기', hint: '리뷰가 여기에 붙어요', done: () => Object.values(D.reviews || {}).some(r => r && r.summary) },
+  { id: 'sun', tab: 'review', text: '일요일엔 비서가 한 주 리뷰를 써요', hint: '리뷰와 다음 주 후보가 여기에 붙어요', done: () => Object.values(D.reviews || {}).some(r => r && r.summary) },
   { id: 'write', text: '오늘 할 것 하나 적기', hint: '위의 빈 줄에', done: () => Object.values(D.days).some(d => d && (d.picks||[]).length) },
   { id: 'check', text: '끝낸 건 왼쪽 칸에 체크', done: () => D.rocks.some(r => r && r.checks && Object.keys(r.checks).length) },
   { id: 'cal', text: '캘린더 일정 불러오기', hint: '일정을 보고 역할과 빈 시간을 찾아요', act: ['연결', "isNative() ? setCalNative(true) : openMore()"], done: () => !!(D.settings && (D.settings.calUrl || D.settings.calNative)) },
@@ -655,7 +671,7 @@ function guideHtml(x) {
 function isDev() { try { if (/[?&]dev\b/.test(location.search)) localStorage.setItem('dpa_dev', '1'); return localStorage.getItem('dpa_dev') === '1' || ((D.account || {}).email === 'withsky0@gmail.com'); } catch(e) { return false; } }
 // ── 내 역할: 적어 둔 할 일을 보고 비서가 찾아 준다 ──
 // 1) 할 일에 나온 사람이 누구인지 한 번 묻고(사람 사전) 2) "이렇게 보여요, 맞는지 봐 주세요" 3) 고치기에서 할 일마다 역할을 바꾼다
-const REL = ['아들', '딸', '남편', '아내', '부모님', '형제', '동료', '팀원', '학생', '친구', '모름'];
+const REL = ['아들', '딸', '남편', '아내', '연인', '부모님', '형제', '동료', '팀원', '고객', '학생', '선생님', '회원', '친구', '모름'];
 let roleSel = [], roleItems = null, roleSuggest = null;
 function rolesSet() { return !!((D.settings || {}).rolesAt); }
 function peopleMap() { return Object.assign({}, (D.settings || {}).people); }
@@ -679,6 +695,13 @@ function openRoles(groups) {
   roleItems = groups ? Object.fromEntries(groups.flatMap(g => g.ids.map(id => [id, g.name]))) : null;
   renderRoles(); document.getElementById('rolesSheet').classList.add('on'); document.getElementById('more').classList.remove('on');
 }
+function allEvTitles() { return [...new Set(calEvents().map(e => (e.title || '').trim()).filter(Boolean))]; }
+// 일정마다 역할 정하기: 지금 역할로 묶어 보여 주고, 아직 없는 일정은 '정하기 전'
+function openEvRoles() {
+  syncRoles(); const er = evRoles(), g = D.roles.map(n => ({ name: n, ids: [] })), un = [];
+  allEvTitles().forEach(t => { const x = g.find(q => q.name === er[t]); if (x) x.ids.push(evId(t)); else un.push(evId(t)); });
+  openRoles(g); un.forEach(id => roleItems[id] = ''); renderRoles();
+}
 function closeRoles() { document.getElementById('rolesSheet').classList.remove('on'); }
 function toggleRole(n) { n = n.trim(); if (!n) return; const i = roleSel.indexOf(n); if (i >= 0) roleSel.splice(i, 1); else if (roleSel.length < 7) roleSel.push(n); else toast('역할은 일곱 개까지'); renderRoles(); }
 function renameRole(i, v) { v = v.trim(); if (!v) return; const o = roleSel[i]; roleSel[i] = v; if (roleItems) Object.keys(roleItems).forEach(k => { if (roleItems[k] === o) roleItems[k] = v; }); renderRoles(); }
@@ -689,7 +712,7 @@ function renderRoles() {
     <div class="rh">${roleItems ? '이름을 내 말로 바꾸고, 잘못 들어간 할 일은 옮겨 주세요' : '이름을 고치거나 빼고, 빠진 게 있으면 더하세요'}</div>
     ${roleSel.map((n, i) => `<div class="rrow"><input value="${esc(n)}" onchange="renameRole(${i}, this.value)"><button onclick="dropRole(${i})" aria-label="빼기" style="color:var(--muted);font-size:18px;padding:0 6px">×</button></div>`).join('')}
     <div class="rrow"><input id="roleIn" placeholder="+ 역할 더하기 (예: 준서 아빠, 러너)" onchange="toggleRole(this.value)"></div>
-    ${roleItems ? `<div class="lbl" style="padding-left:0;margin-top:14px">할 일</div>${items.map(r => `<div class="ritem"><span>${esc(r.title)}</span><select onchange="roleItems['${r.id}']=this.value">${roleSel.map(n => `<option ${roleItems[r.id] === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></div>`).join('')}` : ''}
+    ${roleItems ? `<div class="lbl" style="padding-left:0;margin-top:14px">할 일</div>${items.map(r => `<div class="ritem"><span>${esc(r.title)}</span><select onchange="roleItems['${r.id}']=this.value">${roleItems[r.id] ? '' : '<option value="" selected>정하기 전</option>'}${roleSel.map(n => `<option ${roleItems[r.id] === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></div>`).join('')}` : ''}
     <label class="learn"><input type="checkbox" ${learnOk() ? 'checked' : ''} onchange="setLearn(this.checked)"> 고친 내용을 비서가 배우는 데 써도 돼요<small>할 일 제목과 고친 역할이 이름 없이 저장돼요. 메뉴에서 언제든 끌 수 있어요</small></label>
     <button class="mclose" style="background:var(--ink);color:var(--paper)" onclick="saveRoles()">이렇게 정하기</button>`;
 }
@@ -697,7 +720,7 @@ function saveRoles() {
   const old = D.roles.slice(), t = new Date().toISOString();
   D.roles = roleSel.filter(Boolean);
   if (roleItems) {
-    const evs = Object.fromEntries(groupInputs().filter(x => x.ev).map(x => [x.id, x.ev])), evp = {};
+    const evs = Object.fromEntries(allEvTitles().map(t => [evId(t), t])), evp = {};
     Object.entries(roleItems).forEach(([id, n]) => { if (!n) return; if (evs[id]) { evp[evs[id]] = n; return; } const r = rock(id); if (r) { r.role = n; r.u = t; } });
     if (Object.keys(evp).length) setEvRoles(evp);
     sendFeedback(roleSuggest, Object.entries(roleItems).map(([id, n]) => ({ title: titleOf(id), role: n })));
@@ -748,7 +771,7 @@ const FEATS = [
   ['notify', '비서가 쓰는 알림', '알림', '그날 마감·남은 일로 문구를 써요'],
   ['brief', '아침 브리핑', '오늘', '일정·마감·빈 시간을 아침에 한 장으로'],
   ['due', '마감 임박', '할 일', '사흘 안에 끝나야 할 일'],
-  ['stale', '2주째 그대로', '할 일', '오래 멈춘 일은 쪼개거나 묘비로'],
+  ['stale', '멈춘 일', '할 일', '날짜 지난 일, 2주째 그대로인 일 다시 정하기'],
   ['balance', '역할 쏠림', '할 일', '한 역할에 몰리면 알려요'],
   ['group', '역할로 묶기', '할 일', '역할 없는 할 일을 묶어 줘요'],
   ['weeknum', '이번 주 숫자', '기록', '끝낸 일과 많이 한 역할'],
@@ -764,6 +787,7 @@ function dropNote(k) { D.noteOff = D.noteOff || {}; D.noteOff[k] = today(); _sav
 // 비서 포스트잇 한 장: 구독(또는 체험) 중이면 또렷하게, 아니면 흐리게
 function aNote(o) {
   if (!paid()) return backSticky(o.label, o.meta || '', o.text, o.cls);
+  useMark();
   return `<div class="sticky ${o.cls || ''}"><div class="who"><span>비서</span><span>${esc(o.label)}${o.meta ? ' · ' + esc(o.meta) : ''}</span></div><div class="tx">${o.html || esc(o.text)}</div>${o.acts ? `<div class="act">${o.acts}</div>` : ''}</div>`;
 }
 function promoteB() {
@@ -774,6 +798,7 @@ function promoteB() {
 function dleft(ds) { return Math.round((new Date(ds) - new Date(today())) / 86400000); }
 function weekNotes() {
   let h = ''; const td = today();
+  if (backMode()) return backHtml(); // 돌아온 날은 이 한 장만
   if (featOn('due') && !noteOff('due:' + td)) {
     const soon = openItems().filter(r => r.due && dleft(r.due) >= 0 && dleft(r.due) <= 3).sort((a, b) => a.due < b.due ? -1 : 1);
     if (soon.length) {
@@ -783,17 +808,17 @@ function weekNotes() {
       h += aNote({ label: '마감 임박', meta: soon.length + '개', text: soon.map(r => r.title).join(' · '), html: html + ask, acts: (bs.length ? `<button onclick="promoteB()">B ${bs.length}개 A로</button>` : `<button onclick="pick('${soon[0].id}')">맨 위 것 오늘로</button>`) + `<button onclick="dropNote('due:${td}')">떼기</button>` });
     }
   }
-  if (featOn('stale')) staleItems().forEach(r => {
-    h += paid() ? `<div class="sticky orange"><div class="who"><span>비서</span><span>2주째 그대로${r.role ? ' · ' + esc(r.role) : ''}</span></div><div class="tx">${esc(r.title)}</div><div class="act"><button onclick="splitRock('${r.id}')">쪼개기</button><button onclick="tombRock('${r.id}')">묘비</button></div></div>` : '';
-  });
-  if (featOn('stale') && !paid() && staleItems().length) h += backSticky('2주째 그대로', staleItems().length + '개', staleItems().map(r => r.title).join(' · '), 'orange');
+  if (featOn('stale')) {
+    overdueItems().slice(0, 3).forEach(r => { h += aNote({ label: '날짜 지남', meta: md(r.due), cls: 'orange', text: r.title, acts: `<button onclick="finishRock('${r.id}')">끝냈어요</button><button onclick="pushDue('${r.id}',7)">일주일 뒤로</button><button onclick="setWait('${r.id}')">기다리는 중</button><button onclick="toD('${r.id}')">D로</button>` }); });
+    staleItems().slice(0, 3).forEach(r => { h += aNote({ label: '2주째 그대로', meta: r.role || '', cls: 'orange', text: r.title, acts: `<button onclick="splitRock('${r.id}')">쪼개기</button><button onclick="setWait('${r.id}')">기다리는 중</button><button onclick="tombRock('${r.id}')">내려놓기</button>` }); });
+  }
   if (featOn('balance') && !noteOff('bal:' + weekKey(new Date()))) {
-    const items = openItems().filter(r => r.role), cnt = {};
+    const wd = weekDates(new Date(weekKey(new Date()))), cnt = {};
+    const items = live().filter(r => r.role && (r.done ? wd.includes(r.doneAt || '') : (!r.due || dleft(r.due) <= 7)));
     items.forEach(r => cnt[r.role] = (cnt[r.role] || 0) + 1);
-    const ks = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]);
-    if (rolesSet() && items.length >= 6 && D.roles.length >= 2 && cnt[ks[0]] / items.length >= 0.7) {
-      const low = D.roles.filter(x => x !== ks[0]).map(x => `${x} ${cnt[x] || 0}`).join(', ');
-      h += aNote({ label: '역할 쏠림', text: `할 일 ${items.length}개 중 ${cnt[ks[0]]}개가 ${ks[0]}이에요. ${low}. 이번 주에 하나쯤 챙겨 볼까요`, acts: `<button onclick="dropNote('bal:${weekKey(new Date())}')">떼기</button>` });
+    const ks = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]), zero = D.roles.filter(x => !cnt[x]);
+    if (rolesSet() && items.length >= 6 && D.roles.length >= 2 && zero.length && cnt[ks[0]] / items.length >= 0.7) {
+      h += aNote({ label: '역할 쏠림', meta: '이번 주', text: `이번 주 할 일(끝낸 것 포함) ${items.length}개 중 ${cnt[ks[0]]}개가 ${ks[0]}이에요. ${zero.join(', ')}에는 아직 없어요. 하나쯤 적어 볼까요`, acts: `<button onclick="dropNote('bal:${weekKey(new Date())}')">이번 주는 괜찮아요</button>` });
     }
   }
   return h;
@@ -817,7 +842,8 @@ function recordNotes(wk) {
     if (tot >= 1) {
       const f = h => Math.round(h * 10) / 10, ks = D.roles.slice().sort((a, b) => (hrs[b] || 0) - (hrs[a] || 0));
       const zero = ks.filter(k => !hrs[k]);
-      h += aNote({ label: '시간 쓰임', meta: f(tot) + '시간', text: ks.filter(k => hrs[k]).map(k => `${k} ${f(hrs[k])}`).join(' · ') + (none >= 0.5 ? ` · 역할 없음 ${f(none)}` : '') + (zero.length ? `. ${zero.join(', ')}에는 일정이 없었어요` : '') });
+      if (none / tot >= 0.3) h += aNote({ label: '시간 쓰임', meta: '캘린더 ' + f(tot) + '시간', text: `이번 주 일정 ${f(tot)}시간 중 ${f(none)}시간은 아직 역할이 없어요. 일정마다 역할을 정하면 시간이 어디로 갔는지 보여 드릴게요`, acts: `<button onclick="openEvRoles()">일정 역할 정하기</button>` });
+      else h += aNote({ label: '시간 쓰임', meta: '캘린더 ' + f(tot) + '시간', text: ks.filter(k => hrs[k]).map(k => `${k} ${f(hrs[k])}`).join(' · ') + (none >= 0.5 ? ` · 역할 없음 ${f(none)}` : '') + (zero.length ? `. ${zero.join(', ')}에는 일정이 없었어요` : '') });
     }
   }
   if (featOn('ago')) {
@@ -827,12 +853,19 @@ function recordNotes(wk) {
   return h;
 }
 
-// ── 비서 포스트잇 구독: 처음 한 달 무료, 그 뒤 첫해 할인가 (정가 연 22,000원) ──
-const SUB_LIST = 22000, SUB_FIRST = 16900, TRIAL_DAYS = 30;
+// ── 비서 포스트잇 구독: 비서 포스트잇을 받은 날로 20일 무료, 그 뒤 첫해 할인가 (정가 연 22,000원) ──
+const SUB_LIST = 22000, SUB_FIRST = 16900, TRIAL_DAYS = 20;
 const won = n => n.toLocaleString('ko-KR') + '원';
 const SUB_PRICE = `첫해 ${won(SUB_FIRST)}`;
-function ensureTrial() { if (!D.trialStart) { D.trialStart = today(); _save0(); } }
-function trialLeft() { if (!D.trialStart) return TRIAL_DAYS; return Math.max(0, TRIAL_DAYS - Math.round((new Date(today()) - new Date(D.trialStart)) / 86400000)); }
+function ensureTrial() {}
+// 쓴 날: 또렷한 비서 포스트잇이 한 장이라도 붙은 날만 센다(열기만 한 날, 비운 날은 안 깎인다). 계정 상태에 같이 저장
+function useDays() { return ((D.settings || {}).useDays || []).slice(); }
+function trialLeft() { const td = today(); return Math.max(0, TRIAL_DAYS - useDays().filter(d => d < td).length); }
+function useMark() {
+  if (subActive() || D.preview) return; const td = today(), u = useDays();
+  if (u.includes(td) || u.length >= TRIAL_DAYS || trialLeft() <= 0) return;
+  u.push(td); D.settings = Object.assign({}, D.settings, { useDays: u, u: new Date().toISOString() }); D._modified = D.settings.u; _save0();
+}
 function subActive() { return !!(D.sub && D.sub.until && D.sub.until >= today()); }
 function paid() {
   if (D.preview === 'free') return false;
@@ -844,7 +877,7 @@ function subscribe() { toast(isNative() ? '결제는 다음 업데이트에서 �
 function renderSubBox() {
   const el = document.getElementById('subBox'); if (!el) return;
   const t = trialLeft(), on = subActive();
-  const st = on ? `구독 중 · ${D.sub.until.replace(/-/g, '.')}까지` : t > 0 ? `무료로 보는 중 · ${t}일 남음` : '비서 포스트잇이 흐리게 보여요';
+  const st = on ? `구독 중 · ${D.sub.until.replace(/-/g, '.')}까지` : t > 0 ? `무료 · 비서 포스트잇을 받은 날로 ${t}일 남음` : '비서 포스트잇이 흐리게 보여요';
   el.innerHTML = `<div class="lbl" style="padding-left:0">비서 포스트잇</div><div class="subst">${st}</div>` +
     (on ? '' : `<button class="cta" style="margin-left:0;width:100%;height:40px" onclick="subscribe()">구독하기 · ${SUB_PRICE}</button><div class="subst" style="font-size:12px;margin-top:4px">정가 연 ${won(SUB_LIST)} · 둘째 해부터 정가</div>`) +
     `<div class="feats">${FEATS.map(([id, n, w, d]) => { const f = featOn(id); return `<button class="feat ${f ? 'on' : ''}" onclick="setFeat('${id}', ${!f})" aria-pressed="${f}"><span class="nm"><b>${n}</b><i>${w} · ${d}</i></span><span class="sw" aria-hidden="true"></span></button>`; }).join('')}</div>` +
@@ -891,6 +924,7 @@ function groupHtml() {
   const groups = g.groups.map(x => ({ name: x.name, ids: x.ids.filter(id => live.has(id)) })).filter(x => x.ids.length);
   if (!groups.length) return '';
   const n = groups.reduce((k, x) => k + x.ids.length, 0);
+  if (paid()) useMark();
   if (!paid()) return backSticky('역할로 묶기', `역할 없는 할 일 ${n}개`, groups.map(x => x.name + ' ' + (x.items || []).length).join(' · ') + ' 이렇게 묶어 볼까요');
   return `<div class="sticky wide"><div class="who"><span>비서</span><span>묶어 볼까요</span></div>
     <div class="tx">${groups.map(x => `<b>${esc(x.name)}</b> ${x.ids.length}  <span style="font-size:12px;opacity:.75">${x.ids.map(id => esc((rock(id) || {}).title || '')).join(', ')}</span>`).join('<br>')}</div>
@@ -981,12 +1015,18 @@ function briefOf(ds) {
   const timed = ev.filter(e => !e.allDay && e.start), open = openItems();
   const due = open.filter(r => r.due === ds), soon = open.filter(r => r.due && r.due > ds && Math.round((new Date(r.due) - new Date(ds)) / 86400000) <= 3).sort((a, b) => a.due < b.due ? -1 : 1);
   const picks = (dayOf(ds).picks || []).map(rock).filter(r => r && !r.done);
-  // 9~18시 사이 90분 넘게 비는 첫 칸
+  // 평일이고 일정이 하나라도 있는 날만: 9~18시 사이 90분 넘게 일정이 없는 첫 칸(점심 12~13시는 뺀다)
   let gap = null; const toM = x => { const [h, m] = x.split(':').map(Number); return h * 60 + m; }; let cur = 9 * 60;
-  timed.forEach(e => { const a = toM(e.start), b = e.end ? toM(e.end) : a + 60; if (!gap && a - cur >= 90 && a <= 18 * 60) gap = [cur, a]; cur = Math.max(cur, b); });
-  if (!gap && 18 * 60 - cur >= 90) gap = [cur, 18 * 60];
+  const wd = new Date(ds).getDay();
+  if (wd >= 1 && wd <= 5 && timed.length) {
+    const blocks = timed.map(e => { const a = toM(e.start); return [a, e.end ? toM(e.end) : a + 60]; }).concat([[12 * 60, 13 * 60]]).sort((x, y) => x[0] - y[0]);
+    blocks.forEach(([a, b]) => { if (!gap && a - cur >= 90 && a <= 18 * 60) gap = [cur, a]; cur = Math.max(cur, b); });
+    if (!gap && 18 * 60 - cur >= 90) gap = [cur, 18 * 60];
+  }
   const fm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
-  const bTop = open.filter(r => r.bucket === 'important' && !picks.includes(r)).sort((a, b) => (a.due || '9999') < (b.due || '9999') ? -1 : 1)[0];
+  // 빈 시간에는 그날 일정과 같은 역할의 일만(회의 사이엔 일, 근무 중에 개인 공부를 권하지 않는다)
+  const er = evRoles(), dayRoles = new Set(timed.map(e => er[(e.title || '').trim()]).filter(Boolean));
+  const bTop = open.filter(r => r.bucket === 'important' && !r.routine && r.role && dayRoles.has(r.role) && !picks.includes(r) && r.due !== ds && !(r.due && r.due < ds) && !waiting(r)).sort((a, b) => (a.due || '9999') < (b.due || '9999') ? -1 : 1)[0];
   return { ev, timed, due, soon, picks, gap: gap && [fm(gap[0]), fm(gap[1])], bTop };
 }
 // 무료 한 달이 끝나 갈 때: 오늘 칸 위에 한 장만
@@ -994,7 +1034,7 @@ function trialHtml(ds) {
   if (ds !== today() || subActive() || D.preview) return '';
   const t = trialLeft(), k = t > 0 ? 'trial:' + ds : 'trialend';
   if (t > 3 || noteOff(k)) return '';
-  const msg = t > 0 ? `무료로 받는 비서 포스트잇이 <b>${t}일</b> 남았어요` : '무료 한 달이 끝났어요. 이제 비서 포스트잇은 흐리게 붙어요';
+  const msg = t > 0 ? `비서 포스트잇 무료가 <b>${t}일</b> 남았어요<div class="hint" style="margin-top:2px">포스트잇을 받은 날만 세요</div>` : '무료 20일을 다 썼어요. 이제 비서 포스트잇은 흐리게 붙어요';
   return `<div class="stickies"><div class="sticky wide"><div class="who"><span>비서</span><span>${t > 0 ? 'D-' + t : '무료 끝'}</span></div><div class="tx">${msg}<div class="hint">계속 받으려면 첫해 ${won(SUB_FIRST)} · 정가 연 ${won(SUB_LIST)}</div></div><div class="act"><button onclick="subscribe()">구독하기</button><button onclick="dropNote('${k}')">나중에</button></div></div></div>`;
 }
 function briefHtml(ds) {
@@ -1005,7 +1045,7 @@ function briefHtml(ds) {
   if (b.due.length) lines.push(`<b>오늘 마감</b> ${b.due.map(r => esc(r.title)).join(', ')}`);
   else if (b.soon.length) lines.push(`곧 마감 ${b.soon.slice(0, 2).map(r => `${esc(r.title)} <b>D-${dleft(r.due)}</b>`).join(', ')}`);
   if (b.picks.length) lines.push(`오늘 칸 ${b.picks.length}개`);
-  const ask = b.gap && b.bTop ? `<div style="margin-top:6px;font-size:13px">${b.gap[0]}~${b.gap[1]}이 비어요. B의 "${esc(b.bTop.title)}" 넣을까요</div>` : '';
+  const ask = b.gap && b.bTop ? `<div style="margin-top:6px;font-size:13px">${b.gap[0]}~${b.gap[1]}에 일정이 없어요. B의 "${esc(b.bTop.title)}" 넣을까요</div>` : '';
   return `<div class="stickies">${aNote({ label: '아침 브리핑', meta: md(ds), cls: 'wide', text: lines.join(' / '), html: lines.join('<br>') + ask, acts: (ask ? `<button onclick="pick('${b.bTop.id}')">오늘 칸에 넣기</button>` : '') + `<button onclick="dropNote('brief:${ds}')">떼기</button>` })}</div>`;
 }
 function smartNotify() { return paid() && featOn('notify'); }
@@ -1201,7 +1241,11 @@ function addRock(b) {
 function finishRock(id) { const r = rock(id); if (!r) return; const td = today(); r.checks = r.checks || {}; if (r.done) { if (r.doneAt) delete r.checks[r.doneAt]; r.done = false; r.doneAt = null; } else { r.done = true; r.doneAt = td; r.checks[td] = true; if (navigator.vibrate) navigator.vibrate(12); } save(); render(); }
 function delRock(id) { if (!confirm('이 항목을 지울까요?')) return; const r = rock(id); if (r) r._deleted = true; save(); render(); }
 function splitRock(id) { const r = rock(id); if (!r) return; r.tomb = true; r.movedTo = 'split'; addPrefill = r.title + ' (1/2) '; addRole = r.role; save(); openAdd(r.bucket||'important'); toast('작게 나눠서 적어 보세요'); }
-function tombRock(id) { const r = rock(id); if (!r) return; r.tomb = true; r.tombAt = today(); save(); render(); toast('묘비 ✝'); }
+function tombRock(id) { const r = rock(id); if (!r) return; r.tomb = true; r.tombAt = today(); save(); render(); toast('내려놨어요. 기록에는 남아요'); }
+function setWait(id) { const r = rock(id); if (!r) return; r.wait = today(); r.u = new Date().toISOString(); save(); render(); toast('기다리는 중으로 둘게요. 일주일 뒤 다시 볼게요'); }
+function pushDue(id, n) { const r = rock(id); if (!r) return; r.due = plusDays(today(), n); r.u = new Date().toISOString(); save(); render(); toast(`${md(r.due)}까지로 미뤘어요`); }
+function toD(ids) { const t = new Date().toISOString(); [].concat(ids).forEach(id => { const r = rock(id); if (r) { r.bucket = 'nice'; r.due = null; r.parkedAt = today(); r.u = t; } }); save(); render(); toast('D에 넣어 뒀어요. 지우지 않았어요'); }
+function pickMany(ids) { const day = dayOf(today()); ids.forEach(id => { if (!day.picks.includes(id)) day.picks.push(id); }); D.noteOff = D.noteOff || {}; D.noteOff['back:' + today()] = today(); save(); render(); toast(`오늘 칸에 ${ids.length}개 적었어요`); }
 
 // ── 리뷰 ──
 function reviewWeek() { const now = new Date(); return now.getDay()===0 || now.getDay()===6 ? weekKey(now) : weekKey(now); }
@@ -1236,8 +1280,49 @@ function renderReview() {
   const stale = staleItems();
   const v = curVol();
   let h = `<div class="sp"></div>` + calendarHtml() + `<div class="sp"></div><div class="lbl" style="color:var(--accent);font-weight:700">이번 주 리뷰 · W${weekNo(new Date(wk))}</div>`;
+  // 월·화요일: 일요일에 못 본 지난주 리뷰를 위에 한 장
+  const pwk = weekKey(new Date(Date.now() - 7 * 86400000)), early = [1, 2].includes(new Date().getDay());
+  if (early && featOn('review')) { const pr = D.reviews[pwk] || (D.reviews[pwk] = { candidates: [] }); if (pr.summary || (pr.candidates || []).length) h += `<div class="lbl" style="font-weight:700">지난주 리뷰 · W${weekNo(new Date(pwk))}</div>` + lastWeekHtml(pwk, pr); }
   h += reviewSection(wk, nwk, rv, stale);
   document.getElementById('review').innerHTML = h;
+  if (early) maybeReview(pwk); else maybeReview(wk);
+}
+function lastWeekHtml(wk, rv) {
+  if (!paid()) return `<div class="stickies">${backSticky('지난주 리뷰', '', rv.summary || '', 'wide')}</div>`;
+  useMark();
+  const cands = (rv.candidates || []).filter(c => c.state !== 'y');
+  return `<div class="stickies">${rv.summary ? `<div class="sticky wide"><div class="who"><span>${esc(agentLabel(rv.summaryBy || (D.agent||{}).name))}</span><span>W${weekNo(new Date(wk))} 리뷰</span></div><div class="tx">${esc(rv.summary)}</div></div>` : ''}` +
+    (featOn('cands') ? cands.map(c => `<div class="sticky"><div class="who"><span>이번 주 후보</span><span>${esc(c.role)}</span></div><div class="tx">${esc(c.title)}</div><div class="hint">${c.due ? md(c.due) + '까지만' : ''}</div><div class="act"><button onclick="adoptCand('${wk}','${c.id}')">B로 옮기기</button><button onclick="dropCand('${wk}','${c.id}')">떼기</button></div></div>`).join('') : '') + `</div>`;
+}
+// 일요일: 외부 비서가 없어도 앱이 한 주 리뷰와 다음 주 후보를 쓴다(구독·무료 기간)
+let _reviewing = false;
+function weekFacts(wk) {
+  const ds = weekDates(new Date(wk)), er = evRoles(), hrs = {};
+  calEvents().filter(e => ds.includes(e.date) && !e.allDay && e.start && e.end).forEach(e => { const [a, b] = [e.start, e.end].map(x => x.split(':').map(Number)); const k = er[(e.title || '').trim()] || '역할 없음'; hrs[k] = (hrs[k] || 0) + Math.max(0, (b[0] * 60 + b[1] - a[0] * 60 - a[1]) / 60); });
+  return {
+    roles: D.roles,
+    done: live().filter(r => r.done && ds.includes(r.doneAt || '')).map(r => ({ title: r.title, role: r.role || '' })),
+    open: openItems().filter(r => r.bucket !== 'nice').slice(0, 25).map(r => ({ id: r.id, title: r.title, role: r.role || '', bucket: r.bucket, due: r.due || '', wait: waiting(r) })),
+    later: openItems().filter(r => r.bucket === 'nice').slice(0, 8).map(r => r.title),
+    hours: Object.fromEntries(Object.entries(hrs).map(([k, v]) => [k, Math.round(v * 10) / 10])),
+    notes: ds.map(d => (D.days[d] || {}).note).filter(Boolean).slice(0, 7),
+    today: today(), next: weekKey(new Date(Date.now() + 7 * 86400000))
+  };
+}
+async function maybeReview(wk) {
+  const rv = D.reviews[wk]; if (!rv || rv.summary || _reviewing || !baseUrl() || !paid() || !featOn('review')) return;
+  if (today() < weekDates(new Date(wk))[6] || rv.askedAt === today()) return;
+  const f = weekFacts(wk); if (!f.done.length && !f.open.length) return;
+  _reviewing = true; rv.askedAt = today();
+  try {
+    const r = await fetch(baseUrl() + '/u/' + D.token + '/review', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(f) });
+    const j = await r.json();
+    if (r.ok && j.summary) {
+      rv.summary = j.summary; rv.summaryBy = '비서';
+      if (!(rv.candidates || []).length) rv.candidates = (j.cands || []).slice(0, 4).map(c => ({ id: uid(), role: c.role || '', title: c.title, due: c.due || '' }));
+      save(); if (tab === 'review' || spread()) renderReview();
+    }
+  } catch (e) {} finally { _reviewing = false; }
 }
 function reviewSection(wk, nwk, rv, stale) {
   const P = paid(), cands = rv.candidates || [];
@@ -1247,6 +1332,7 @@ function reviewSection(wk, nwk, rv, stale) {
   if (!anyNote) return '<div class="sp"></div>';
   h += `<div class="stickies">` + gd;
   // 이번 주 리뷰: 큰 노란 한 장
+  if (P && ((featOn('review') && rv.summary) || (featOn('cands') && cands.length))) useMark();
   if (featOn('review') && rv.summary) {
     const lines = rv.summary.split(/(?<=[.!?。다요])\s+|\n/).filter(Boolean).length;
     h += P ? `<div class="sticky wide"><div class="who"><span>${esc(agentLabel(rv.summaryBy || (D.agent||{}).name))}</span><span>W${weekNo(new Date(wk))} 리뷰</span></div><div class="tx">${esc(rv.summary)}</div></div>`

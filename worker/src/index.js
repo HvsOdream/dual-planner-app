@@ -245,24 +245,30 @@ async function group(req, env, token) {
   const sys = [
     '너는 종이 플래너를 함께 쓰는 비서다. 할 일 목록을 보고, 이 사람이 삶에서 맡고 있는 "역할"을 찾아 할 일을 역할별로 묶는다.',
     '역할은 일의 주제가 아니라 그 일을 하는 사람의 자리다. 단어보다 목적을 본다: 누구를 위해, 어떤 책임으로 하는 일인가.',
-    '"부모"는 내가 아이를 키우는 자리다. 내 엄마·아빠·장모님을 챙기는 일은 부모가 아니라 가족이다.',
-    '예) 자녀 담임 상담·자녀 숙제·하원 조율 → 부모. 수업·강의·학생 지도 → 교수. 과제·시험·장학금·수강 → 학생. 알바 근무·교대 → 알바생. 학과평가·시간표·학과회의·조교 업무 → 학과장. 팀원 1:1·팀 업무 배분 → 팀장. 운동·병원·독서·취미 → 나 자신.',
-    '책임이 다른 역할은 합치지 않는다(교수와 학과장, 직원과 팀장). 팀을 맡은 흔적이 있으면 직장인보다 팀장.',
+    '"부모"는 내가 아이를 키우는 자리다. 내 엄마·아빠·장모님·언니·형·동생을 챙기는 일은 부모가 아니라 가족이다.',
+    '자녀 이름·담임·학원·자녀 숙제가 나오는 일은 내가 학생인 게 아니라 부모로서 하는 일이다. "학생"은 본인이 학교에서 수강·과제·학교 시험을 하는 흔적이 있을 때만 쓴다. 자격증·기사·공무원 시험 준비는 수험생.',
+    '예) 자녀 담임 상담·자녀 숙제·하원 조율 → 부모. 수업·강의·학생 지도·논문·연구 → 교수(교수 흔적이 없으면 연구자). 과제·수강·학교 시험 → 학생. 알바 근무·교대 → 알바생. 학과평가·시간표·학과회의 안건·조교 업무 → 학과장. 팀원 1:1·팀원 평가·업무 배분 → 팀장. 운동(필라테스·러닝·헬스, 주 n회 포함)·병원·취미 → 나 자신. 봉사 → 봉사자. 모임 공지·모임 책 고르기 → 모임장.',
+    '일하는 자리는 직업이 보이면 그 이름을 쓴다(기획자, 디자이너, 품질관리, 개발자). 고객·견적·납품이 보이면 프리랜서 또는 그 직업. 직업 단서가 없을 때만 직장인.',
+    '회의·스탠드업·리뷰가 많다고 팀장이 아니다. 팀장은 팀원을 맡은 흔적(팀원 1:1, 팀원 평가, 업무 배분)이 있을 때만.',
+    '역할 이름은 내가 서는 자리다. 장소·기관·다른 사람·관계 단어(도서관, 회사, 형제, 부모님, 엄마)는 역할 이름이 될 수 없다.',
+    '책임이 다른 역할은 합치지 않는다(교수와 학과장, 직원과 팀장).',
     '[대괄호] 안의 말은 프로젝트 표시일 뿐 역할 이름이 아니다. 단 "[일정]"으로 시작하는 줄은 캘린더 일정이다. 할 일과 같은 기준으로 역할에 넣는다(수업·강의 → 교수, 학원 픽업 → 부모, 헬스 → 나 자신).',
     '관계는 글에 보이는 만큼만: 배우자로 보이는 사람과의 일 → 배우자, 내 부모님·형제·집안일 → 가족, 이름만 나오는 또래·지인 → 친구. 이름만 보고 가족이라 단정하지 않는다.',
     '성별을 짐작하지 않는다. 아빠·엄마·남편·아내·딸·아들은 글에 그 단서가 분명할 때만 쓰고, 아니면 부모·배우자·가족을 쓴다.',
     '글에 보이지 않는 직책을 지어내지 않는다(동아리 일 → 동아리 회장은 "회장"이 보일 때만, 아니면 동아리).',
     '역할은 2~6개, 이름은 2~6자 한국어 명사. 기존 역할이 주어지면 뜻이 맞는 할 일은 그 이름을 그대로 쓴다.',
     '"사람" 목록이 주어지면 그 관계를 그대로 믿는다(예: 준서=아들이면 준서 관련 일은 부모, 지영=아내면 배우자). 관계로 이 사람의 성별이 드러나면 아빠·엄마·남편·아내를 써도 된다(아내가 있으면 남편, 아들 일은 아빠).',
-    '모든 id를 정확히 한 번씩, 가장 주된 역할 하나에만 넣는다.',
-    '할 일에 나오는 사람 이름(2~4자, 별명 포함)을 최대 5개 골라 people에 넣고, 글로 보아 가장 그럴듯한 관계를 guess에 짧게 적는다(자녀, 배우자, 부모님, 동료, 팀원, 학생, 친구, 모름). "사람" 목록에 이미 있는 이름은 넣지 않는다. 역할명·회사명·과목명은 사람이 아니다.',
+    '모든 id를 빠짐없이 정확히 한 번씩, 가장 주된 역할 하나에만 넣는다. [일정] 줄도 빠뜨리지 않는다.',
+    '할 일에 나오는 사람(이름 2~4자, 별명, "최 대리"·"정 대표"·"박 선생님"처럼 호칭이 붙은 사람)을 최대 5개 골라 people에 넣고, 글로 보아 가장 그럴듯한 관계를 guess에 짧게 적는다(아들, 딸, 배우자, 연인, 부모님, 형제, 동료, 팀원, 고객, 학생, 선생님, 회원, 친구, 모름). 엄마·언니처럼 관계 단어만 있는 것은 넣지 않는다. "사람" 목록에 이미 있는 이름은 넣지 않는다. 역할명·회사명·과목명·가게 이름은 사람이 아니다.',
     '설명 없이 JSON 하나만 출력한다: {"groups":[{"name":"역할","ids":["id",...]}],"people":[{"name":"이름","guess":"관계"}]}'
   ].join('\n');
   const example = [
     { role: 'user', content: '기존 역할: 없음\n할 일:\n- id=a1: [신규몰] 견적서 다시\n- id=a2: 거래처 미팅 자료\n- id=a3: 둘째 소아과 예약\n- id=a4: 아버지 칠순 식당 알아보기\n- id=a5: 수영 등록\n- id=a6: 분리수거' },
     { role: 'assistant', content: '{"groups":[{"name":"직장인","ids":["a1","a2"]},{"name":"부모","ids":["a3"]},{"name":"가족","ids":["a4","a6"]},{"name":"나 자신","ids":["a5"]}],"people":[]}' },
     { role: 'user', content: '기존 역할: 없음\n할 일:\n- id=b1: [영상편집] 기말 과제 렌더링\n- id=b2: 편의점 토요일 대타 되는지\n- id=b3: 아빠 생일 케이크 예약\n- id=b4: [밴드부] 공연 포스터 인쇄\n- id=b5: 수강신청 장바구니\n- id=b6: 준호한테 책 돌려주기' },
-    { role: 'assistant', content: '{"groups":[{"name":"학생","ids":["b1","b5"]},{"name":"알바생","ids":["b2"]},{"name":"가족","ids":["b3"]},{"name":"동아리","ids":["b4"]},{"name":"친구","ids":["b6"]}],"people":[{"name":"준호","guess":"친구"}]}' }
+    { role: 'assistant', content: '{"groups":[{"name":"학생","ids":["b1","b5"]},{"name":"알바생","ids":["b2"]},{"name":"가족","ids":["b3"]},{"name":"동아리","ids":["b4"]},{"name":"친구","ids":["b6"]}],"people":[{"name":"준호","guess":"친구"}]}' },
+    { role: 'user', content: '기존 역할: 없음\n할 일:\n- id=c1: 서윤 담임 김지은 선생님께 상담 답장\n- id=c2: 박 과장에게 출하 검사표 보내기\n- id=c3: 전기기사 기출 2회분 풀기\n- id=c4: 언니랑 엄마 생신 선물 정하기\n- id=c5: 요가 주 3회\n- id=c6: [일정] 주간 회의\n- id=c7: [일정] 서윤 피아노 픽업' },
+    { role: 'assistant', content: '{"groups":[{"name":"품질관리","ids":["c2","c6"]},{"name":"부모","ids":["c1","c7"]},{"name":"수험생","ids":["c3"]},{"name":"가족","ids":["c4"]},{"name":"나 자신","ids":["c5"]}],"people":[{"name":"서윤","guess":"딸"},{"name":"김지은","guess":"선생님"},{"name":"박 과장","guess":"동료"}]}' }
   ];
   const user = '기존 역할: ' + (roles.join(', ') || '없음') + '\n사람: ' + (people.map(([n, r]) => n + '=' + r).join(', ') || '없음') + '\n할 일:\n' + items.map(x => `- id=${x.id}: ${x.title}`).join('\n');
   const msgs = [{ role: 'system', content: sys }, ...example, { role: 'user', content: user }];
@@ -285,9 +291,55 @@ async function group(req, env, token) {
       else if (g.name === '배우자' && me) g.name = me;
     });
   }
+  const fixName = { '형제': '가족', '자매': '가족', '부모님': '가족', '엄마': '가족', '아빠': '가족', '자녀': '부모', '도서관': '봉사자', '회사': '직장인' };
+  groups.forEach(g => { if (fixName[g.name]) g.name = fixName[g.name]; if (g.name === '연인' || g.name === '애인') g.name = '연인'; });
+  for (let i = groups.length - 1; i > 0; i--) { const j = groups.findIndex(x => x.name === groups[i].name); if (j < i) { groups[j].ids.push(...groups[i].ids); groups.splice(i, 1); } }
   const known2 = new Set(people.map(([n]) => n));
-  const ppl = ((out && out.people) || []).map(x => ({ name: String(x.name || '').replace(/[^가-힣A-Za-z0-9]/g, '').slice(0, 6), guess: String(x.guess || '모름').slice(0, 6) })).filter(x => x.name.length >= 2 && !known2.has(x.name) && items.some(it => it.title.includes(x.name))).slice(0, 5);
+  const ppl = ((out && out.people) || []).map(x => ({ name: String(x.name || '').replace(/[^가-힣A-Za-z0-9 ]/g, '').trim().slice(0, 8), guess: String(x.guess || '모름').slice(0, 6) })).filter(x => x.name.length >= 2 && !known2.has(x.name) && items.some(it => it.title.includes(x.name))).slice(0, 5);
+  // 모델이 사람을 못 뽑았을 때: 호칭·조사 앞의 이름을 글에서 직접 찾는다
+  if (!ppl.length) {
+    const stop = new Set(['다음', '이번', '지난', '학과', '팀원', '고객', '회사', '학생', '수업', '강의', '주말', '오늘', '내일', '부모님', '선생님', '친구', '동료', '가족', '엄마', '아빠', '언니', '누나', '오빠', '동생', '아내', '남편', '담임', '교수', '부모', '대리', '대표', '선생', '과장', '팀장']);
+    const found = [];
+    items.forEach(it => {
+      const t = it.title.replace(/^\[일정\]\s*/, '');
+      for (const m of t.matchAll(/(?:^|\s)([가-힣]{1,3})\s?(교수|선생님|대리|대표|과장|팀장|부장)/g)) found.push([m[1] + ' ' + m[2], m[2] === '선생님' ? '선생님' : m[2] === '대표' ? '고객' : '동료']);
+      for (const m of t.matchAll(/(?:^|\s)([가-힣]{2,3})(에게|께|한테|이랑|랑|하고|와|과)(?=\s|$)/g)) { let n = m[1]; if (n.length === 3 && n.endsWith('이') && /랑|와/.test(m[2])) n = n.slice(0, 2); found.push([n, '모름']); }
+      for (const m of t.matchAll(/(?:^|\s)([가-힣]{2,3})\s담임/g)) found.push([m[1], '아들']);
+    });
+    const seen2 = new Set();
+    found.filter(([n]) => !stop.has(n) && !known2.has(n) && !roles.includes(n) && !groups.some(g => g.name === n) && !seen2.has(n) && seen2.add(n)).slice(0, 5).forEach(([n, g]) => ppl.push({ name: n, guess: g === '아들' ? '모름' : g }));
+  }
   return json(Object.assign({ groups, people: ppl, model: env.LLM_URL ? 'sllm' : 'workers-ai' }, body.debug ? { raw: String(raw).slice(0, 1500) } : {}));
+}
+
+// ── 주간 리뷰: 앱이 보낸 한 주의 사실로 3~4문장 리뷰와 다음 주 B 후보를 쓴다 ──
+async function review(req, env, token) {
+  if (req.method !== 'POST') return json({ error: 'method' }, 405);
+  if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
+  const dk = 'r:' + token + ':' + new Date().toISOString().slice(0, 10), used = Number(await env.PLANNER.get(dk) || 0);
+  if (used >= 5) return json({ error: 'daily limit' }, 429);
+  let b; try { b = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const cut = (a, n, f) => (Array.isArray(a) ? a : []).slice(0, n).map(f);
+  const done = cut(b.done, 30, x => `- ${String(x.title).slice(0, 60)}${x.role ? ' (' + String(x.role).slice(0, 8) + ')' : ''}`);
+  const open = cut(b.open, 25, x => `- ${String(x.title).slice(0, 60)}${x.role ? ' (' + String(x.role).slice(0, 8) + ')' : ''}${x.due ? ' 마감 ' + String(x.due).slice(0, 10) : ''}${x.wait ? ' 남의 답 기다리는 중' : ''}`);
+  const hours = Object.entries(b.hours || {}).slice(0, 10).map(([k, v]) => `${String(k).slice(0, 8)} ${Number(v) || 0}시간`).join(', ');
+  const notes = cut(b.notes, 7, x => '- ' + String(x).slice(0, 80));
+  const sys = [
+    '너는 종이 플래너를 같이 쓰는 비서다. 한 주의 사실만 보고 일요일 리뷰를 쓴다.',
+    '3~4문장, 존댓말, 담백하게. 칭찬·격려·감탄·이모지 금지. 완료 개수로 사람을 평가하지 않는다.',
+    '1) 이번 주 실제로 끝낸 일에서 눈에 띄는 것 하나 2) 캘린더 시간이 어느 역할에 몰렸는지(시간 자료가 있을 때만, "캘린더 일정 기준"이라고 밝힌다) 3) 남은 일 중 다음 주에 먼저 볼 것 하나와 그 이유(마감·오래 멈춤). 남의 답을 기다리는 일은 미룬 일로 보지 않는다.',
+    '자료에 없는 사실을 지어내지 않는다. 일정이 없는 시간을 쉬었다고 단정하지 않는다.',
+    '다음 주 후보는 남은 일이나 끝낸 일의 다음 단계에서 최대 3개, 각각 바로 시작할 수 있는 크기의 행동으로 쓰고, 역할은 주어진 역할 이름 중 하나, due는 다음 주 안의 날짜(YYYY-MM-DD).',
+    '설명 없이 JSON 하나만: {"summary":"...","cands":[{"title":"...","role":"...","due":"YYYY-MM-DD"}]}'
+  ].join('\n');
+  const user = `오늘: ${String(b.today || '').slice(0, 10)} / 다음 주 시작: ${String(b.next || '').slice(0, 10)}\n역할: ${cut(b.roles, 8, String).join(', ') || '없음'}\n이번 주 끝낸 일:\n${done.join('\n') || '- 없음'}\n남은 일:\n${open.join('\n') || '- 없음'}\n캘린더 시간: ${hours || '없음'}\n한 줄 일기:\n${notes.join('\n') || '- 없음'}`;
+  let out;
+  try { out = jsonIn(await llm(env, [{ role: 'system', content: sys }, { role: 'user', content: user }], 600)); } catch (e) { return json({ error: 'model failed' }, 502); }
+  if (!out || !out.summary) return json({ error: 'no summary' }, 502);
+  await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
+  const roles = new Set(cut(b.roles, 8, String));
+  const cands = cut(out.cands, 3, c => ({ title: String(c.title || '').slice(0, 60), role: roles.has(String(c.role)) ? String(c.role) : '', due: /^\d{4}-\d{2}-\d{2}$/.test(String(c.due)) ? String(c.due) : '' })).filter(c => c.title);
+  return json({ summary: String(out.summary).slice(0, 600), cands });
 }
 
 // ── 일정: 사용자가 준 iCal 주소(구글 캘린더 '비공개 주소' 등)를 받아 기간 안의 일정을 한국 시간으로 펼친다 ──
@@ -403,13 +455,14 @@ export default {
     const am = url.pathname.match(/^\/auth\/(config|google|apple|account)\/?$/);
     if (am) return auth(req, env, am[1]);
     if (url.pathname.replace(/\/$/, '') === '/admin/stats') return adminStats(req, env);
-    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group|cal|feedback)\/?$/);
+    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group|cal|feedback|review)\/?$/);
     if (!m) return json({ ok: true, name: 'dual-planner-api', usage: '/u/:token/state | /u/:token/items | /u/:token/mcp | /auth/config | /auth/google | /auth/apple | /auth/account' });
     const token = m[1], kind = m[2], key = 'u:' + token;
     if (kind === 'mcp') return mcp(req, env, token);
     if (kind === 'group') return group(req, env, token);
     if (kind === 'cal') return cal(req, env, token);
     if (kind === 'feedback') return feedback(req, env, token);
+    if (kind === 'review') return review(req, env, token);
     const cur = Object.assign(empty(), JSON.parse(await env.PLANNER.get(key) || 'null') || {});
     if (kind === 'state') {
       if (req.method === 'GET') return json(cur);
