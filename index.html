@@ -519,7 +519,7 @@ SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
 function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
 function closeMore() { document.getElementById('more').classList.remove('on'); }
 function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); }
-function render() { ensureTrial(); syncRoles(); setTimeout(maybeGroup, 800); widgetSync(); applyTheme(); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.preview ? '' : 'none'; if (db) db.textContent = D.preview === 'free' ? '구독 안 한 화면' : '구독한 화면'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
+function render() { ensureTrial(); syncRoles(); rescheduleSoon(); setTimeout(maybeGroup, 800); widgetSync(); applyTheme(); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.preview ? '' : 'none'; if (db) db.textContent = D.preview === 'free' ? '구독 안 한 화면' : '구독한 화면'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
 
 function renderCover() {
   const s = streak(), dots = Math.min(s,3);
@@ -643,6 +643,7 @@ function guideHtml(x) {
 function isDev() { try { if (/[?&]dev\b/.test(location.search)) localStorage.setItem('dpa_dev', '1'); return localStorage.getItem('dpa_dev') === '1' || ((D.account || {}).email === 'withsky0@gmail.com'); } catch(e) { return false; } }
 // ── 비서 포스트잇: 무엇을 붙이는지(메뉴에서 켜고 끈다) ──
 const FEATS = [
+  ['notify', '비서가 쓰는 알림', '알림', '그날 마감·남은 일로 문구를 써요'],
   ['due', '마감 임박', '할 일', '사흘 안에 끝나야 할 일'],
   ['stale', '2주째 그대로', '할 일', '오래 멈춘 일은 쪼개거나 묘비로'],
   ['balance', '역할 쏠림', '할 일', '한 역할에 몰리면 알려요'],
@@ -833,14 +834,61 @@ async function setCalNative(on) {
 // ── 알림(앱): 아침 · 저녁 · 일요일 ──
 const NOTIFY = [{ id: 101, k: 'morning', name: '아침', t: '08:30', title: '오늘', body: '오늘 할 것, 세 줄만' }, { id: 102, k: 'evening', name: '저녁', t: '21:30', title: '오늘 닫기', body: '체크하고 한 줄 일기' }, { id: 103, k: 'sunday', name: '일요일', t: '20:00', title: '한 주 돌아보기', body: '일요일 저녁 10분' }];
 function notifyCfg() { return Object.assign({ on: false, morning: '08:30', evening: '21:30', sunday: '20:00', off: {} }, (D.settings || {}).notify || {}); }
+// 비서가 쓰는 알림: 그날의 마감·오늘 칸·이번 주 숫자로 문구를 만든다(구독·체험 중일 때)
+function smartNotify() { return paid() && featOn('notify'); }
+function plusDays(ds, n) { const x = new Date(ds); x.setDate(x.getDate() + n); return dstr(x); }
+function notifText(k, ds) {
+  const base = NOTIFY.find(n => n.k === k), open = openItems(), td = today();
+  const short = t => t.length > 22 ? t.slice(0, 21) + '…' : t;
+  if (k === 'morning') {
+    const due = open.filter(r => r.due === ds);
+    if (due.length) return { title: `오늘 마감 ${due.length}개`, body: due.map(r => short(r.title)).join(' · ') };
+    const soon = open.filter(r => r.due && r.due > ds && Math.round((new Date(r.due) - new Date(ds)) / 86400000) <= 3).sort((a, b) => a.due < b.due ? -1 : 1);
+    if (soon.length) { const r = soon[0], n = Math.round((new Date(r.due) - new Date(ds)) / 86400000); return { title: '오늘', body: `${short(r.title)} D-${n}${soon.length > 1 ? ` 외 ${soon.length - 1}개` : ''}. 오늘 칸에 올려 둘까요` }; }
+    const picks = ds === td ? (dayOf(ds).picks || []).map(rock).filter(r => r && !r.done) : [];
+    if (picks.length) return { title: `오늘 할 것 ${picks.length}개`, body: picks.map(r => short(r.title)).join(' · ') };
+  }
+  if (k === 'evening') {
+    const tmr = open.filter(r => r.due === plusDays(ds, 1));
+    const pre = tmr.length ? `내일까지: ${short(tmr[0].title)}${tmr.length > 1 ? ` 외 ${tmr.length - 1}개` : ''}. ` : '';
+    if (ds === td) {
+      const picks = (dayOf(ds).picks || []).map(rock).filter(Boolean), done = picks.filter(r => r.done || (r.checks && r.checks[ds])).length;
+      if (picks.length) return { title: `오늘 ${picks.length}개 중 ${done}개 끝`, body: pre + (done < picks.length ? '남은 건 내일로 넘길까요. 한 줄 일기도' : '한 줄 일기만 남았어요') };
+    }
+    if (pre) return { title: '오늘 닫기', body: pre + '한 줄 일기도 잊지 말고요' };
+  }
+  if (k === 'sunday') {
+    const wd = weekDates(weekStart(new Date(ds))), n = live().filter(r => r.done && wd.includes(r.doneAt || '')).length;
+    if (n) return { title: '한 주 돌아보기', body: `이번 주 끝낸 일 ${n}개. 10분만 돌아볼까요` };
+  }
+  return { title: base.title, body: base.body };
+}
 async function scheduleNotifs() {
   const LN = isNative() && capPlugin('LocalNotifications'); if (!LN) return;
   const c = notifyCfg();
-  try { await LN.cancel({ notifications: NOTIFY.map(n => ({ id: n.id })) }); } catch(e) {}
+  const ids = NOTIFY.map(n => ({ id: n.id })); for (let i = 2000; i < 2030; i++) ids.push({ id: i });
+  try { await LN.cancel({ notifications: ids }); } catch(e) {}
   if (!c.on) return;
-  const list = NOTIFY.filter(n => !c.off[n.k]).map(n => { const [h, m] = String(c[n.k] || n.t).split(':').map(Number); const on = { hour: h, minute: m }; if (n.k === 'sunday') on.weekday = 1; return { id: n.id, title: n.title, body: n.body, schedule: { on, allowWhileIdle: true } }; });
+  let list;
+  if (smartNotify()) {
+    // 앞으로 7일 치를 날짜별로 한 번씩 건다. 앱을 열거나 기록이 바뀔 때마다 다시 쓴다
+    list = []; const now = Date.now();
+    for (let i = 0; i < 7; i++) {
+      const ds = plusDays(today(), i), dow = new Date(ds).getDay();
+      NOTIFY.forEach((n, j) => {
+        if (c.off[n.k] || (n.k === 'sunday' && dow !== 0)) return;
+        const [h, m] = String(c[n.k] || n.t).split(':').map(Number); const at = new Date(ds + 'T00:00:00'); at.setHours(h, m, 0, 0);
+        if (at.getTime() <= now) return;
+        const t = notifText(n.k, ds); list.push({ id: 2000 + i * 3 + j, title: t.title, body: t.body, schedule: { at, allowWhileIdle: true } });
+      });
+    }
+  } else {
+    list = NOTIFY.filter(n => !c.off[n.k]).map(n => { const [h, m] = String(c[n.k] || n.t).split(':').map(Number); const on = { hour: h, minute: m }; if (n.k === 'sunday') on.weekday = 1; return { id: n.id, title: n.title, body: n.body, schedule: { on, allowWhileIdle: true } }; });
+  }
   if (list.length) await LN.schedule({ notifications: list });
 }
+let _nsT = null;
+function rescheduleSoon() { if (!isNative()) return; clearTimeout(_nsT); _nsT = setTimeout(scheduleNotifs, 2500); }
 async function enableNotifs() {
   const LN = isNative() && capPlugin('LocalNotifications'); if (!LN) return;
   const p = await LN.requestPermissions(); if (p.display !== 'granted') { toast('아이폰 설정 › 알림에서 허용해 주세요'); return; }
@@ -850,7 +898,12 @@ function setNotify(patch) { const c = notifyCfg(); Object.assign(c, patch); D.se
 function renderNotifyBox() {
   const el = document.getElementById('notifyBox'); if (!el) return; if (!isNative()) { el.innerHTML = ''; return; }
   const c = notifyCfg();
-  el.innerHTML = `<div class="lbl" style="padding-left:0">알림 <button style="font-size:12px;color:var(--ink-2);text-decoration:underline;font-weight:500" onclick="${c.on ? 'setNotify({on:false})' : 'enableNotifs()'}">${c.on ? '끄기' : '켜기'}</button></div>` + (c.on ? NOTIFY.map(n => `<div class="acts" style="padding:2px 0;align-items:center"><button onclick="setNotify({off:Object.assign({},notifyCfg().off,{${n.k}:!notifyCfg().off.${n.k}})})">${c.off[n.k] ? '○' : '●'} ${n.name}</button><input type="time" value="${esc(c[n.k])}" style="background:transparent;border:none;border-bottom:1px solid var(--rule);font:inherit;font-size:13px;color:var(--ink)" onchange="setNotify({${n.k}:this.value})"></div>`).join('') : '') + '<div style="height:10px"></div>';
+  el.innerHTML = `<div class="lbl" style="padding-left:0">알림 <button style="font-size:12px;color:var(--ink-2);text-decoration:underline;font-weight:500" onclick="${c.on ? 'setNotify({on:false})' : 'enableNotifs()'}">${c.on ? '끄기' : '켜기'}</button></div>` + (c.on ? NOTIFY.map(n => `<div class="acts" style="padding:2px 0;align-items:center"><button onclick="setNotify({off:Object.assign({},notifyCfg().off,{${n.k}:!notifyCfg().off.${n.k}})})">${c.off[n.k] ? '○' : '●'} ${n.name}</button><input type="time" value="${esc(c[n.k])}" style="background:transparent;border:none;border-bottom:1px solid var(--rule);font:inherit;font-size:13px;color:var(--ink)" onchange="setNotify({${n.k}:this.value})"></div>`).join('') : '') + (c.on ? notifyPreview() : '') + '<div style="height:10px"></div>';
+}
+function notifyPreview() {
+  if (!smartNotify()) return `<div class="subst" style="font-size:12px;margin:6px 0 0">문구는 늘 같아요. 구독하면 비서가 그날 내용으로 써요</div>`;
+  const t = notifText('morning', plusDays(today(), 1)), e = notifText('evening', today());
+  return `<div class="subst" style="font-size:12px;margin:6px 0 0;line-height:1.6">오늘 저녁: <b>${esc(e.title)}</b> ${esc(e.body)}<br>내일 아침: <b>${esc(t.title)}</b> ${esc(t.body)}</div>`;
 }
 // ── 표지 ──
 const COVERS = [['terra', '테라코타', '#A9503A', '#FBF1E4'], ['cream', '크림', '#E4DCC6', '#2B2925'], ['leather', '가죽', '#6B4E36', '#F2E6D0']];
