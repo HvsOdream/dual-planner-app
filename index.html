@@ -153,6 +153,7 @@ a { color: inherit; }
 .sticky.blur .unlock { position: relative; margin-top: 8px; font-size: 12px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; opacity: .8; }
 .subst { font-size: 14px; color: var(--ink-2); margin: 2px 0 10px; }
 .feats { margin: 12px 0 4px; border-top: 1px solid var(--rule); }
+.dd { color: var(--check); font-weight: 800; margin-left: 2px; }
 .rq { font-size: 18px; font-weight: 800; margin: 6px 0 4px; } .rh { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; } .chips button { padding: 8px 14px; border: 1.5px solid var(--rule); border-radius: 18px; font-size: 14px; color: var(--ink-2); }
 .chips button.on { border-color: var(--accent); background: var(--accent); color: var(--paper); font-weight: 700; }
@@ -712,6 +713,11 @@ function aNote(o) {
   if (!paid()) return backSticky(o.label, o.meta || '', o.text, o.cls);
   return `<div class="sticky ${o.cls || ''}"><div class="who"><span>비서</span><span>${esc(o.label)}${o.meta ? ' · ' + esc(o.meta) : ''}</span></div><div class="tx">${o.html || esc(o.text)}</div>${o.acts ? `<div class="act">${o.acts}</div>` : ''}</div>`;
 }
+function promoteB() {
+  const t = new Date().toISOString(); let n = 0;
+  openItems().filter(r => r.bucket === 'important' && r.due && dleft(r.due) >= 0 && dleft(r.due) <= 3).forEach(r => { r.bucket = 'urgent'; r.promotedAt = today(); r.u = t; n++; });
+  save(); render(); toast(`B ${n}개를 A로 올렸어요`);
+}
 function dleft(ds) { return Math.round((new Date(ds) - new Date(today())) / 86400000); }
 function weekNotes() {
   let h = ''; const td = today();
@@ -719,7 +725,9 @@ function weekNotes() {
     const soon = openItems().filter(r => r.due && dleft(r.due) >= 0 && dleft(r.due) <= 3).sort((a, b) => a.due < b.due ? -1 : 1);
     if (soon.length) {
       const html = soon.slice(0, 3).map(r => `${esc(r.title)} <b style="white-space:nowrap">${dleft(r.due) ? 'D-' + dleft(r.due) : '오늘까지'}</b>`).join('<br>');
-      h += aNote({ label: '마감 임박', meta: soon.length + '개', text: soon.map(r => r.title).join(' · '), html, acts: `<button onclick="pick('${soon[0].id}')">맨 위 것 오늘로</button><button onclick="dropNote('due:${td}')">떼기</button>` });
+      const bs = soon.filter(r => r.bucket === 'important');
+      const ask = bs.length ? `<div style="margin-top:6px;font-size:13px">B ${bs.length}개가 사흘 안에 마감이에요. A로 올릴까요</div>` : '';
+      h += aNote({ label: '마감 임박', meta: soon.length + '개', text: soon.map(r => r.title).join(' · '), html: html + ask, acts: (bs.length ? `<button onclick="promoteB()">B ${bs.length}개 A로</button>` : `<button onclick="pick('${soon[0].id}')">맨 위 것 오늘로</button>`) + `<button onclick="dropNote('due:${td}')">떼기</button>` });
     }
   }
   if (featOn('stale')) staleItems().forEach(r => {
@@ -744,7 +752,8 @@ function recordNotes(wk) {
     done.forEach(r => { if (r.role) by[r.role] = (by[r.role] || 0) + 1; });
     const top = Object.keys(by).sort((a, b) => by[b] - by[a])[0];
     const notes = ds.filter(d => D.days[d] && D.days[d].note).length;
-    if (done.length || notes) h += aNote({ label: '이번 주 숫자', text: `끝낸 일 ${done.length}개${top ? `, 가장 많이 한 역할은 ${top}(${by[top]})` : ''}. 한 줄 일기 ${notes}일.` });
+    const prom = live().filter(r => ds.includes(r.promotedAt || '')).length;
+    if (done.length || notes || prom) h += aNote({ label: '이번 주 숫자', text: `끝낸 일 ${done.length}개${top ? `, 가장 많이 한 역할은 ${top}(${by[top]})` : ''}. 한 줄 일기 ${notes}일.${prom ? ` B에서 A로 넘어간 일 ${prom}개, 다음엔 조금 일찍.` : ''}` });
   }
   if (featOn('ago')) {
     const a = new Date(today()); a.setMonth(a.getMonth() - 1); const ad = dstr(a), d = D.days[ad];
@@ -1022,7 +1031,8 @@ function moveToRock(id) {
 let addPrefill = '', addBucket = 'important', showD = false;
 function itemRow(r, n) {
   const td = today(), picked = (dayOf(td).picks||[]).includes(r.id);
-  const meta = [esc(r.role), fmtDue(r)].filter(Boolean).join(' · ');
+  const dl = (!r.done && r.due && !r.routine) ? dleft(r.due) : null;
+  const meta = [esc(r.role), fmtDue(r)].filter(Boolean).join(' · ') + (dl !== null && dl <= 3 ? ` <b class="dd">${dl < 0 ? '지남' : dl ? 'D-' + dl : '오늘까지'}</b>` : '');
   const prog = r.routine ? `<span class="dots">${Array.from({length:r.routine},(_,i)=>`<i class="${i<checkedCount(r)?'on':''}"></i>`).join('')}</span>` : '';
   return `<div class="item ${r.done?'done':''}">
     <div class="mg">${r.routine?`<span class="num">${n}</span>`:`<button class="chk ${r.done?'on':''}" aria-label="완료" onclick="finishRock('${r.id}')">${CHECK}</button>`}</div>
@@ -1038,7 +1048,7 @@ function renderWeek() {
   let n = 0;
   BUCKETS.forEach(([b, name]) => {
     const doneToday = live().filter(r => r.done && r.doneAt === today() && (r.bucket||'nice') === b);
-    const list = items.filter(r => (r.bucket||'nice') === b).concat(doneToday);
+    const list = items.filter(r => (r.bucket||'nice') === b).sort((x, y) => (x.due || '9999') < (y.due || '9999') ? -1 : (x.due || '9999') > (y.due || '9999') ? 1 : 0).concat(doneToday);
     if (b === 'nice' && !showD && !(addOpen && addBucket==='nice')) { h += `<div class="lbl"><span>${name} <span class="mono" style="letter-spacing:0">${list.length}</span></span><button onclick="showD=true;renderWeek()">펼치기 ›</button></div><div class="sp"></div>`; return; }
     h += `<div class="lbl"><span>${name} <span class="mono" style="letter-spacing:0">${list.length - doneToday.length}</span></span><button onclick="openAdd('${b}')">+ 추가</button></div>`;
     if (!list.length) h += `<div class="line faint ruled">${b==='important'?'언제까지만?':''}</div>`;
