@@ -822,7 +822,14 @@ function firstHtml(ds) {
 }
 function firstToPick(ds) { const d = dayOf(ds); const r = { id: uid(), week: '', bucket: 'light', role: '', title: d.first, done: false, carry: 0, checks: {} }; D.rocks.push(r); d.picks.push(r.id); d.firstOff = true; markStarted(); save(); render(); }
 function dropInbox(id) { const x = findNote(id); if (!x) return; x.moved = true; x.dropped = true; save(); render(); }
-function moveToRock(id) { const x = findNote(id); if (!x) return; x.moved = true; save(); addOpen = true; addPrefill = x.text; if (x.role && D.roles.includes(x.role)) addRole = x.role; go('week'); }
+function moveToRock(id) {
+  const x = findNote(id); if (!x) return;
+  const map = { A: 'urgent', B: 'important', C: 'light', D: 'nice' }; const b = BUCKETS.some(k => k[0] === x.bucket) ? x.bucket : (map[x.bucket] || 'important');
+  const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: (x.role && D.roles.includes(x.role)) ? x.role : '', title: x.text, done: false, carry: 0, checks: {} };
+  if (x.due) r.due = x.due;
+  D.rocks.push(r); x.moved = true; save(); render();
+  toast('할 일에 기록했어요 · ' + (BUCKETS.find(k => k[0] === b) || [, ''])[1]);
+}
 
 // ── 할 일 (상시 목록: 급한 일 · 중요한 일 · 하면 좋은 일) ──
 let addPrefill = '', addBucket = 'important', showD = false;
@@ -834,7 +841,7 @@ function itemRow(r, n) {
     <div class="mg">${r.routine?`<span class="num">${n}</span>`:`<button class="chk ${r.done?'on':''}" aria-label="완료" onclick="finishRock('${r.id}')">${CHECK}</button>`}</div>
     <div class="bd"><div class="t"><span class="tx">${esc(r.title)}</span>${r.carry?`<span class="mono" style="color:var(--check);font-size:12px">⟳${r.carry}</span>`:''}</div>
     <div class="m"><span>${meta}</span>${prog}<span class="sp1"></span>
-      ${r.done?`<span style="color:var(--check)">완료</span>`:(picked?`<span style="color:var(--check)">오늘 ✓</span>`:`<button onclick="pick('${r.id}')">오늘로 ›</button>`)}
+      ${r.done?`<span style="color:var(--check)">완료</span>`:(r.routine && r.checks && r.checks[td])?`<span style="color:var(--check)">오늘 했음 ✓</span>`:(picked?`<span style="color:var(--check)">오늘 ✓</span>`:`<button onclick="pick('${r.id}')">오늘로 ›</button>`)}
       <button onclick="delRock('${r.id}')">✕</button></div></div></div>`;
 }
 function renderWeek() {
@@ -843,9 +850,10 @@ function renderWeek() {
   let h = gh ? `<div class="stickies" style="padding-top:12px">${gh}</div>` : `<div class="sp"></div>`;
   let n = 0;
   BUCKETS.forEach(([b, name]) => {
-    const list = items.filter(r => (r.bucket||'nice') === b);
+    const doneToday = live().filter(r => r.done && r.doneAt === today() && (r.bucket||'nice') === b);
+    const list = items.filter(r => (r.bucket||'nice') === b).concat(doneToday);
     if (b === 'nice' && !showD && !(addOpen && addBucket==='nice')) { h += `<div class="lbl"><span>${name} <span class="mono" style="letter-spacing:0">${list.length}</span></span><button onclick="showD=true;renderWeek()">펼치기 ›</button></div><div class="sp"></div>`; return; }
-    h += `<div class="lbl"><span>${name} <span class="mono" style="letter-spacing:0">${list.length}</span></span><button onclick="openAdd('${b}')">+ 추가</button></div>`;
+    h += `<div class="lbl"><span>${name} <span class="mono" style="letter-spacing:0">${list.length - doneToday.length}</span></span><button onclick="openAdd('${b}')">+ 추가</button></div>`;
     if (!list.length) h += `<div class="line faint ruled">${b==='important'?'언제까지만?':''}</div>`;
     list.forEach(r => { n++; h += itemRow(r, n); });
     if (addOpen && addBucket === b) h += addFormHtml(b);
@@ -871,7 +879,7 @@ function addRock(b) {
   else { const due = (document.getElementById('rockDue')||{}).value || ''; if (b==='important' && !due) { toast('B는 끝 조건이 필요해요'); return; } if (due) r.due = due; }
   r.vol = (curVol()||{}).id; D.rocks.push(r); addOpen = false; addPrefill = ''; save(); renderWeek(); renderCover(); toast('적었어요');
 }
-function finishRock(id) { const r = rock(id); if (!r) return; r.done = !r.done; r.doneAt = r.done ? today() : null; if (r.done && navigator.vibrate) navigator.vibrate(12); save(); render(); }
+function finishRock(id) { const r = rock(id); if (!r) return; const td = today(); r.checks = r.checks || {}; if (r.done) { if (r.doneAt) delete r.checks[r.doneAt]; r.done = false; r.doneAt = null; } else { r.done = true; r.doneAt = td; r.checks[td] = true; if (navigator.vibrate) navigator.vibrate(12); } save(); render(); }
 function delRock(id) { if (!confirm('이 항목을 지울까요?')) return; const r = rock(id); if (r) r._deleted = true; save(); render(); }
 function splitRock(id) { const r = rock(id); if (!r) return; r.tomb = true; r.movedTo = 'split'; addPrefill = r.title + ' (1/2) '; addRole = r.role; save(); openAdd(r.bucket||'important'); toast('작게 나눠서 적어 보세요'); }
 function tombRock(id) { const r = rock(id); if (!r) return; r.tomb = true; r.tombAt = today(); save(); render(); toast('묘비 ✝'); }
