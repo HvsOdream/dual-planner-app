@@ -176,11 +176,14 @@ a { color: inherit; }
 .feat .sw { flex: none; width: 38px; height: 22px; border-radius: 11px; background: var(--rule); position: relative; transition: background .15s; }
 .feat .sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: left .15s; }
 .feat.on .sw { background: var(--accent); } .feat.on .sw::after { left: 18px; }
+.feat .st { flex: none; font-size: 13px; font-weight: 600; color: var(--ink); min-width: 20px; text-align: right; } .feat:not(.on) .st, .feat:not(.on) .nm b { color: var(--muted); font-weight: 500; }
+/* 메뉴도 노트 한 장: 마진선 안쪽에 같은 소제목·같은 줄 */
+.mpage { padding: 8px 16px 40px 52px; } .mpage .lbl { padding-left: 0; } .mpage .cta { margin-left: 0; width: 100%; } .mpage .legal { margin-top: 16px; }
 .dev-on { position: fixed; left: 8px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; font-size: 11px; background: var(--check); color: #fff; padding: 2px 8px; border-radius: 10px; }
 @keyframes peel { 0%, 55% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px) rotate(-5deg); } }
 .sticky::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 18px; background: rgba(120,100,0,.07); }
 .sticky::after { content: ''; position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; background: linear-gradient(135deg, rgba(0,0,0,0) 50%, rgba(120,100,0,.16) 50%, rgba(255,255,255,.5) 100%); }
-.sticky .who { position: absolute; top: 2px; left: 12px; right: 12px; font-family: var(--mono); font-size: 10px; letter-spacing: .5px; color: var(--postit-muted); height: 16px; line-height: 16px; display: flex; justify-content: space-between; }
+.sticky .who { position: absolute; top: 4px; left: 12px; right: 12px; font-size: 11px; letter-spacing: 0; color: var(--postit-muted); height: 16px; line-height: 16px; display: flex; justify-content: space-between; }
 .sticky .kd { font-size: 11px; font-weight: 700; letter-spacing: .5px; color: var(--postit-muted); }
 .sticky .tx { flex: 1; word-break: keep-all; overflow-wrap: anywhere; }
 .sticky .act { display: flex; gap: 14px; margin-top: 8px; }
@@ -454,28 +457,24 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
   <section class="page" id="p-vol"><div class="sheet" id="vol"></div></section>
   <section class="page" id="p-close"><div class="sheet" id="close"></div></section>
   <section class="page" id="p-refill"><div class="sheet" id="refill"></div></section>
-</main>
-
-<nav class="tabbar">
-  <button data-tab="today" class="on" onclick="go('today')"><i></i>오늘</button>
-  <button data-tab="week" onclick="go('week')"><i></i>할 일</button>
-  <button data-tab="review" onclick="go('review')"><i></i>기록</button>
-  <button data-tab="more" onclick="openMore()"><i></i>메뉴</button>
-</nav>
-
-<div class="more" id="rolesSheet" onclick="if(event.target===this)closeRoles()"><div class="box" id="rolesBox"></div></div>
-<div class="more" id="more" onclick="if(event.target===this)closeMore()">
-  <div class="box">
-    <div class="mhead"><b>메뉴</b><button onclick="closeMore()" aria-label="메뉴 닫기">닫기 ✕</button></div>
+  <section class="page" id="p-more"><div class="sheet" id="moreP"><div class="mpage">
     <div id="acctBox"></div><div id="subBox"></div><div id="roleBox"></div><div id="calBox"></div><div id="notifyBox"></div><div id="coverBox"></div><div id="devBox"></div>
     <div class="lbl" style="padding-left:0">비서 연결</div>
     <div id="connBox" style="font-size:13px;line-height:1.8;margin:2px 0 4px"></div>
     <button class="cta" style="margin-left:0;width:100%;height:40px" onclick="copyText(mcpUrl(),'MCP 주소 복사됨')">MCP 주소 복사</button>
     <div style="height:10px"></div>
     <div class="legal"><a href="legal/terms.html" target="_blank">이용약관</a><a href="legal/privacy.html" target="_blank">개인정보처리방침</a><a href="mailto:withsky0@gmail.com">문의</a></div>
-    <button class="mclose" onclick="closeMore()">닫기</button>
-  </div>
-</div>
+  </div></div></section>
+</main>
+
+<nav class="tabbar">
+  <button data-tab="today" class="on" onclick="go('today')"><i></i>오늘</button>
+  <button data-tab="week" onclick="go('week')"><i></i>할 일</button>
+  <button data-tab="review" onclick="go('review')"><i></i>기록</button>
+  <button data-tab="more" onclick="go('more')"><i></i>메뉴</button>
+</nav>
+
+<div class="more" id="rolesSheet" onclick="if(event.target===this)closeRoles()"><div class="box" id="rolesBox"></div></div>
 <div class="login" id="login" aria-modal="true" role="dialog" aria-label="로그인">
   <div class="lseal" aria-label="DUAL Planner"><svg viewBox="0 0 100 100" aria-hidden="true"><rect x="16" y="16" width="26" height="68" rx="5" fill="currentColor"/><path d="M48 16 H55 A34 34 0 0 1 55 84 H48 Z" fill="currentColor"/></svg><b>DUAL Planner</b></div>
   <div class="btns">
@@ -568,9 +567,10 @@ function go(t) {
   render();
 }
 SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
-function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; document.getElementById('more').classList.add('on'); loadAuthConf().then(renderAccount); }
-function closeMore() { document.getElementById('more').classList.remove('on'); }
-function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); }
+function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); loadAuthConf().then(renderAccount); go('more'); }
+function renderMore() { setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; }
+function closeMore() { if (tab === 'more') go('today'); }
+function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); }
 function markSeen() { const td = today(); if (D.seenDay !== td) { D.seenPrev = D.seenDay || ''; D.seenDay = td; _save0(); } }
 function awayDays() { const p = D.seenPrev; return p ? Math.round((new Date(today()) - new Date(p)) / 86400000) : 0; }
 function backMode() { return awayDays() >= 4 && !noteOff('back:' + today()) && (overdueItems().length + staleItems().length) >= 2; }
@@ -592,7 +592,7 @@ function renderCover() {
   const head = c => `<div class="nav">${c.left}<div style="min-width:0"><div class="t1">${c.t1}</div><div class="t2">${c.t2}</div></div></div>`;
   if (spread()) {
     const L = coverParts('today'), R = coverParts(rightTab);
-    const tabs = (rightTab==='week' || rightTab==='review') ? `<div class="ptabs">${[['week','할 일'],['review','기록']].map(([k,n]) => `<button class="${rightTab===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</div>` : '';
+    const tabs = (rightTab==='week' || rightTab==='review' || rightTab==='more') ? `<div class="ptabs">${[['week','할 일'],['review','기록']].map(([k,n]) => `<button class="${rightTab===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</div>` : '';
     document.getElementById('cover').innerHTML = `<div class="half">${head(L)}${streakHtml}</div><div class="half">${head(R)}<div class="right">${tabs}${moreBtn}</div></div>`;
     return;
   }
@@ -602,13 +602,15 @@ function renderCover() {
 function coverParts(tab) {
   const now = new Date();
   let t1, t2, left = '';
-  if (tab==='today') { t1 = `${now.getMonth()+1}월 ${now.getDate()}일 ${DOW[(now.getDay()+6)%7]}요일`; t2 = `${now.getFullYear()} · W${weekNo(now)}`; }
-  else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${now.getFullYear()} · W${weekNo(now)} · A${o.filter(r=>r.bucket==='urgent').length} B${o.filter(r=>r.bucket==='important').length} C${o.filter(r=>r.bucket==='light').length} D${o.filter(r=>r.bucket==='nice').length}`; }
+  const yw = `${now.getFullYear()} · W${weekNo(now)}`;
+  if (tab==='today') { const pk = (dayOf(today()).picks || []).map(rock).filter(r => r && !r._deleted), dn = pk.filter(r => r.checks && r.checks[today()]).length; t1 = `${now.getMonth()+1}월 ${now.getDate()}일 ${DOW[(now.getDay()+6)%7]}요일`; t2 = yw + (pk.length ? ` · 오늘 ${dn}/${pk.length}` : ''); }
+  else if (tab==='more') { t1 = '메뉴'; t2 = yw + ' · ' + (subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'); }
+  else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${yw} · 열린 일 ${o.length}`; }
   else if (tab==='shelf') { t1 = '책장'; t2 = `속지 ${liveVols().length}권`; left = `<button class="ibtn" aria-label="뒤로" onclick="go('review')">‹</button>`; }
   else if (tab==='vol') { const v = liveVols().find(x => x.id === volSel) || curVol(); t1 = volName(v) + ' 속지'; t2 = `${v.start.replace('-','.')} ~ ${volEnd(v).replace('-','.')} · 닫음`; left = `<button class="ibtn" aria-label="뒤로" onclick="go('shelf')">‹</button>`; }
   else if (tab==='close') { const v = curVol(); t1 = volName(v) + ' 속지 닫기'; t2 = '1 / 2 · 1년 돌아보기'; left = `<button class="ibtn" aria-label="뒤로" onclick="go('shelf')">‹</button>`; }
   else if (tab==='refill') { t1 = '새 속지 끼우기'; t2 = '2 / 2'; left = `<button class="ibtn" aria-label="뒤로" onclick="go('close')">‹</button>`; }
-  else { t1 = '기록'; const wk = reviewWeek(); const ds = weekDates(new Date(wk)); const doneW = live().filter(r => r.done && ds.includes(r.doneAt||'')).length; t2 = `W${weekNo(new Date(wk))} · 이번 주 완료 ${doneW} · 남은 ${openItems().length}`; }
+  else { t1 = '기록'; const wk = reviewWeek(); const ds = weekDates(new Date(wk)); const doneW = live().filter(r => r.done && ds.includes(r.doneAt||'')).length; t2 = `${now.getFullYear()} · W${weekNo(new Date(wk))} · 끝낸 일 ${doneW}`; }
   return { t1, t2, left };
 }
 
@@ -662,8 +664,8 @@ function renderToday() {
   <input class="wr" placeholder="" value="${esc(day.note)}" onchange="dayOf('${ds}').note=this.value;save()">
   ${photoHtml(ds)}
   <div class="sp"></div>
-  <div class="stickies"><div class="sticky mine"><div class="who"><span>내일 첫 줄</span><span>${md(addDays(ds, 1))}</span></div>
-    <input class="inp" placeholder="내일 아침 가장 먼저" value="${esc((D.days[addDays(ds, 1)] || {}).first || '')}" onchange="setFirst('${addDays(ds, 1)}', this.value)"></div></div>
+  <div class="lbl"><span>내일 첫 줄 <span style="font-weight:400;color:var(--muted)">${md(addDays(ds, 1))}</span></span></div>
+  <input class="wr" placeholder="내일 아침 가장 먼저" value="${esc((D.days[addDays(ds, 1)] || {}).first || '')}" onchange="setFirst('${addDays(ds, 1)}', this.value)">
   <div class="sp"></div>`;
   document.getElementById('today').innerHTML = h;
 }
@@ -733,7 +735,7 @@ function openRoles(groups) {
   roleSuggest = groups ? JSON.parse(JSON.stringify(groups)) : null;
   roleSel = groups ? groups.map(g => g.name) : D.roles.slice();
   roleItems = groups ? Object.fromEntries(groups.flatMap(g => g.ids.map(id => [id, g.name]))) : null;
-  renderRoles(); document.getElementById('rolesSheet').classList.add('on'); document.getElementById('more').classList.remove('on');
+  renderRoles(); document.getElementById('rolesSheet').classList.add('on');
 }
 function allEvTitles() { return [...new Set(calEvents().map(e => (e.title || '').trim()).filter(Boolean))]; }
 // 일정마다 역할 정하기: 지금 역할로 묶어 보여 주고, 아직 없는 일정은 '정하기 전'
@@ -802,7 +804,7 @@ function roleFinder() {
 function acceptGroups() { const g = sugGroups(); if (g) sendFeedback(g, null); applyGroups(); }
 function renderRoleBox() {
   const el = document.getElementById('roleBox'); if (!el) return;
-  el.innerHTML = `<div class="lbl" style="padding-left:0">내 역할</div><div class="subst">${D.roles.length ? D.roles.map(esc).join(' · ') : '아직 정하지 않았어요'}</div><button class="cta" style="margin:0 0 8px" onclick="openRoles()">${D.roles.length ? '고치기' : '정하기'}</button><label class="learn" style="margin:0 0 12px"><input type="checkbox" ${learnOk() ? 'checked' : ''} onchange="setLearn(this.checked)"> 고친 내용을 비서 학습에 쓰기</label>`;
+  el.innerHTML = `<div class="lbl" style="padding-left:0">내 역할</div><div class="subst">${D.roles.length ? D.roles.map(esc).join(' · ') : '아직 정하지 않았어요'}</div><button class="cta" style="margin:0 0 4px" onclick="openRoles()">${D.roles.length ? '고치기' : '정하기'}</button><button class="feat ${learnOk() ? 'on' : ''}" style="margin-bottom:12px" onclick="setLearn(${!learnOk()});renderRoleBox()"><span class="nm"><b>고친 내용을 비서 학습에 쓰기</b><i>할 일 제목과 고친 역할이 이름 없이 저장돼요</i></span><span class="st">${learnOk() ? '켬' : '끔'}</span></button>`;
 }
 
 // ── 비서 포스트잇: 무엇을 붙이는지(메뉴에서 켜고 끈다) ──
@@ -842,7 +844,7 @@ function weekNotes() {
     const soon = openItems().filter(r => r.due && dleft(r.due) >= 0 && dleft(r.due) <= 3).sort((a, b) => a.due < b.due ? -1 : 1);
     if (soon.length) {
       const bs = soon.filter(r => r.bucket === 'important'), picks = dayOf(td).picks || [];
-      const html = soon.slice(0, 5).map(r => bRow(r, dleft(r.due) ? 'D-' + dleft(r.due) : '오늘', dleft(r.due) <= 1, picks.includes(r.id) ? `<span class="bdone">오늘 칸 ✓</span>` : `<button onclick="pickHere('${r.id}')">오늘</button>`)).join('') + (bs.length ? `<div class="bev" style="padding:6px 0 0">B ${bs.length}개가 사흘 안에 마감이에요. A로 올릴까요</div>` : '');
+      const html = soon.slice(0, 5).map(r => bRow(r, dleft(r.due) ? 'D-' + dleft(r.due) : '오늘', dleft(r.due) <= 1, picks.includes(r.id) ? `<span class="bdone">오늘 칸 ✓</span>` : `<button onclick="pickHere('${r.id}')">오늘로</button>`)).join('') + (bs.length ? `<div class="bev" style="padding:6px 0 0">B ${bs.length}개가 사흘 안에 마감이에요. A로 올릴까요</div>` : '');
       h += aNote({ label: '마감 임박', meta: soon.length + '개', cls: 'wide brief', text: soon.map(r => shortT(r.title)).join(' / '), html, acts: (bs.length ? `<button onclick="promoteB()">B ${bs.length}개 A로</button>` : '') + `<button onclick="dropNote('due:${td}')">떼기</button>` });
     }
   }
@@ -921,7 +923,7 @@ function renderSubBox() {
   const st = on ? `구독 중 · ${D.sub.until.replace(/-/g, '.')}까지` : t > 0 ? `무료 · ${useDays().length}일 받았어요 · ${trialShown()}일 남음` : '비서 포스트잇이 흐리게 보여요';
   el.innerHTML = `<div class="lbl" style="padding-left:0">비서 포스트잇</div><div class="subst">${st}</div>` +
     (on ? '' : `<button class="cta" style="margin-left:0;width:100%;height:40px" onclick="subscribe()">구독하기 · ${SUB_PRICE}</button><div class="subst" style="font-size:12px;margin-top:4px">정가 연 ${won(SUB_LIST)} · 둘째 해부터 정가</div>`) +
-    `<div class="feats">${FEATS.map(([id, n, w, d]) => { const f = featOn(id); return `<button class="feat ${f ? 'on' : ''}" onclick="setFeat('${id}', ${!f})" aria-pressed="${f}"><span class="nm"><b>${n}</b><i>${w} · ${d}</i></span><span class="sw" aria-hidden="true"></span></button>`; }).join('')}</div>` +
+    `<div class="feats">${FEATS.map(([id, n, w, d]) => { const f = featOn(id); return `<button class="feat ${f ? 'on' : ''}" onclick="setFeat('${id}', ${!f})" aria-pressed="${f}"><span class="nm"><b>${n}</b><i>${w} · ${d}</i></span><span class="st">${f ? '켬' : '끔'}</span></button>`; }).join('')}</div>` +
     (paid() ? '' : `<div class="subst" style="font-size:12px;margin-top:6px">구독하면 켜 둔 포스트잇이 또렷해져요</div>`);
 }
 // 뒤집힌 포스트잇: 내용은 숫자만 비치고, 누르면 귀퉁이가 들린다
@@ -1122,7 +1124,7 @@ function briefHtml(ds) {
   const { b, rows } = briefRows(ds); if (!b.ev.length && !rows.length && !b.picks.length) return '';
   let h = '';
   if (b.ev.length) { const f = b.timed[0] || b.ev[0]; h += `<div class="bev">일정 ${b.ev.length}개 · 첫 일정 <b>${f.allDay ? '종일' : f.start}</b> ${esc(shortT(f.title))}</div>`; }
-  h += rows.map(({ r, tag, hot, picked }) => `<div class="bf"><span class="bt ${hot ? 'hot' : ''}">${esc(tag)}</span><span class="bn">${esc(shortT(r.title))}</span><span class="bb">${picked ? `<span class="bdone">${(dayOf(ds).times || {})[r.id] || '오늘 칸'} ✓</span>` : `<button onclick="pickHere('${r.id}')">오늘</button>`}<button onclick="slotOpen('${r.id}')">시간</button></span></div>` + (_slot === r.id ? `<div class="bslot"><input type="time" id="slotT" value="${tag.endsWith(' 빔') ? tag.slice(0, 5) : freeFrom(ds)}"><select id="slotL"><option value="30">30분</option><option value="60" selected>1시간</option><option value="90">1시간 30분</option><option value="120">2시간</option></select><button onclick="placeSlot('${r.id}')">${nat() && (D.settings || {}).calNative ? '캘린더에' : '적기'}</button></div>` : '')).join('');
+  h += rows.map(({ r, tag, hot, picked }) => `<div class="bf"><span class="bt ${hot ? 'hot' : ''}">${esc(tag)}</span><span class="bn">${esc(shortT(r.title))}</span><span class="bb">${picked ? `<span class="bdone">${(dayOf(ds).times || {})[r.id] || '오늘 칸'} ✓</span>` : `<button onclick="pickHere('${r.id}')">오늘로</button>`}<button onclick="slotOpen('${r.id}')">시간</button></span></div>` + (_slot === r.id ? `<div class="bslot"><input type="time" id="slotT" value="${tag.endsWith(' 빔') ? tag.slice(0, 5) : freeFrom(ds)}"><select id="slotL"><option value="30">30분</option><option value="60" selected>1시간</option><option value="90">1시간 30분</option><option value="120">2시간</option></select><button onclick="placeSlot('${r.id}')">${nat() && (D.settings || {}).calNative ? '캘린더에' : '적기'}</button></div>` : '')).join('');
   if (!rows.length && b.picks.length) h += `<div class="bev">오늘 칸 ${b.picks.length}개가 기다려요</div>`;
   return `<div class="stickies">${aNote({ label: '아침 브리핑', meta: md(ds), cls: 'wide brief', text: rows.map(x => shortT(x.r.title)).join(' / ') || '오늘 일정', html: h, acts: `<button onclick="dropNote('brief:${ds}')">떼기</button>` })}</div>`;
 }
@@ -1294,7 +1296,7 @@ function itemRow(r, n) {
     <div class="mg">${r.routine?`<span class="num">${n}</span>`:`<button class="chk ${r.done?'on':''}" aria-label="완료" onclick="finishRock('${r.id}')">${CHECK}</button>`}</div>
     <div class="bd"><div class="t"><span class="tx">${esc(r.title)}</span>${r.carry?`<span class="mono" style="color:var(--check);font-size:12px">⟳${r.carry}</span>`:''}</div>
     <div class="m"><span>${meta}</span>${prog}<span class="sp1"></span>
-      ${r.done?`<span style="color:var(--check)">완료</span>`:(r.routine && r.checks && r.checks[td])?`<span style="color:var(--check)">오늘 했음 ✓</span>`:(picked?`<span style="color:var(--check)">오늘 ✓</span>`:`<button onclick="pick('${r.id}')">오늘로 ›</button>`)}
+      ${r.done?`<span style="color:var(--check)">완료</span>`:(r.routine && r.checks && r.checks[td])?`<span style="color:var(--check)">오늘 했음 ✓</span>`:(picked?`<span style="color:var(--check)">오늘 칸 ✓</span>`:`<button onclick="pick('${r.id}')">오늘로</button>`)}
       <button onclick="delRock('${r.id}')">✕</button></div></div></div>`;
 }
 function renderWeek() {
