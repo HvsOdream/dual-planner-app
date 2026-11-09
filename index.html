@@ -585,6 +585,7 @@ function renderToday() {
   const cv = curVol(); const full = false; // 속지 닫기 화면은 당분간 숨김
   let h = `${full ? `<button class="banner" onclick="go('close')"><span>${volName(cv)} 속지가 다 찼어요. 1년을 돌아보고 새 속지를 끼울 시간이에요</span><b>속지 닫기 ›</b></button>` : ''}<div class="sp"></div>
   ${firstHtml(ds)}
+  ${briefHtml(ds)}
   ${calHtml(ds)}
   <div class="lbl">의도</div>
   <input class="wr" style="font-size:18px;font-weight:600" placeholder="" value="${esc(day.intent)}" onchange="dayOf('${ds}').intent=this.value;save()">
@@ -744,6 +745,7 @@ function renderRoleBox() {
 // ── 비서 포스트잇: 무엇을 붙이는지(메뉴에서 켜고 끈다) ──
 const FEATS = [
   ['notify', '비서가 쓰는 알림', '알림', '그날 마감·남은 일로 문구를 써요'],
+  ['brief', '아침 브리핑', '오늘', '일정·마감·빈 시간을 아침에 한 장으로'],
   ['due', '마감 임박', '할 일', '사흘 안에 끝나야 할 일'],
   ['stale', '2주째 그대로', '할 일', '오래 멈춘 일은 쪼개거나 묘비로'],
   ['balance', '역할 쏠림', '할 일', '한 역할에 몰리면 알려요'],
@@ -968,14 +970,47 @@ async function setCalNative(on) {
   renderCalBox(); if (on) loadCal(true); else render();
 }
 // ── 알림(앱): 아침 · 저녁 · 일요일 ──
-const NOTIFY = [{ id: 101, k: 'morning', name: '아침', t: '08:30', title: '오늘', body: '오늘 할 것, 세 줄만' }, { id: 102, k: 'evening', name: '저녁', t: '21:30', title: '오늘 닫기', body: '체크하고 한 줄 일기' }, { id: 103, k: 'sunday', name: '일요일', t: '20:00', title: '한 주 돌아보기', body: '일요일 저녁 10분' }];
-function notifyCfg() { return Object.assign({ on: false, morning: '08:30', evening: '21:30', sunday: '20:00', off: {} }, (D.settings || {}).notify || {}); }
+const NOTIFY = [{ id: 101, k: 'morning', name: '아침 브리핑', t: '08:00', title: '오늘', body: '오늘 할 것, 세 줄만' }, { id: 102, k: 'evening', name: '저녁', t: '21:30', title: '오늘 닫기', body: '체크하고 한 줄 일기' }, { id: 103, k: 'sunday', name: '일요일', t: '20:00', title: '한 주 돌아보기', body: '일요일 저녁 10분' }];
+function notifyCfg() { return Object.assign({ on: false, morning: '08:00', evening: '21:30', sunday: '20:00', off: {} }, (D.settings || {}).notify || {}); }
 // 비서가 쓰는 알림: 그날의 마감·오늘 칸·이번 주 숫자로 문구를 만든다(구독·체험 중일 때)
+function briefOf(ds) {
+  const ev = calEvents().filter(e => e.date === ds).sort((a, b) => (a.allDay ? '00' : a.start || '') < (b.allDay ? '00' : b.start || '') ? -1 : 1);
+  const timed = ev.filter(e => !e.allDay && e.start), open = openItems();
+  const due = open.filter(r => r.due === ds), soon = open.filter(r => r.due && r.due > ds && Math.round((new Date(r.due) - new Date(ds)) / 86400000) <= 3).sort((a, b) => a.due < b.due ? -1 : 1);
+  const picks = (dayOf(ds).picks || []).map(rock).filter(r => r && !r.done);
+  // 9~18시 사이 90분 넘게 비는 첫 칸
+  let gap = null; const toM = x => { const [h, m] = x.split(':').map(Number); return h * 60 + m; }; let cur = 9 * 60;
+  timed.forEach(e => { const a = toM(e.start), b = e.end ? toM(e.end) : a + 60; if (!gap && a - cur >= 90 && a <= 18 * 60) gap = [cur, a]; cur = Math.max(cur, b); });
+  if (!gap && 18 * 60 - cur >= 90) gap = [cur, 18 * 60];
+  const fm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  const bTop = open.filter(r => r.bucket === 'important' && !picks.includes(r)).sort((a, b) => (a.due || '9999') < (b.due || '9999') ? -1 : 1)[0];
+  return { ev, timed, due, soon, picks, gap: gap && [fm(gap[0]), fm(gap[1])], bTop };
+}
+function briefHtml(ds) {
+  if (ds !== today() || !featOn('brief') || new Date().getHours() >= 12 || noteOff('brief:' + ds)) return '';
+  const b = briefOf(ds); if (!b.ev.length && !b.due.length && !b.soon.length && !b.picks.length) return '';
+  const lines = [];
+  if (b.ev.length) lines.push(`일정 ${b.ev.length}개 · ${b.ev.slice(0, 3).map(e => `${e.allDay ? '종일' : e.start} ${esc(e.title)}`).join(', ')}`);
+  if (b.due.length) lines.push(`<b>오늘 마감</b> ${b.due.map(r => esc(r.title)).join(', ')}`);
+  else if (b.soon.length) lines.push(`곧 마감 ${b.soon.slice(0, 2).map(r => `${esc(r.title)} <b>D-${dleft(r.due)}</b>`).join(', ')}`);
+  if (b.picks.length) lines.push(`오늘 칸 ${b.picks.length}개`);
+  const ask = b.gap && b.bTop ? `<div style="margin-top:6px;font-size:13px">${b.gap[0]}~${b.gap[1]}이 비어요. B의 "${esc(b.bTop.title)}" 넣을까요</div>` : '';
+  return `<div class="stickies">${aNote({ label: '아침 브리핑', meta: md(ds), cls: 'wide', text: lines.join(' / '), html: lines.join('<br>') + ask, acts: (ask ? `<button onclick="pick('${b.bTop.id}')">오늘 칸에 넣기</button>` : '') + `<button onclick="dropNote('brief:${ds}')">떼기</button>` })}</div>`;
+}
 function smartNotify() { return paid() && featOn('notify'); }
 function plusDays(ds, n) { const x = new Date(ds); x.setDate(x.getDate() + n); return dstr(x); }
 function notifText(k, ds) {
   const base = NOTIFY.find(n => n.k === k), open = openItems(), td = today();
   const short = t => t.length > 22 ? t.slice(0, 21) + '…' : t;
+  if (k === 'morning' && featOn('brief')) {
+    const b = briefOf(ds), parts = [];
+    if (b.timed.length) parts.push(`일정 ${b.ev.length}개, 첫 일정 ${b.timed[0].start} ${short(b.timed[0].title)}`); else if (b.ev.length) parts.push(`종일 일정: ${short(b.ev[0].title)}`);
+    if (b.due.length) parts.push(`오늘 마감: ${b.due.map(r => short(r.title)).join(', ')}`);
+    else if (b.soon.length) parts.push(`${short(b.soon[0].title)} D-${Math.round((new Date(b.soon[0].due) - new Date(ds)) / 86400000)}`);
+    if (b.picks.length) parts.push(`오늘 칸 ${b.picks.length}개`);
+    if (b.gap && b.bTop) parts.push(`${b.gap[0]}~${b.gap[1]} 비어요`);
+    if (parts.length) return { title: '오늘 브리핑', body: parts.join(' · ') };
+  }
   if (k === 'morning') {
     const due = open.filter(r => r.due === ds);
     if (due.length) return { title: `오늘 마감 ${due.length}개`, body: due.map(r => short(r.title)).join(' · ') };
@@ -1028,7 +1063,7 @@ function rescheduleSoon() { if (!isNative()) return; clearTimeout(_nsT); _nsT = 
 async function enableNotifs() {
   const LN = isNative() && capPlugin('LocalNotifications'); if (!LN) return;
   const p = await LN.requestPermissions(); if (p.display !== 'granted') { toast('아이폰 설정 › 알림에서 허용해 주세요'); return; }
-  setNotify({ on: true }); toast('아침 8:30 · 저녁 9:30 · 일요일 8시');
+  setNotify({ on: true }); toast('아침 8시 브리핑 · 저녁 9:30 · 일요일 8시');
 }
 function setNotify(patch) { const c = notifyCfg(); Object.assign(c, patch); D.settings = Object.assign({}, D.settings, { notify: c, u: new Date().toISOString() }); D._modified = D.settings.u; _save0(); if (baseUrl()) pushState(); scheduleNotifs(); renderNotifyBox(); render(); }
 function renderNotifyBox() {
