@@ -210,7 +210,7 @@ a { color: inherit; }
 .days .td b { width: 22px; height: 22px; border-radius: 50%; background: var(--check); color: var(--paper); display: flex; align-items: center; justify-content: center; }
 
 /* 탭바 */
-.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); background: var(--paper-2); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); background: var(--paper-2); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
 .tabbar button { height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 13px; color: var(--muted); }
 .tabbar button i { width: 6px; height: 6px; border-radius: 50%; display: block; }
 .tabbar button.on { color: var(--ink); font-weight: 800; }
@@ -219,7 +219,14 @@ a { color: inherit; }
 /* 더보기 시트 */
 .more { position: fixed; inset: 0; z-index: 80; background: rgba(31,42,68,.35); display: none; align-items: flex-end; }
 .more.on { display: flex; }
-.more .box { width: 100%; max-width: 560px; margin: 0 auto; background: var(--paper); border-radius: 16px 16px 0 0; padding: 16px 20px calc(20px + env(safe-area-inset-bottom)); }
+.more .box { width: 100%; max-width: 560px; margin: 0 auto; background: var(--paper); border-radius: 16px 16px 0 0; padding: 0 20px calc(20px + env(safe-area-inset-bottom)); max-height: 88vh; max-height: 88dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.more .mhead { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; background: var(--paper); padding: 14px 0 10px; margin-bottom: 6px; border-bottom: 1px solid var(--rule); }
+.more .mhead b { font-size: 16px; font-weight: 800; }
+.more .mhead button { font-size: 15px; font-weight: 700; color: var(--ink); border: 1.5px solid var(--ink); border-radius: 18px; padding: 6px 14px; }
+.more .mclose { display: block; width: 100%; height: 46px; margin-top: 16px; border: 1.5px solid var(--ink); border-radius: 10px; font-size: 15px; font-weight: 700; color: var(--ink); }
+/* 접은 화면: 메뉴는 아래 탭에서(위쪽 오른쪽은 카메라 자리) */
+body:not(.spread) .cover .ibtn[aria-label="더보기"] { display: none; }
+html.native body:not(.spread) .cover .streak { display: none; }
 .more h3 { font-size: 11px; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; }
 .more .mi { display: flex; align-items: center; justify-content: space-between; height: 48px; border-bottom: 1px solid var(--rule); font-size: 15px; width: 100%; text-align: left; }
 .more .mi span { font-size: 12px; color: var(--muted); }
@@ -396,17 +403,19 @@ body { background-image: var(--paper-tex); }
   <button data-tab="today" class="on" onclick="go('today')"><i></i>오늘</button>
   <button data-tab="week" onclick="go('week')"><i></i>할 일</button>
   <button data-tab="review" onclick="go('review')"><i></i>기록</button>
+  <button data-tab="more" onclick="openMore()"><i></i>메뉴</button>
 </nav>
 
 <div class="more" id="more" onclick="if(event.target===this)closeMore()">
   <div class="box">
+    <div class="mhead"><b>메뉴</b><button onclick="closeMore()" aria-label="메뉴 닫기">닫기 ✕</button></div>
     <div id="acctBox"></div><div id="subBox"></div><div id="calBox"></div><div id="notifyBox"></div><div id="coverBox"></div><div id="devBox"></div>
     <div class="lbl" style="padding-left:0">비서 연결</div>
     <div id="connBox" style="font-size:13px;line-height:1.8;margin:2px 0 4px"></div>
     <button class="cta" style="margin-left:0;width:100%;height:40px" onclick="copyText(mcpUrl(),'MCP 주소 복사됨')">MCP 주소 복사</button>
     <div style="height:10px"></div>
     <div class="legal"><a href="legal/terms.html" target="_blank">이용약관</a><a href="legal/privacy.html" target="_blank">개인정보처리방침</a><a href="mailto:withsky0@gmail.com">문의</a></div>
-    <button class="line sub" style="padding-left:0;width:100%;text-align:center" onclick="closeMore()">닫기</button>
+    <button class="mclose" onclick="closeMore()">닫기</button>
   </div>
 </div>
 <div class="login" id="login" aria-modal="true" role="dialog" aria-label="로그인">
