@@ -220,7 +220,7 @@ a { color: inherit; }
 .ev .te { font-family: var(--mono); font-size: 11px; color: var(--muted); padding-right: 4px; }
 .ev.past .et, .ev.past .tm { color: var(--faint); }
 .ev.appt .te { font-family: inherit; color: var(--check); } .ev .evx { flex: none; color: var(--muted); font-size: 16px; padding: 0 4px; }
-.ev.evadd { align-items: center; gap: 8px; padding-right: 4px; } .ev.evadd input { font: inherit; font-size: 15px; background: transparent; border: none; border-bottom: 1px solid var(--rule); color: var(--ink); } .ev.evadd input[type=time] { width: 116px; flex: none; } .ev.evadd #evN { flex: 1; min-width: 0; } .ev.evadd button { flex: none; font-size: 13px; font-weight: 700; text-decoration: underline; }
+.ev.evadd { align-items: center; gap: 8px; padding-right: 4px; } .ev.evadd input { font: inherit; font-size: 15px; background: transparent; border: none; border-bottom: 1px solid var(--rule); color: var(--ink); } .ev.evadd input[type=time] { width: 116px; flex: none; } .ev.evadd select { font: inherit; font-size: 14px; background: transparent; border: none; border-bottom: 1px solid var(--rule); color: var(--ink); flex: none; } .ev.tmr .et, .ev.tmr .tm { color: var(--ink-2); } .ev.tmr { font-size: 14px; } .ev.evadd #evN { flex: 1; min-width: 0; } .ev.evadd button { flex: none; font-size: 13px; font-weight: 700; text-decoration: underline; }
 
 /* 하루 사진: 클립으로 꽂은 폴라로이드 */
 .snap { margin: 6px 0 0 52px; display: inline-block; position: relative; background: #fff; padding: 8px 8px 26px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 3px 8px 14px -6px rgba(31,42,68,.35); transform: rotate(1.6deg); }
@@ -649,7 +649,7 @@ function coverParts(tab) {
   const now = new Date();
   let t1, t2, left = '';
   const yw = `${now.getFullYear()} · W${weekNo(now)}`;
-  if (tab==='today') { const pk = (dayOf(today()).picks || []).map(rock).filter(r => r && !r._deleted), dn = pk.filter(r => r.checks && r.checks[today()]).length; t1 = `${now.getMonth()+1}월 ${now.getDate()}일 ${DOW[(now.getDay()+6)%7]}요일`; t2 = yw + (pk.length ? ` · 오늘 ${dn}/${pk.length}` : ''); }
+  if (tab==='today') { const pk = (dayOf(today()).picks || []).map(rock).filter(r => r && !r._deleted && !(r.at && r.at.slice(0, 10) > today())), dn = pk.filter(r => r.checks && r.checks[today()]).length; t1 = `${now.getMonth()+1}월 ${now.getDate()}일 ${DOW[(now.getDay()+6)%7]}요일`; t2 = yw + (pk.length ? ` · 오늘 ${dn}/${pk.length}` : ''); }
   else if (tab==='roles') { t1 = '내 역할'; t2 = roleItems ? '할 일·일정마다 역할 정하기' : '역할 이름 고치기'; left = `<button class="ibtn" aria-label="뒤로" onclick="closeRoles()">‹</button>`; }
   else if (tab==='more') { t1 = '메뉴'; t2 = yw + ' · ' + (subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'); }
   else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${yw} · 열린 일 ${o.length}`; }
@@ -681,7 +681,7 @@ function addToday() {
 }
 function renderToday() {
   const ds = today(), day = dayOf(ds);
-  const picks = (day.picks||[]).map(rock).filter(r => r && !r._deleted);
+  const picks = (day.picks||[]).map(rock).filter(r => r && !r._deleted && !(r.at && r.at.slice(0, 10) > ds));
   const inbox = stuckNotes();
   const doneN = picks.filter(r=>r.checks&&r.checks[ds]).length;
   // 오늘 고를 만한 것: A 전부 + 3일 안에 끝나는 B (아직 안 고른 것)
@@ -1088,15 +1088,20 @@ function calHtml(ds) {
   h += rows.map(({ e, r }) => e
     ? `<div class="ev ruled ${isToday && !e.allDay && e.end && e.end <= hm ? 'past' : ''}"><span class="tm">${e.allDay ? '종일' : e.start}</span><span class="et">${esc(e.title)}</span>${e.allDay || !e.end ? '' : `<span class="te">~${e.end}</span>`}</div>`
     : `<div class="ev ruled appt ${isToday && atOn(r, ds) < hm ? 'past' : ''}"><span class="tm">${atOn(r, ds)}</span><span class="et">${esc(r.title)}</span><span class="te">약속</span><button class="evx" aria-label="약속 지우기" onclick="dropAppt('${r.id}')">×</button></div>`).join('');
-  if (isToday && _evAdd) h += `<div class="ev ruled evadd"><input type="time" id="evT" value="${freeFrom(ds)}"><input id="evN" placeholder="누구와 무엇을" onkeydown="if(event.key==='Enter')addAppt()"><button onclick="addAppt()">적기</button></div>`;
+  if (isToday && _evAdd) h += `<div class="ev ruled evadd"><select id="evD">${[0, 1, 2].map(i => `<option value="${addDays(ds, i)}">${['오늘', '내일', '모레'][i]}</option>`).join('')}</select><input type="time" id="evT" value="${freeFrom(ds)}"><input id="evN" placeholder="누구와 무엇을" onkeydown="if(event.key==='Enter')addAppt()"><button onclick="addAppt()">적기</button></div>`;
   else if (!rows.length) h += `<div class="ev ruled" style="color:var(--faint)"><span class="tm"></span><span class="et">일정 없음</span></div>`;
+  // 오늘 화면에서 내일 일정도 미리: 약속과 캘린더 일정
+  if (isToday) {
+    const tm = addDays(ds, 1), nx = eventsOn(tm).map(e => ({ k: e.allDay ? '00:00' : e.start, t: e.title, a: false })).concat(apptsOn(tm).map(r => ({ k: atOn(r, tm), t: r.title, a: true, id: r.id }))).sort((x, y) => x.k < y.k ? -1 : 1);
+    if (nx.length) h += `<div class="lbl" style="font-weight:500;color:var(--muted)"><span>내일 ${md(tm)}</span></div>` + nx.map(x => `<div class="ev ruled tmr"><span class="tm">${x.k === '00:00' && !x.a ? '종일' : x.k}</span><span class="et">${esc(x.t)}</span>${x.a ? `<span class="te">약속</span><button class="evx" aria-label="약속 지우기" onclick="dropAppt('${x.id}')">×</button>` : ''}</div>`).join('');
+  }
   return h;
 }
 function addAppt() {
-  const t = (document.getElementById('evT') || {}).value, n = ((document.getElementById('evN') || {}).value || '').trim();
+  const t = (document.getElementById('evT') || {}).value, n = ((document.getElementById('evN') || {}).value || '').trim(), dd = (document.getElementById('evD') || {}).value || today();
   if (!t || !n) { toast(!n ? '무엇인지 적어 주세요' : '시각을 정해 주세요'); return; }
-  const ds = today(), r = { id: uid(), week: weekKey(new Date()), bucket: 'light', role: '', title: n, done: false, carry: 0, checks: {}, at: ds + 'T' + t, due: ds, appt: true, vol: (curVol() || {}).id };
-  D.rocks.push(r); _evAdd = false; save(); render(); apptToast(t);
+  const ds = dd, r = { id: uid(), week: weekKey(new Date()), bucket: 'light', role: '', title: n, done: false, carry: 0, checks: {}, at: ds + 'T' + t, due: ds, appt: true, vol: (curVol() || {}).id };
+  D.rocks.push(r); _evAdd = false; save(); render(); apptToast((ds === today() ? '' : ds === addDays(today(), 1) ? '내일 ' : md(ds) + ' ') + t);
 }
 function dropAppt(id) { const r = rock(id); if (!r) return; if (r.appt) { r._deleted = true; r.u = new Date().toISOString(); save(); render(); toast('약속을 지웠어요'); } else clearAt(id); }
 function setCalUrl(v) {
@@ -1157,7 +1162,7 @@ function trialHtml(ds) {
   return `<div class="stickies"><div class="sticky wide"><div class="who"><span>비서</span><span>${t > 0 ? 'D-' + t : '무료 끝'}</span></div><div class="tx">${msg}<div class="hint">계속 받으려면 첫해 ${won(SUB_FIRST)} · 정가 연 ${won(SUB_LIST)}</div></div><div class="act"><button onclick="subscribe()">구독하기</button><button onclick="dropNote('${k}')">나중에</button></div></div></div>`;
 }
 // 브리핑에 적는 짧은 제목: 머리표([신진])와 콜론·괄호 뒤 설명은 뗀다(원래 제목은 할 일에 그대로)
-function shortT(t) { let x = String(t || '').replace(/^\[[^\]]{1,8}\]\s*/, ''); const i = x.search(/\s*[:：(（—]/); if (i >= 6) x = x.slice(0, i); return x.trim(); }
+function shortT(t) { let x = String(t || '').replace(/^\[[^\]]{1,8}\]\s*/, ''); const i = x.search(/\s*(?:(?<!\d)[:：]|[(（—])/); if (i >= 6) x = x.slice(0, i); return x.trim(); }
 // 브리핑 줄: 오늘 마감 → 날짜 지남 → 곧 마감 → 빈 시간에 넣을 B. 줄마다 오늘 칸에 넣기·시간 정하기
 function briefRows(ds) {
   const b = briefOf(ds), rows = [], seen = new Set(), day = dayOf(ds);
@@ -1201,7 +1206,7 @@ function briefHtml(ds) {
   const { b, rows } = briefRows(ds); if (!b.ev.length && !rows.length && !b.picks.length) return '';
   let h = '';
   if (b.ev.length) { const f = b.timed[0] || b.ev[0]; h += `<div class="bev">일정 ${b.ev.length}개 · 첫 일정 <b>${f.allDay ? '종일' : f.start}</b> ${esc(shortT(f.title))}</div>`; }
-  h += rows.map(({ r, tag, hot, picked }) => `<div class="bf"><span class="bt ${hot ? 'hot' : ''}">${esc(tag)}</span><span class="bn">${esc(shortT(r.title))}</span><span class="bb">${atOn(r, ds) ? `<span class="bdone">약속 ✓</span>` : picked ? `<span class="bdone">오늘 칸 ✓</span>` : `<button onclick="pickHere('${r.id}')">오늘로</button>`}${atOn(r, ds) ? '' : `<button onclick="slotOpen('${r.id}')">시간</button>`}</span></div>` + (_slot === r.id ? `<div class="bslot"><input type="time" id="slotT" value="${tag.endsWith(' 빔') ? tag.slice(0, 5) : freeFrom(ds)}"><select id="slotL"><option value="30">30분</option><option value="60" selected>1시간</option><option value="90">1시간 30분</option><option value="120">2시간</option></select><button onclick="placeSlot('${r.id}')">약속으로</button>${nat() && (D.settings || {}).calNative ? `<button onclick="placeSlot('${r.id}', true)">캘린더에도</button>` : ''}</div>` : '')).join('');
+  h += rows.map(({ r, tag, hot, picked }) => `<div class="bf"><span class="bt ${hot ? 'hot' : ''}">${esc(tag)}</span><span class="bn">${esc(shortT(r.title))}</span><span class="bb">${r.at && r.at.slice(0, 10) >= ds ? `<span class="bdone">${atOn(r, ds) ? '' : (r.at.slice(0, 10) === addDays(ds, 1) ? '내일 ' : md(r.at.slice(0, 10)) + ' ') + r.at.slice(11, 16) + ' '}약속 ✓</span>` : picked ? `<span class="bdone">오늘 칸 ✓</span>` : `<button onclick="pickHere('${r.id}')">오늘로</button>`}${r.at && r.at.slice(0, 10) >= ds ? '' : `<button onclick="slotOpen('${r.id}')">시간</button>`}</span></div>` + (_slot === r.id ? `<div class="bslot"><input type="time" id="slotT" value="${tag.endsWith(' 빔') ? tag.slice(0, 5) : freeFrom(ds)}"><select id="slotL"><option value="30">30분</option><option value="60" selected>1시간</option><option value="90">1시간 30분</option><option value="120">2시간</option></select><button onclick="placeSlot('${r.id}')">약속으로</button>${nat() && (D.settings || {}).calNative ? `<button onclick="placeSlot('${r.id}', true)">캘린더에도</button>` : ''}</div>` : '')).join('');
   if (!rows.length && b.picks.length) h += `<div class="bev">오늘 칸 ${b.picks.length}개가 기다려요</div>`;
   return `<div class="stickies">${aNote({ label: '아침 브리핑', meta: md(ds), cls: 'wide brief', text: rows.map(x => shortT(x.r.title)).join(' / ') || '오늘 일정', html: h, acts: `<button onclick="dropNote('brief:${ds}')">떼기</button>` })}</div>`;
 }

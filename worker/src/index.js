@@ -42,6 +42,7 @@ function applyItems(S, items, src) {
       ['title', 'role', 'due', 'routine', 'done', 'tomb'].forEach(k => { if (k in it) r[k] = it[k]; });
       if ('at' in it) { const a = String(it.at || '').replace(' ', 'T').slice(0, 16); if (/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(a)) { r.at = a; r.due = r.due || a.slice(0, 10); } else delete r.at; }
       if ('bucket' in it) r.bucket = BUCKETS[String(it.bucket).toLowerCase()] || r.bucket;
+      if ('today' in it) { const day = S.days[td] || (S.days[td] = { intent: '', note: '', picks: [], inbox: [] }); day.picks = (day.picks || []).filter(x => x !== r.id); if (it.today) day.picks.push(r.id); day.u = now; }
       if (it.done) r.doneAt = r.doneAt || td;
       r.u = now; updated.push(r.id); return;
     }
@@ -104,7 +105,7 @@ const INSTRUCTIONS = `DUAL Planner — 사용자의 노트형 플래너. 앱은 
 const TOOLS = [
   { name: 'planner_read', description: '(플래너 일을 시작할 때 먼저 호출) 플래너 현재 상태 요약(역할, A/B/C/D 할 일 목록과 id, 오늘 의도·고른 것·한 줄, 인박스, 이번 주 완료, 2주 방치 항목). 정리·제안 전에 먼저 읽는다.', inputSchema: { type: 'object', properties: {} } },
   { name: 'planner_add', description: '비서가 플래너에 적는다. items 배열. 각 항목: text(필수), kind = item(할 일 목록에 바로 적음, bucket 필수: A|B|C|D) | todo(오늘 인박스 할 일) | note(오늘 인박스 메모) | candidate(일요일 리뷰용 다음 주 B 후보) | review(이번 주 리뷰 3~5문장, text에) | yearreview(지금 속지 1년 리뷰, text에). role(역할명), due(YYYY-MM-DD, B는 필수), routine(주 N회 숫자), at(YYYY-MM-DDTHH:MM 약속 시각, 있으면 앱이 알림).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, kind: { type: 'string', enum: ['item', 'todo', 'note', 'candidate', 'review', 'yearreview'] }, bucket: { type: 'string', description: 'A|B|C|D' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' }, at: { type: 'string' } }, required: ['text'] } } }, required: ['items'] } },
-  { name: 'planner_update', description: '기존 할 일 항목 수정. items 배열, 각 항목 id 필수. 바꿀 필드만: title, bucket(A|B|C|D), role, due, routine, at(YYYY-MM-DDTHH:MM 약속 시각, 빈 문자열이면 뺌), done(true/false), tomb(true=묘비·목록에서 치움).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, bucket: { type: 'string' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' }, at: { type: 'string' }, done: { type: 'boolean' }, tomb: { type: 'boolean' } }, required: ['id'] } } }, required: ['items'] } },
+  { name: 'planner_update', description: '기존 할 일 항목 수정. items 배열, 각 항목 id 필수. 바꿀 필드만: title, bucket(A|B|C|D), role, due, routine, at(YYYY-MM-DDTHH:MM 약속 시각, 빈 문자열이면 뺌), today(true=오늘 칸에 올림, false=오늘 칸에서 뺌 — 다른 날 약속은 오늘 칸에 두지 않는다), done(true/false), tomb(true=묘비·목록에서 치움).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, bucket: { type: 'string' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' }, at: { type: 'string' }, today: { type: 'boolean' }, done: { type: 'boolean' }, tomb: { type: 'boolean' } }, required: ['id'] } } }, required: ['items'] } },
 ];
 async function mcp(req, env, token) {
   if (req.method === 'GET') return new Response('Method Not Allowed', { status: 405, headers: CORS });
