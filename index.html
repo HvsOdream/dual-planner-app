@@ -184,6 +184,8 @@ a { color: inherit; }
 .feat.on .sw { background: var(--accent); } .feat.on .sw::after { left: 18px; }
 .feat .st { flex: none; font-size: 13px; font-weight: 600; color: var(--ink); min-width: 20px; text-align: right; } .feat:not(.on) .st, .feat:not(.on) .nm b { color: var(--muted); font-weight: 500; }
 /* 메뉴도 노트 한 장: 마진선 안쪽에 같은 소제목·같은 줄 */
+.plan { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+.plan .pk { flex: none; width: 16px; color: var(--ink-2); } .plan .pn { flex: 1; display: flex; flex-direction: column; gap: 2px; } .plan .pn b { font-size: 15px; font-weight: 600; color: var(--ink); } .plan .pn i { font-style: normal; font-size: 12px; color: var(--muted); } .plan .pn em { font-style: normal; font-size: 11px; font-weight: 700; color: var(--accent); margin-left: 4px; } .plan .pp { flex: none; font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; } .plan:not(.on) .pn b, .plan:not(.on) .pp { color: var(--ink-2); font-weight: 500; }
 .mpage { padding: 8px 16px 40px 52px; } .mpage .lbl { padding-left: 0; } .mpage .cta { margin-left: 0; width: 100%; } .mpage .legal { margin-top: 16px; }
 .dev-on { position: fixed; left: 8px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; font-size: 11px; background: var(--check); color: #fff; padding: 2px 8px; border-radius: 10px; }
 @keyframes peel { 0%, 55% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px) rotate(-5deg); } }
@@ -466,6 +468,7 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
   <section class="page" id="p-close"><div class="sheet" id="close"></div></section>
   <section class="page" id="p-refill"><div class="sheet" id="refill"></div></section>
   <section class="page" id="p-roles"><div class="sheet"><div class="mpage" id="rolesBox"></div></div></section>
+  <section class="page" id="p-sub"><div class="sheet"><div class="mpage" id="subP"></div></div></section>
   <section class="page" id="p-more"><div class="sheet" id="moreP"><div class="mpage">
     <div id="acctBox"></div><div id="subBox"></div><div id="roleBox"></div><div id="calBox"></div><div id="notifyBox"></div><div id="coverBox"></div><div id="devBox"></div>
     <div class="lbl" style="padding-left:0">비서 연결</div>
@@ -577,7 +580,7 @@ function syncPages() {
   const sp = spread(); document.body.classList.toggle('spread', sp);
   const on = sp ? ['today', rightTab] : [tab];
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', on.includes(p.id.slice(2))));
-  document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  const tb = ['sub', 'roles'].includes(tab) ? 'more' : tab; document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === tb));
 }
 function go(t) {
   tab = t; if (t !== 'today') rightTab = t;
@@ -616,7 +619,7 @@ const SWIPE_TABS = ['today', 'week', 'review', 'more'];
 function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); loadAuthConf().then(renderAccount); go('more'); }
 function renderMore() { setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; }
 function closeMore() { if (tab === 'more') go('today'); }
-function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); else if (t==='roles') renderRoles(); }
+function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); else if (t==='roles') renderRoles(); else if (t==='sub') renderSubPage(); }
 function markSeen() { const td = today(); if (D.seenDay !== td) { D.seenPrev = D.seenDay || ''; D.seenDay = td; _save0(); } }
 function awayDays() { const p = D.seenPrev; return p ? Math.round((new Date(today()) - new Date(p)) / 86400000) : 0; }
 function backMode() { return awayDays() >= 4 && !noteOff('back:' + today()) && (overdueItems().length + staleItems().length) >= 2; }
@@ -656,6 +659,7 @@ function coverParts(tab) {
   let t1, t2, left = '';
   const yw = `${now.getFullYear()} · W${weekNo(now)}`;
   if (tab==='today') { const pk = (dayOf(today()).picks || []).map(rock).filter(r => r && !r._deleted && !(r.at && r.at.slice(0, 10) > today())), dn = pk.filter(r => r.checks && r.checks[today()]).length; t1 = `${now.getMonth()+1}월 ${now.getDate()}일 ${DOW[(now.getDay()+6)%7]}요일`; t2 = yw + (pk.length ? ` · 오늘 ${dn}/${pk.length}` : ''); }
+  else if (tab==='sub') { t1 = '구독'; t2 = subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'; left = `<button class="ibtn" aria-label="뒤로" onclick="go(subBack === 'sub' ? 'more' : subBack)">‹</button>`; }
   else if (tab==='roles') { t1 = '내 역할'; t2 = roleItems ? '할 일·일정마다 역할 정하기' : '역할 이름 고치기'; left = `<button class="ibtn" aria-label="뒤로" onclick="closeRoles()">‹</button>`; }
   else if (tab==='more') { t1 = '메뉴'; t2 = yw + ' · ' + (subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'); }
   else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${yw} · 열린 일 ${o.length}`; }
@@ -958,10 +962,13 @@ function recordNotes(wk) {
   return h;
 }
 
-// ── 비서 포스트잇 구독: 비서 포스트잇을 받은 날로 20일 무료, 그 뒤 첫해 할인가 (정가 연 22,000원) ──
-const SUB_LIST = 22000, SUB_FIRST = 16900, TRIAL_DAYS = 20;
+// ── 비서 포스트잇 구독: 비서 포스트잇을 받은 날로 20일 무료, 그 뒤 월 구독 또는 연 구독(할인) ──
+// 가격은 여기 한 곳에서만 바꾼다(앱스토어 지역별 가격은 결제 연결 때 StoreKit 값으로 덮어씀)
+const SUB_MONTH = 3900, SUB_YEAR = 29000, TRIAL_DAYS = 20;
 const won = n => n.toLocaleString('ko-KR') + '원';
-const SUB_PRICE = `첫해 ${won(SUB_FIRST)}`;
+const SUB_OFF = Math.round((1 - SUB_YEAR / (SUB_MONTH * 12)) * 100);
+const SUB_PRICE = `월 ${won(SUB_MONTH)} · 연 ${won(SUB_YEAR)}`;
+let subPlan = 'year';
 function ensureTrial() {}
 // 쓴 날: 또렷한 비서 포스트잇이 한 장이라도 붙은 날만 센다(열기만 한 날, 비운 날은 안 깎인다). 계정 상태에 같이 저장
 function useDays() { return ((D.settings || {}).useDays || []).slice(); }
@@ -979,20 +986,39 @@ function paid() {
   const v = curVol(); return !!((v && v.paid) || subActive() || trialLeft() > 0);
 }
 function togglePaidPreview() { D.preview = D.preview === 'free' ? 'paid' : D.preview === 'paid' ? '' : 'free'; delete D.paidPreview; _save0(); closeMore(); render(); toast(D.preview === 'free' ? '구독 안 한 화면으로 보는 중' : D.preview === 'paid' ? '구독한 화면으로 보는 중' : '실제 상태로 보는 중'); }
-function subscribe() { toast(isNative() ? '결제는 다음 업데이트에서 열려요' : '구독은 앱에서 할 수 있어요'); }
+function subscribe(plan) { plan = plan || subPlan; toast(isNative() ? `${plan === 'year' ? '연' : '월'} 구독 결제는 다음 업데이트에서 열려요` : '구독은 앱에서 할 수 있어요'); }
+function openSub() { if (tab !== 'sub') subBack = tab === 'more' ? 'more' : tab; go('sub'); }
+let subBack = 'more';
+function subStatus() { const t = trialLeft(); return subActive() ? `구독 중 · ${D.sub.until.replace(/-/g, '.')}까지` : t > 0 ? `무료 ${useDays().length}일 받았어요 · ${trialShown()}일 남음` : '무료가 끝났어요 · 비서 포스트잇이 흐리게 보여요'; }
+// 구독 페이지: 메뉴 안의 노트 한 장
+function renderSubPage() {
+  const el = document.getElementById('subP'); if (!el) return;
+  const on = subActive(), rvs = Object.values(D.reviews || {}).filter(r => r && r.summary).length, cds = Object.values(D.reviews || {}).reduce((a, r) => a + ((r && r.candidates) || []).length + ((r && r.adopted) || 0), 0);
+  const plan = (k, name, price, sub, tag) => `<button class="plan ${subPlan === k ? 'on' : ''}" onclick="subPlan='${k}';renderSubPage()" aria-pressed="${subPlan === k}"><span class="pk">${subPlan === k ? '●' : '○'}</span><span class="pn"><b>${name}${tag ? ` <em>${tag}</em>` : ''}</b><i>${sub}</i></span><span class="pp">${price}</span></button>`;
+  el.innerHTML = `<div class="lbl">지금</div><div class="subst">${subStatus()}</div>
+    ${useDays().length ? `<div class="subst" style="font-size:13px;color:var(--ink-2)">지금까지 아침 브리핑·마감·멈춘 일 포스트잇 ${useDays().length}일${rvs ? `, 주간 리뷰 ${rvs}번` : ''}${cds ? `, 다음 주 후보 ${cds}장` : ''}을 받았어요</div>` : ''}
+    ${on ? '' : `<div class="lbl" style="margin-top:8px">구독</div>
+    ${plan('year', '연 구독', won(SUB_YEAR) + ' / 년', `한 달에 ${won(Math.round(SUB_YEAR / 12 / 10) * 10)}꼴`, SUB_OFF + '% 할인')}
+    ${plan('month', '월 구독', won(SUB_MONTH) + ' / 월', '언제든 해지')}
+    <button class="cta" style="margin-top:8px" onclick="subscribe()">${subPlan === 'year' ? '연 구독 시작하기' : '월 구독 시작하기'}</button>
+    <div class="subst" style="font-size:12px">무료 ${TRIAL_DAYS}일은 비서 포스트잇을 받은 날만 세요. 구독은 앱스토어에서 언제든 해지할 수 있어요</div>`}
+    <div class="lbl" style="margin-top:8px">구독하면 또렷해지는 것</div>
+    <div class="subst" style="font-size:13px;line-height:1.8">${FEATS.map(f => f[1]).join(' · ')}</div>
+    <div class="subst" style="font-size:12px;color:var(--muted)">할 일·오늘·기록·약속과 알림은 구독과 상관없이 그대로 써요</div>
+    <div class="acts" style="padding:12px 0;gap:20px"><button class="cta ghost" style="width:auto;margin:0" onclick="toast('구매 복원은 결제 연결 뒤에 열려요')">구매 복원</button><button class="cta ghost" style="width:auto;margin:0" onclick="toast('구독 관리는 아이폰 설정 › Apple ID › 구독에서 해요')">구독 관리</button></div>
+    <div class="legal"><a href="legal/terms.html" target="_blank">이용약관</a><a href="legal/privacy.html" target="_blank">개인정보처리방침</a></div>`;
+}
 function renderSubBox() {
   const el = document.getElementById('subBox'); if (!el) return;
   const t = trialLeft(), on = subActive();
-  const st = on ? `구독 중 · ${D.sub.until.replace(/-/g, '.')}까지` : t > 0 ? `무료 · ${useDays().length}일 받았어요 · ${trialShown()}일 남음` : '비서 포스트잇이 흐리게 보여요';
-  el.innerHTML = `<div class="lbl" style="padding-left:0">비서 포스트잇</div><div class="subst">${st}</div>` +
-    (on ? '' : `<button class="cta" style="margin-left:0;width:100%;height:40px" onclick="subscribe()">구독하기 · ${SUB_PRICE}</button><div class="subst" style="font-size:12px;margin-top:4px">정가 연 ${won(SUB_LIST)} · 둘째 해부터 정가</div>`) +
+  el.innerHTML = `<div class="lbl" style="padding-left:0">구독</div><button class="feat on" onclick="openSub()"><span class="nm"><b>${on ? '구독 중' : '비서 포스트잇 구독'}</b><i>${subStatus()}</i></span><span class="st">›</span></button><div class="lbl" style="padding-left:0;margin-top:8px">비서 포스트잇</div>` +
     `<div class="feats">${FEATS.map(([id, n, w, d]) => { const f = featOn(id); return `<button class="feat ${f ? 'on' : ''}" onclick="setFeat('${id}', ${!f})" aria-pressed="${f}"><span class="nm"><b>${n}</b><i>${w} · ${d}</i></span><span class="st">${f ? '켬' : '끔'}</span></button>`; }).join('')}</div>` +
-    (paid() ? '' : `<div class="subst" style="font-size:12px;margin-top:6px">구독하면 켜 둔 포스트잇이 또렷해져요</div>`);
+    (paid() ? '' : `<div class="subst" style="font-size:12px;margin-top:6px">구독하면 켜 둔 포스트잇이 또렷해져요</div>`) + '<div style="height:8px"></div>';
 }
 // 뒤집힌 포스트잇: 내용은 숫자만 비치고, 누르면 귀퉁이가 들린다
 // 구독 전: 비서 포스트잇은 붙어 있되 글씨가 흐리다. 누르면 구독 안내
 function backSticky(label, count, text, cls) {
-  return `<div class="sticky blur ${cls || ''}" role="button" tabindex="0" onclick="openMore()"><div class="who"><span>비서</span><span>${esc(label)} · ${esc(count)}</span></div>
+  return `<div class="sticky blur ${cls || ''}" role="button" tabindex="0" onclick="openSub()"><div class="who"><span>비서</span><span>${esc(label)} · ${esc(count)}</span></div>
     <div class="tx" aria-hidden="true">${esc(String(text || '').slice(0, 160))}</div><div class="unlock">구독하면 또렷해져요</div></div>`;
 }
 // ── 속지 비서: 역할 없는 할 일이 3개 넘게 쌓이면 묶음을 제안한다 ──
@@ -1099,7 +1125,7 @@ function calHtml(ds) {
   // 오늘 화면에서 내일 일정도 미리: 약속과 캘린더 일정
   if (isToday) {
     const tm = addDays(ds, 1), nx = eventsOn(tm).map(e => ({ k: e.allDay ? '00:00' : e.start, t: e.title, a: false })).concat(apptsOn(tm).map(r => ({ k: atOn(r, tm), t: r.title, a: true, id: r.id }))).sort((x, y) => x.k < y.k ? -1 : 1);
-    if (nx.length) h += `<div class="lbl" style="font-weight:500;color:var(--muted)"><span>내일 ${md(tm)}</span></div>` + nx.map(x => `<div class="ev ruled tmr"><span class="tm">${x.k === '00:00' && !x.a ? '종일' : x.k}</span><span class="et">${esc(x.t)}</span>${x.a ? `<span class="te">${apptClash(tm, x.k, x.id) ? '겹침' : '약속'}</span>`<button class="evx" aria-label="약속 지우기" onclick="dropAppt('${x.id}')">×</button>` : ''}</div>`).join('');
+    if (nx.length) h += `<div class="lbl" style="font-weight:500;color:var(--muted)"><span>내일 ${md(tm)}</span></div>` + nx.map(x => `<div class="ev ruled tmr"><span class="tm">${x.k === '00:00' && !x.a ? '종일' : x.k}</span><span class="et">${esc(x.t)}</span>${x.a ? `<span class="te">${apptClash(tm, x.k, x.id) ? '겹침' : '약속'}</span><button class="evx" aria-label="약속 지우기" onclick="dropAppt('${x.id}')">×</button>` : ''}</div>`).join('');
   }
   return h;
 }
@@ -1165,7 +1191,7 @@ function trialHtml(ds) {
   const rvs = Object.values(D.reviews || {}).filter(r => r && r.summary).length, cds = Object.values(D.reviews || {}).reduce((a, r) => a + ((r && r.candidates) || []).length + ((r && r.adopted) || 0), 0);
   const got = `${useDays().length}일 동안 아침 브리핑과 마감·멈춘 일 포스트잇${rvs ? `, 주간 리뷰 ${rvs}번` : ''}${cds ? `, 다음 주 후보 ${cds}장` : ''}을 받았어요`;
   const msg = t > 0 ? (n > 0 ? `비서 포스트잇 무료가 <b>${n}일</b> 남았어요` : '오늘이 비서 포스트잇 무료 마지막 날이에요') + `<div class="hint" style="margin-top:2px">${got}. 포스트잇을 받은 날만 세요</div>` : `무료 20일을 다 썼어요. 이제 비서 포스트잇은 흐리게 붙어요<div class="hint" style="margin-top:2px">${got}</div>`;
-  return `<div class="stickies"><div class="sticky wide"><div class="who"><span>비서</span><span>${t > 0 ? (n > 0 ? n + '일 남음' : '마지막 날') : '무료 끝'}</span></div><div class="tx">${msg}<div class="hint">계속 받으려면 첫해 ${won(SUB_FIRST)} · 정가 연 ${won(SUB_LIST)}</div></div><div class="act"><button onclick="subscribe()">구독하기</button><button onclick="dropNote('${k}')">나중에</button></div></div></div>`;
+  return `<div class="stickies"><div class="sticky wide"><div class="who"><span>비서</span><span>${t > 0 ? (n > 0 ? n + '일 남음' : '마지막 날') : '무료 끝'}</span></div><div class="tx">${msg}<div class="hint">계속 받으려면 월 ${won(SUB_MONTH)} · 연 ${won(SUB_YEAR)}(${SUB_OFF}% 할인)</div></div><div class="act"><button onclick="openSub()">구독 보기</button><button onclick="dropNote('${k}')">나중에</button></div></div></div>`;
 }
 // 브리핑에 적는 짧은 제목: 머리표([신진])와 콜론·괄호 뒤 설명은 뗀다(원래 제목은 할 일에 그대로)
 function shortT(t) { let x = String(t || '').replace(/^\[[^\]]{1,8}\]\s*/, ''); const i = x.search(/\s*(?:(?<!\d)[:：]|[(（—])/); if (i >= 6) x = x.slice(0, i); return x.trim(); }

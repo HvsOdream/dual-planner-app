@@ -1,0 +1,23 @@
+name: web-check
+# index.html 안의 스크립트에 문법 오류가 있으면 바로 빨간불(0.7.2에서 앱이 통째로 안 뜬 사고 재발 방지)
+on:
+  push:
+    paths: ['index.html', 'worker/**', '.github/workflows/web-check.yml']
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: index.html script syntax
+        run: |
+          python3 - <<'PY'
+          import re
+          s = open('index.html', encoding='utf-8').read()
+          for i, m in enumerate(re.findall(r'<script>(.*?)</script>', s, re.S)):
+              open(f'/tmp/s{i}.js', 'w', encoding='utf-8').write(m)
+          PY
+          for f in /tmp/s*.js; do node --check "$f"; done
+      - name: worker syntax
+        run: node --check worker/src/index.js
