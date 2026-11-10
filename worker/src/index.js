@@ -341,6 +341,8 @@ async function review(req, env, token) {
     '남은 일의 상태를 지어내지 않는다: "재작성", "재시도", "다시"처럼 이전 시도가 있었다는 말은 자료에 없으면 쓰지 않는다.',
     '자료에 없는 사실을 지어내지 않는다. 일정이 없는 시간을 쉬었다고 단정하지 않는다.',
     '다음 주 후보는 최대 3개. 남은 일 제목을 그대로 베끼지 말고, 그 일을 시작하는 30분~1시간짜리 첫 행동으로 쓴다. 예: "논문 초안 목차 다시 짜기" → "논문 목차 1장 소제목만 다시 적기", "고객에게 최종 문구 받아 안내서 완성" → "고객에게 문구 줄 수 있는 날짜 묻는 메시지 보내기", "기출 3개년 정리" → "기출 한 회분 풀고 틀린 문제 유형만 표시". 역할은 주어진 역할 이름 중 하나, due는 그 행동을 해 볼 날로 다음 주 월~일 사이(YYYY-MM-DD).',
+    '후보는 반드시 그 일 자체를 한 걸음 진전시키는 행동이어야 한다. 늦은 이유 분석·원인 찾기·회고·"현황 확인"·"다시 확인"처럼 일을 앞으로 보내지 않는 것은 후보로 쓰지 않는다. 일이 아직 시작 전 단계면 그 앞 단계를 쓴다(책 후보를 아직 안 골랐으면 "1권 읽기"가 아니라 "후보 3권 제목만 적기"). 큰 일은 30분 안에 끝나는 범위로 줄인다(보고서 → "보고서 표 1개만 채우기").',
+    '역할 이름은 주어진 그대로 쓴다. "아내" 역할을 "아내와 보내는 시간"처럼 관계를 바꿔 풀어 쓰지 않는다("아내 역할에 1시간").',
     '설명 없이 JSON 하나만: {"summary":"...","cands":[{"title":"...","role":"...","due":"YYYY-MM-DD"}]}'
   ].join('\n');
   const user = `오늘: ${String(b.today || '').slice(0, 10)} / 다음 주 시작: ${String(b.next || '').slice(0, 10)}\n역할: ${cut(b.roles, 8, String).join(', ') || '없음'}\n이번 주 끝낸 일:\n${done.join('\n') || '- 없음'}\n남은 일:\n${open.join('\n') || '- 없음'}\n캘린더 시간: ${hours || '없음'}\n한 줄 일기:\n${notes.join('\n') || '- 없음'}`;
@@ -362,6 +364,8 @@ async function review(req, env, token) {
   // 후보 날짜는 다음 주 안으로
   const nx = String(b.next || '').slice(0, 10), nxEnd = /^\d{4}-\d{2}-\d{2}$/.test(nx) ? new Date(Date.parse(nx) + 6 * 864e5).toISOString().slice(0, 10) : '';
   const inWeek = d => !nx || (d >= nx && d <= nxEnd) ? d : nx;
+  out.cands = (out.cands || []).filter(c => !/(왜|이유|원인|분석|현황 확인|다시 확인)/.test(String(c && c.title || '')));
+  out.summary = String(out.summary || '').replace(/(아내|남편)와 보내는 (시간|일)/g, '$1 역할').replace(/(아내|남편)로서의 일/g, '$1 역할 일');
   const cands = cut(out.cands, 3, c => ({ title: String(c.title || '').slice(0, 60), role: roles.has(String(c.role)) ? String(c.role) : '', due: /^\d{4}-\d{2}-\d{2}$/.test(String(c.due)) ? inWeek(String(c.due)) : '' })).filter(c => c.title);
   return json({ summary: String(out.summary).slice(0, 600), cands });
 }

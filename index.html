@@ -623,12 +623,18 @@ function backMode() { return awayDays() >= 4 && !noteOff('back:' + today()) && (
 // 며칠 비우고 돌아온 날: 밀린 걸 한꺼번에 붙이지 않고 한 장으로
 function backHtml() {
   if (!backMode()) return '';
-  const lag = [...new Set(overdueItems().concat(staleItems()))];
-  const order = { urgent: 0, important: 1, light: 2 }, top = openItems().filter(r => r.bucket !== 'nice' && !r.routine && !waiting(r)).sort((a, b) => (order[a.bucket] ?? 3) - (order[b.bucket] ?? 3) || (a.due || '9999').localeCompare(b.due || '9999')).slice(0, 3);
-  const rest = lag.filter(r => !top.includes(r) && r.bucket !== 'urgent');
-  const html = `${awayDays()}일 만이에요. 밀린 건 한꺼번에 보지 말고 셋만 다시 정해요<br>` + top.map(r => `<b>${esc(r.title)}</b>`).join('<br>') + (rest.length ? `<div style="margin-top:6px;font-size:13px">날짜 지나거나 오래 멈춘 ${rest.length}개는 D에 넣어 둘까요. 지우지 않아요</div>` : '');
-  return aNote({ label: '다시 왔어요', cls: 'wide', text: top.map(r => r.title).join(' · '), html, acts: `<button onclick="pickMany(${esc(JSON.stringify(top.map(r => r.id)))})">셋 오늘 칸에</button>` + (rest.length ? `<button onclick="toD(${esc(JSON.stringify(rest.map(r => r.id)))})">${rest.length}개 D로</button>` : '') + `<button onclick="dropNote('back:${today()}')">떼기</button>` });
+  // 오늘·내일 마감은 먼저 고르고, D로 보낼 후보에는 절대 넣지 않는다. 고른 것 중 하나를 '오늘 하나'로
+  const td = today(), soon = r => r.due && r.due >= td && r.due <= addDays(td, 1);
+  const order = { urgent: 0, important: 1, light: 2 };
+  const top = openItems().filter(r => r.bucket !== 'nice' && !r.routine && !waiting(r)).sort((a, b) => (soon(b) - soon(a)) || (order[a.bucket] ?? 3) - (order[b.bucket] ?? 3) || (a.due || '9999').localeCompare(b.due || '9999')).slice(0, 3);
+  const rest = [...new Set(overdueItems().concat(staleItems()))].filter(r => !top.includes(r) && r.bucket !== 'urgent' && !(r.due && r.due >= td));
+  // 지난 리뷰가 만들어 둔 작은 첫 행동이 있으면 붙인다
+  const step = r => { const cs = Object.values(D.reviews || {}).flatMap(v => (v && v.candidates) || []).filter(c => c && !c.state && c.title && r.title && !/(왜|이유|원인|분석|현황 확인)/.test(c.title) && (c.from === r.id || c.title.split(/\s+/).slice(0, 2).some(w => w.length >= 2 && r.title.includes(w)))); return cs.length ? cs[cs.length - 1].title : ''; };
+  const n = top.length, word = ['', '하나', '둘', '셋'][n];
+  const html = `${awayDays()}일 만이에요. 밀린 건 한꺼번에 보지 말고 ${word}만 다시 봐요. 오늘은 하나만 골라도 돼요<br>` + top.map(r => { const st = step(r); return `<div class="bf"><span class="bt ${soon(r) || (r.due && r.due < td) ? 'hot' : ''}">${r.due ? (r.due < td ? '지남' : r.due === td ? '오늘' : r.due === addDays(td, 1) ? '내일' : 'D-' + dleft(r.due)) : '그대로'}</span><span class="bn">${esc(shortT(r.title))}${st ? `<br><span style="font-weight:400;font-size:12px">첫 걸음: ${esc(st)}</span>` : ''}</span><span class="bb"><button onclick="pickBack('${r.id}')">오늘 이것</button></span></div>`; }).join('') + (rest.length ? `<div style="margin-top:6px;font-size:13px">날짜 지나거나 오래 멈춘 ${rest.length}개(${rest.slice(0, 2).map(r => esc(shortT(r.title))).join(', ')}${rest.length > 2 ? ' 외' : ''})는 D에 넣어 둘까요. 지우지 않아요</div>` : '');
+  return aNote({ label: '다시 왔어요', cls: 'wide brief', text: top.map(r => r.title).join(' · '), html, acts: (n > 1 ? `<button onclick="pickMany(${esc(JSON.stringify(top.map(r => r.id)))})">${word} 다 오늘 칸에</button>` : '') + (rest.length ? `<button onclick="toD(${esc(JSON.stringify(rest.map(r => r.id)))})">${rest.length}개 D로</button>` : '') + `<button onclick="dropNote('back:${today()}')">떼기</button>` });
 }
+function pickBack(id) { pickMany([id]); }
 function render() { markSeen(); ensureTrial(); syncRoles(); rescheduleSoon(); setTimeout(maybeGroup, 800); widgetSync(); applyTheme(); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.preview ? '' : 'none'; if (db) db.textContent = D.preview === 'free' ? '구독 안 한 화면' : '구독한 화면'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); }
 
 function renderCover() {
@@ -676,7 +682,7 @@ function addToday() {
   const el = document.getElementById('quickIn'); let t = (el.value||'').trim(); if (!t) return;
   const pt = parseTime(t); if (pt) t = pt[1];
   const r = { id: uid(), week: weekKey(new Date()), bucket: 'light', role: '', title: t, done: false, carry: 0, checks: {} };
-  if (pt) { r.at = today() + 'T' + pt[0]; r.due = today(); r.appt = true; r.vol = (curVol() || {}).id; D.rocks.push(r); el.value = ''; save(); render(); apptToast(pt[0]); return; }
+  if (pt) { r.at = today() + 'T' + pt[0]; r.due = today(); r.appt = true; r.vol = (curVol() || {}).id; D.rocks.push(r); el.value = ''; save(); render(); apptToast(pt[0], today(), r.id); return; }
   D.rocks.push(r); dayOf(today()).picks.push(r.id); markStarted(); save(); render(); setTimeout(()=>{ const e=document.getElementById('quickIn'); if (e) e.focus(); }, 30);
 }
 function renderToday() {
@@ -1087,13 +1093,13 @@ function calHtml(ds) {
   let h = `<div class="lbl"><span>일정</span>${isToday ? `<button onclick="_evAdd=!_evAdd;render();setTimeout(()=>{const e=document.getElementById('evT');if(e)e.focus()},50)">${_evAdd ? '닫기' : '+ 약속'}</button>` : ''}</div>`;
   h += rows.map(({ e, r }) => e
     ? `<div class="ev ruled ${isToday && !e.allDay && e.end && e.end <= hm ? 'past' : ''}"><span class="tm">${e.allDay ? '종일' : e.start}</span><span class="et">${esc(e.title)}</span>${e.allDay || !e.end ? '' : `<span class="te">~${e.end}</span>`}</div>`
-    : `<div class="ev ruled appt ${isToday && atOn(r, ds) < hm ? 'past' : ''}"><span class="tm">${atOn(r, ds)}</span><span class="et">${esc(r.title)}</span><span class="te">약속</span><button class="evx" aria-label="약속 지우기" onclick="dropAppt('${r.id}')">×</button></div>`).join('');
+    : `<div class="ev ruled appt ${isToday && atOn(r, ds) < hm ? 'past' : ''}"><span class="tm">${atOn(r, ds)}</span><span class="et">${esc(r.title)}</span><span class="te">${apptClash(ds, atOn(r, ds), r.id) ? '겹침' : '약속'}</span><button class="evx" aria-label="약속 지우기" onclick="dropAppt('${r.id}')">×</button></div>`).join('');
   if (isToday && _evAdd) h += `<div class="ev ruled evadd"><select id="evD">${[0, 1, 2].map(i => `<option value="${addDays(ds, i)}">${['오늘', '내일', '모레'][i]}</option>`).join('')}</select><input type="time" id="evT" value="${freeFrom(ds)}"><input id="evN" placeholder="누구와 무엇을" onkeydown="if(event.key==='Enter')addAppt()"><button onclick="addAppt()">적기</button></div>`;
   else if (!rows.length) h += `<div class="ev ruled" style="color:var(--faint)"><span class="tm"></span><span class="et">일정 없음</span></div>`;
   // 오늘 화면에서 내일 일정도 미리: 약속과 캘린더 일정
   if (isToday) {
     const tm = addDays(ds, 1), nx = eventsOn(tm).map(e => ({ k: e.allDay ? '00:00' : e.start, t: e.title, a: false })).concat(apptsOn(tm).map(r => ({ k: atOn(r, tm), t: r.title, a: true, id: r.id }))).sort((x, y) => x.k < y.k ? -1 : 1);
-    if (nx.length) h += `<div class="lbl" style="font-weight:500;color:var(--muted)"><span>내일 ${md(tm)}</span></div>` + nx.map(x => `<div class="ev ruled tmr"><span class="tm">${x.k === '00:00' && !x.a ? '종일' : x.k}</span><span class="et">${esc(x.t)}</span>${x.a ? `<span class="te">약속</span><button class="evx" aria-label="약속 지우기" onclick="dropAppt('${x.id}')">×</button>` : ''}</div>`).join('');
+    if (nx.length) h += `<div class="lbl" style="font-weight:500;color:var(--muted)"><span>내일 ${md(tm)}</span></div>` + nx.map(x => `<div class="ev ruled tmr"><span class="tm">${x.k === '00:00' && !x.a ? '종일' : x.k}</span><span class="et">${esc(x.t)}</span>${x.a ? `<span class="te">${apptClash(tm, x.k, x.id) ? '겹침' : '약속'}</span>`<button class="evx" aria-label="약속 지우기" onclick="dropAppt('${x.id}')">×</button>` : ''}</div>`).join('');
   }
   return h;
 }
@@ -1101,7 +1107,7 @@ function addAppt() {
   const t = (document.getElementById('evT') || {}).value, n = ((document.getElementById('evN') || {}).value || '').trim(), dd = (document.getElementById('evD') || {}).value || today();
   if (!t || !n) { toast(!n ? '무엇인지 적어 주세요' : '시각을 정해 주세요'); return; }
   const ds = dd, r = { id: uid(), week: weekKey(new Date()), bucket: 'light', role: '', title: n, done: false, carry: 0, checks: {}, at: ds + 'T' + t, due: ds, appt: true, vol: (curVol() || {}).id };
-  D.rocks.push(r); _evAdd = false; save(); render(); apptToast((ds === today() ? '' : ds === addDays(today(), 1) ? '내일 ' : md(ds) + ' ') + t);
+  D.rocks.push(r); _evAdd = false; save(); render(); apptToast((ds === today() ? '' : ds === addDays(today(), 1) ? '내일 ' : md(ds) + ' ') + t, ds, r.id);
 }
 function dropAppt(id) { const r = rock(id); if (!r) return; if (r.appt) { r._deleted = true; r.u = new Date().toISOString(); save(); render(); toast('약속을 지웠어요'); } else clearAt(id); }
 function setCalUrl(v) {
@@ -1159,7 +1165,7 @@ function trialHtml(ds) {
   const rvs = Object.values(D.reviews || {}).filter(r => r && r.summary).length, cds = Object.values(D.reviews || {}).reduce((a, r) => a + ((r && r.candidates) || []).length + ((r && r.adopted) || 0), 0);
   const got = `${useDays().length}일 동안 아침 브리핑과 마감·멈춘 일 포스트잇${rvs ? `, 주간 리뷰 ${rvs}번` : ''}${cds ? `, 다음 주 후보 ${cds}장` : ''}을 받았어요`;
   const msg = t > 0 ? (n > 0 ? `비서 포스트잇 무료가 <b>${n}일</b> 남았어요` : '오늘이 비서 포스트잇 무료 마지막 날이에요') + `<div class="hint" style="margin-top:2px">${got}. 포스트잇을 받은 날만 세요</div>` : `무료 20일을 다 썼어요. 이제 비서 포스트잇은 흐리게 붙어요<div class="hint" style="margin-top:2px">${got}</div>`;
-  return `<div class="stickies"><div class="sticky wide"><div class="who"><span>비서</span><span>${t > 0 ? 'D-' + t : '무료 끝'}</span></div><div class="tx">${msg}<div class="hint">계속 받으려면 첫해 ${won(SUB_FIRST)} · 정가 연 ${won(SUB_LIST)}</div></div><div class="act"><button onclick="subscribe()">구독하기</button><button onclick="dropNote('${k}')">나중에</button></div></div></div>`;
+  return `<div class="stickies"><div class="sticky wide"><div class="who"><span>비서</span><span>${t > 0 ? (n > 0 ? n + '일 남음' : '마지막 날') : '무료 끝'}</span></div><div class="tx">${msg}<div class="hint">계속 받으려면 첫해 ${won(SUB_FIRST)} · 정가 연 ${won(SUB_LIST)}</div></div><div class="act"><button onclick="subscribe()">구독하기</button><button onclick="dropNote('${k}')">나중에</button></div></div></div>`;
 }
 // 브리핑에 적는 짧은 제목: 머리표([신진])와 콜론·괄호 뒤 설명은 뗀다(원래 제목은 할 일에 그대로)
 function shortT(t) { let x = String(t || '').replace(/^\[[^\]]{1,8}\]\s*/, ''); const i = x.search(/\s*(?:(?<!\d)[:：]|[(（—])/); if (i >= 6) x = x.slice(0, i); return x.trim(); }
@@ -1197,15 +1203,25 @@ async function placeSlot(id, cal) {
   if (cal && nat() && (D.settings || {}).calNative) {
     try { const res = await nat().calendarAdd({ date: ds, start: st, minutes: mins, title: shortT(r.title), alarm: lead }); if (res && res.ok) { toast(`${st} 약속 · 캘린더에도 넣었어요`); loadCal(true); render(); return; } } catch(e) {}
   }
-  render(); apptToast(st);
+  render(); apptToast(st, ds, id);
 }
-function apptToast(st) { const lead = apptLead(); toast(isNative() && !notifyCfg().on ? `${st} 약속으로 적었어요 · 알림이 꺼져 있어요(메뉴 › 알림)` : `${st} 약속으로 적었어요 · ${lead ? lead + '분 전에' : '정각에'} 알려요`); }
+// 적은 약속이 이미 있는 일정·약속과 겹치면 한 줄로 알려 준다(막지는 않는다)
+function apptClash(ds, st, selfId) {
+  const toM = x => { const [h, m] = x.split(':').map(Number); return h * 60 + m; }, a = toM(st), z = a + 30;
+  const ev = eventsOn(ds).filter(e => !e.allDay && e.start).find(e => { const s0 = toM(e.start), e0 = e.end ? toM(e.end) : s0 + 60; return a < e0 && z > s0; });
+  if (ev) return `${ev.start}${ev.end ? '~' + ev.end : ''} ${shortT(ev.title)}`;
+  const r = apptsOn(ds).find(x => x.id !== selfId && Math.abs(toM(atOn(x, ds)) - a) < 30); return r ? `${atOn(r, ds)} ${shortT(r.title)}` : '';
+}
+function apptToast(st, ds, id) {
+  const c = ds ? apptClash(ds, st.slice(-5), id) : '';
+  if (c) { toast(`${st} 약속으로 적었어요 · ${c}와 겹쳐요`); return; } const lead = apptLead(); toast(isNative() && !notifyCfg().on ? `${st} 약속으로 적었어요 · 알림이 꺼져 있어요(메뉴 › 알림)` : `${st} 약속으로 적었어요 · ${lead ? lead + '분 전에' : '정각에'} 알려요`); }
 function clearAt(id) { const r = rock(id); if (!r) return; delete r.at; r.u = new Date().toISOString(); save(); render(); toast('시각을 뺐어요'); }
 function briefHtml(ds) {
   if (ds !== today() || !featOn('brief') || new Date().getHours() >= 12 || noteOff('brief:' + ds)) return '';
-  const { b, rows } = briefRows(ds); if (!b.ev.length && !rows.length && !b.picks.length) return '';
+  const { b, rows } = briefRows(ds); if (!b.ev.length && !rows.length && !b.picks.length && !apptsOn(ds).length) return '';
   let h = '';
-  if (b.ev.length) { const f = b.timed[0] || b.ev[0]; h += `<div class="bev">일정 ${b.ev.length}개 · 첫 일정 <b>${f.allDay ? '종일' : f.start}</b> ${esc(shortT(f.title))}</div>`; }
+  const ap = apptsOn(ds), all = b.timed.map(e => ({ t: e.start, n: e.title })).concat(ap.map(r => ({ t: atOn(r, ds), n: r.title }))).sort((x, y) => x.t < y.t ? -1 : 1), cnt = b.ev.length + ap.length;
+  if (cnt) { const f = all[0] || { t: '종일', n: b.ev[0].title }; h += `<div class="bev">일정 ${cnt}개${ap.length ? `(약속 ${ap.length})` : ''} · 첫 일정 <b>${f.t}</b> ${esc(shortT(f.n))}</div>`; }
   h += rows.map(({ r, tag, hot, picked }) => `<div class="bf"><span class="bt ${hot ? 'hot' : ''}">${esc(tag)}</span><span class="bn">${esc(shortT(r.title))}</span><span class="bb">${r.at && r.at.slice(0, 10) >= ds ? `<span class="bdone">${atOn(r, ds) ? '' : (r.at.slice(0, 10) === addDays(ds, 1) ? '내일 ' : md(r.at.slice(0, 10)) + ' ') + r.at.slice(11, 16) + ' '}약속 ✓</span>` : picked ? `<span class="bdone">오늘 칸 ✓</span>` : `<button onclick="pickHere('${r.id}')">오늘로</button>`}${r.at && r.at.slice(0, 10) >= ds ? '' : `<button onclick="slotOpen('${r.id}')">시간</button>`}</span></div>` + (_slot === r.id ? `<div class="bslot"><input type="time" id="slotT" value="${tag.endsWith(' 빔') ? tag.slice(0, 5) : freeFrom(ds)}"><select id="slotL"><option value="30">30분</option><option value="60" selected>1시간</option><option value="90">1시간 30분</option><option value="120">2시간</option></select><button onclick="placeSlot('${r.id}')">약속으로</button>${nat() && (D.settings || {}).calNative ? `<button onclick="placeSlot('${r.id}', true)">캘린더에도</button>` : ''}</div>` : '')).join('');
   if (!rows.length && b.picks.length) h += `<div class="bev">오늘 칸 ${b.picks.length}개가 기다려요</div>`;
   return `<div class="stickies">${aNote({ label: '아침 브리핑', meta: md(ds), cls: 'wide brief', text: rows.map(x => shortT(x.r.title)).join(' / ') || '오늘 일정', html: h, acts: `<button onclick="dropNote('brief:${ds}')">떼기</button>` })}</div>`;
@@ -1217,7 +1233,8 @@ function notifText(k, ds) {
   const short = t => { t = shortT(t); return t.length > 22 ? t.slice(0, 21) + '…' : t; };
   if (k === 'morning' && featOn('brief')) {
     const b = briefOf(ds), parts = [];
-    if (b.timed.length) parts.push(`일정 ${b.ev.length}개, 첫 일정 ${b.timed[0].start} ${short(b.timed[0].title)}`); else if (b.ev.length) parts.push(`종일 일정: ${short(b.ev[0].title)}`);
+    const ap = apptsOn(ds), fa = b.timed.map(e => ({ t: e.start, n: e.title })).concat(ap.map(r => ({ t: atOn(r, ds), n: r.title }))).sort((x, y) => x.t < y.t ? -1 : 1)[0];
+    if (fa) parts.push(`일정 ${b.ev.length + ap.length}개, 첫 일정 ${fa.t} ${short(fa.n)}`); else if (b.ev.length) parts.push(`종일 일정: ${short(b.ev[0].title)}`);
     if (b.due.length) parts.push(`오늘 마감: ${b.due.map(r => short(r.title)).join(', ')}`);
     else if (b.soon.length) parts.push(`${short(b.soon[0].title)} D-${Math.round((new Date(b.soon[0].due) - new Date(ds)) / 86400000)}`);
     if (b.picks.length) parts.push(`오늘 칸 ${b.picks.length}개`);
