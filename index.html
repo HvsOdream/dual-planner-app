@@ -1245,9 +1245,11 @@ function apptClash(ds, st, selfId) {
   if (ev) return `${ev.start}${ev.end ? '~' + ev.end : ''} ${shortT(ev.title)}`;
   const r = apptsOn(ds).find(x => x.id !== selfId && Math.abs(toM(atOn(x, ds)) - a) < 30); return r ? `${atOn(r, ds)} ${shortT(r.title)}` : '';
 }
+// 받침에 따라 조사: 받침 있으면 a(과/을/은), 없으면 b(와/를/는). 한글이 아니면 b
+function josa(w, a, b) { const c = String(w).trim().slice(-1).charCodeAt(0); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 ? a : b; }
 function apptToast(st, ds, id) {
   const c = ds ? apptClash(ds, st.slice(-5), id) : '';
-  if (c) { toast(`${st} 약속으로 적었어요 · ${c}와 겹쳐요`); return; } const lead = apptLead(); toast(isNative() && !notifyCfg().on ? `${st} 약속으로 적었어요 · 알림이 꺼져 있어요(메뉴 › 알림)` : `${st} 약속으로 적었어요 · ${lead ? lead + '분 전에' : '정각에'} 알려요`); }
+  if (c) { toast(`${st} 약속으로 적었어요 · ${c}${josa(c, '과', '와')} 겹쳐요`); return; } const lead = apptLead(); toast(isNative() && !notifyCfg().on ? `${st} 약속으로 적었어요 · 알림이 꺼져 있어요(메뉴 › 알림)` : `${st} 약속으로 적었어요 · ${lead ? lead + '분 전에' : '정각에'} 알려요`); }
 function clearAt(id) { const r = rock(id); if (!r) return; delete r.at; r.u = new Date().toISOString(); save(); render(); toast('시각을 뺐어요'); }
 function briefHtml(ds) {
   if (ds !== today() || !featOn('brief') || new Date().getHours() >= 12 || noteOff('brief:' + ds)) return '';

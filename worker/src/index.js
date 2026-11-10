@@ -377,7 +377,17 @@ async function review(req, env, token) {
   const inWeek = d => !nx || (d >= nx && d <= nxEnd) ? d : nx;
   out.cands = (out.cands || []).filter(c => !/(왜|이유|원인|분석|현황 확인|다시 확인|초안 확인|진행 확인|여부 확인|해야 하는지|\bwhy\b|\breasons?\b|analy[sz]e|\bcheck (?:the )?status|\bre-?check|\breview again|\bconfirm whether)/i.test(String(c && c.title || '')));
   out.summary = String(out.summary || '').replace(/(아내|남편)와 보내는 (시간|일)/g, '$1 역할').replace(/(아내|남편)로서의 일/g, '$1 역할 일');
-  const cands = cut(out.cands, 3, c => ({ title: String(c.title || '').slice(0, 60), role: roles.has(String(c.role)) ? String(c.role) : '', due: /^\d{4}-\d{2}-\d{2}$/.test(String(c.due)) ? inWeek(String(c.due)) : '' })).filter(c => c.title);
+  // 다른 문자 섞임(한국어 답에 한자, 일본어 답에 한글) 걷어내기
+  const clean = t => { t = String(t || ''); if (rlang === 'ko') t = t.replace(/[\u3040-\u30ff\u4e00-\u9fff]+/g, ' '); if (rlang === 'ja') t = t.replace(/[가-힣]+/g, ''); return t.replace(/\s{2,}/g, ' ').trim(); };
+  out.summary = clean(out.summary);
+  let cands = cut(out.cands, 3, c => ({ title: clean(c.title).slice(0, 60), role: roles.has(String(c.role)) ? String(c.role) : '', due: /^\d{4}-\d{2}-\d{2}$/.test(String(c.due)) ? inWeek(String(c.due)) : '' })).filter(c => c.title);
+  // 다음 주 안에 마감인 일(시험 접수 같은 고정 마감)은 후보에서 빠지지 않게: 비슷한 후보가 없으면 맨 앞에 넣는다
+  const words = t => String(t).toLowerCase().split(/[\s,.·()]+/).filter(w => w.length >= 2);
+  const fixed = (b.open || []).filter(x => x && x.title && x.due && nx && x.due >= nx && x.due <= nxEnd && !x.wait).sort((x, y) => x.due < y.due ? -1 : 1);
+  fixed.forEach(x => { const ws = words(x.title); if (cands.some(c => ws.some(w => String(c.title).toLowerCase().includes(w)))) return;
+    const d = new Date(Date.parse(x.due) - 864e5).toISOString().slice(0, 10);
+    cands.unshift({ title: String(x.title).slice(0, 60), role: roles.has(String(x.role)) ? String(x.role) : '', due: d < nx ? nx : d }); });
+  cands = cands.slice(0, 4);
   return json({ summary: String(out.summary).slice(0, 600), cands });
 }
 
