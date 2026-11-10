@@ -49,8 +49,8 @@ const out = {};
 for (const m of models) {
   out[m] = {};
   const keys = Object.keys(cases);
-  for (let i = 0; i < keys.length; i += 4) {
-    await Promise.all(keys.slice(i, i + 4).map(async k => { const r = await call(cases[k], m); out[m][k] = score(cases[k], r || {}); }));
+  for (let i = 0; i < keys.length; i += 8) {
+    await Promise.all(keys.slice(i, i + 8).map(async k => { const r = await call(cases[k], m); out[m][k] = score(cases[k], r || {}); console.log('OUT', m.split('/').pop(), k, JSON.stringify({ s: (out[m][k].raw.summary || '').slice(0, 160), c: out[m][k].raw.cands.slice(0, 3) })); }));
   }
   const rows = Object.values(out[m]), keysS = Object.keys(rows[0].s);
   const tot = Object.fromEntries(keysS.map(x => [x, rows.filter(r => r.s[x]).length]));
