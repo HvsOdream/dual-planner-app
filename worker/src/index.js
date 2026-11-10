@@ -332,11 +332,15 @@ async function review(req, env, token) {
   const open = cut(b.open, 25, x => `- ${String(x.title).slice(0, 60)}${x.role ? ' (' + String(x.role).slice(0, 8) + ')' : ''}${x.due ? (String(x.due) < td ? ' 마감 지남(' + String(x.due).slice(0, 10) + ')' : ' 마감 ' + String(x.due).slice(0, 10)) : ''}${x.wait ? ' 남의 답 기다리는 중' : ''}`);
   const hours = Object.entries(b.hours || {}).slice(0, 10).map(([k, v]) => `${k === '역할 없음' ? '역할을 아직 안 정한 일정' : String(k).slice(0, 8)} ${Number(v) || 0}시간`).join(', ');
   const notes = cut(b.notes, 7, x => '- ' + String(x).slice(0, 80));
+  // 먼저 볼 일은 코드가 정한다(모델이 순서를 자주 틀린다): 마감 지난 A → 마감 지난 B → 사흘 안 마감 → 나머지 A·B
+  const rank = x => { const d = String(x.due || ''), over = d && d < td, b3 = d && !over && (new Date(d) - new Date(td)) / 86400000 <= 3; return (x.wait ? 9 : 0) + (over && x.bucket === 'urgent' ? 0 : over && x.bucket === 'important' ? 1 : over ? 2 : b3 ? 3 : x.bucket === 'urgent' ? 4 : x.bucket === 'important' ? 5 : 6); };
+  const first = (b.open || []).filter(x => x && x.title).slice().sort((x, y) => rank(x) - rank(y) || String(x.due || '9').localeCompare(String(y.due || '9')))[0];
+  const firstLine = first ? `${String(first.title).slice(0, 60)}${first.due && String(first.due) < td ? ' (마감 지남 ' + String(first.due).slice(5, 10).replace('-', '/') + ')' : first.due ? ' (마감 ' + String(first.due).slice(5, 10).replace('-', '/') + ')' : ''}` : '';
   const sys = [
     '너는 종이 플래너를 같이 쓰는 비서다. 한 주의 사실만 보고 일요일 리뷰를 쓴다.',
     '3~4문장, 완전한 문장의 해요체("~했어요", "~예요"). 명사로 끊는 메모체 금지. 칭찬·격려·감탄·이모지 금지. 완료 개수로 사람을 평가하지 않는다.',
     '끝낸 일이 없으면 그 사실은 "이번 주엔 체크한 일이 없어요" 정도로 한 번만 짧게 말하고 바로 다음 주 이야기로 넘어간다. "못했다"는 말은 쓰지 않는다.',
-    '1) 이번 주 실제로 끝낸 일에서 눈에 띄는 것 2) 캘린더에 잡힌 시간이 어느 역할에 많았는지(시간 자료가 있을 때만, "캘린더에 잡힌 시간은"이라고 말한다. "시간을 썼다"고 단정하지 않는다) 3) 다음 주에 먼저 볼 일 하나와 그 이유.',
+    '1) 이번 주 실제로 끝낸 일에서 눈에 띄는 것 2) 캘린더에 잡힌 시간이 어느 역할에 많았는지(시간 자료가 있을 때만, "캘린더에 잡힌 시간은"이라고 말한다. "시간을 썼다"고 단정하지 않는다) 3) 다음 주에 먼저 볼 일 하나와 그 이유. 먼저 볼 일은 자료의 "먼저 볼 일"을 그대로 쓰고 다른 일로 바꾸지 않는다. 첫 번째 후보도 그 일의 첫 행동으로 쓴다.',
     '먼저 볼 일 고르는 순서: 마감 지난 A(급함·중요) → 마감 지난 B → 사흘 안 마감 → 나머지. 마감 지난 일을 고르면 "아직 해야 하는 일인지 먼저 확인해 보세요"처럼 말한다. 남의 답을 기다리는 일은 미룬 일로 보지 않는다.',
     '남은 일의 상태를 지어내지 않는다: "재작성", "재시도", "다시"처럼 이전 시도가 있었다는 말은 자료에 없으면 쓰지 않는다.',
     '자료에 없는 사실을 지어내지 않는다. 일정이 없는 시간을 쉬었다고 단정하지 않는다.',
@@ -345,7 +349,7 @@ async function review(req, env, token) {
     '역할 이름은 주어진 그대로 쓴다. "아내" 역할을 "아내와 보내는 시간"처럼 관계를 바꿔 풀어 쓰지 않는다("아내 역할에 1시간").',
     '설명 없이 JSON 하나만: {"summary":"...","cands":[{"title":"...","role":"...","due":"YYYY-MM-DD"}]}'
   ].join('\n');
-  const user = `오늘: ${String(b.today || '').slice(0, 10)} / 다음 주 시작: ${String(b.next || '').slice(0, 10)}\n역할: ${cut(b.roles, 8, String).join(', ') || '없음'}\n이번 주 끝낸 일:\n${done.join('\n') || '- 없음'}\n남은 일:\n${open.join('\n') || '- 없음'}\n캘린더 시간: ${hours || '없음'}\n한 줄 일기:\n${notes.join('\n') || '- 없음'}`;
+  const user = `오늘: ${String(b.today || '').slice(0, 10)} / 다음 주 시작: ${String(b.next || '').slice(0, 10)}\n역할: ${cut(b.roles, 8, String).join(', ') || '없음'}\n이번 주 끝낸 일:\n${done.join('\n') || '- 없음'}\n남은 일:\n${open.join('\n') || '- 없음'}\n먼저 볼 일: ${firstLine || '없음'}\n캘린더 시간: ${hours || '없음'}\n한 줄 일기:\n${notes.join('\n') || '- 없음'}`;
   const ex = [
     { role: 'user', content: '오늘: 2026-11-22 / 다음 주 시작: 2026-11-23\n역할: 교수, 학과장, 민준 아빠, 나 자신\n이번 주 끝낸 일:\n- 졸업작품 3팀 피드백 (교수)\n- 학과회의 안건 작성 (학과장)\n- 민준 담임 상담 답장 (민준 아빠)\n남은 일:\n- 논문 초안 목차 다시 짜기 (교수) 마감 2026-12-06\n- 건강검진 예약 (나 자신)\n캘린더 시간: 교수 9시간, 학과장 1시간\n한 줄 일기:\n- 없음' },
     { role: 'assistant', content: '{"summary":"졸업작품 피드백과 학과회의 안건, 민준 담임 선생님 답장까지 끝냈어요. 캘린더 일정 기준으로 이번 주 시간은 교수 일에 9시간, 학과장 일에 1시간이 쓰였어요. 다음 주엔 12월 6일이 마감인 논문 목차를 먼저 보면 좋겠어요. 건강검진 예약은 아직 그대로예요.","cands":[{"title":"논문 목차 1장 소제목만 다시 적기","role":"교수","due":"2026-11-25"},{"title":"건강검진 병원 두 곳 빈 시간 확인","role":"나 자신","due":"2026-11-27"}]}' }
@@ -358,13 +362,13 @@ async function review(req, env, token) {
   // '아직 해야 하는 일인지 확인' 문구를 규칙처럼 매번 따라 한다: 이어지는 절은 떼고, 문장은 마감 지난 일이 있을 때 한 번만
   { const hasOver = (b.open || []).some(x => x.due && x.due < (b.today || '')); let seen = false;
     let t = String(out.summary).replace(/아직 해야 하는 일인지 (?:먼저 )?확인해 보시고,?\s*/g, '').replace(/,?\s*아직 해야 하는 일인지 (?:먼저 )?확인해 (?:봐야|보아야) 할\s*/g, ' ');
-    out.summary = t.split(/(?<=[.요])\s+/).filter(x => { if (!/아직 해야 하는 일인지/.test(x)) return true; if (!hasOver || seen) return false; seen = true; return true; }).join(' ').replace(/\s{2,}/g, ' ').trim(); }
+    out.summary = t.split(/(?<=[.요])\s+/).filter(x => { if (!/아직 해야 하는 ?(?:일인지|지)/.test(x)) return true; if (!hasOver || seen) return false; seen = true; return true; }).join(' ').replace(/\s{2,}/g, ' ').trim(); }
   await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
   const roles = new Set(cut(b.roles, 8, String));
   // 후보 날짜는 다음 주 안으로
   const nx = String(b.next || '').slice(0, 10), nxEnd = /^\d{4}-\d{2}-\d{2}$/.test(nx) ? new Date(Date.parse(nx) + 6 * 864e5).toISOString().slice(0, 10) : '';
   const inWeek = d => !nx || (d >= nx && d <= nxEnd) ? d : nx;
-  out.cands = (out.cands || []).filter(c => !/(왜|이유|원인|분석|현황 확인|다시 확인)/.test(String(c && c.title || '')));
+  out.cands = (out.cands || []).filter(c => !/(왜|이유|원인|분석|현황 확인|다시 확인|초안 확인|진행 확인)/.test(String(c && c.title || '')));
   out.summary = String(out.summary || '').replace(/(아내|남편)와 보내는 (시간|일)/g, '$1 역할').replace(/(아내|남편)로서의 일/g, '$1 역할 일');
   const cands = cut(out.cands, 3, c => ({ title: String(c.title || '').slice(0, 60), role: roles.has(String(c.role)) ? String(c.role) : '', due: /^\d{4}-\d{2}-\d{2}$/.test(String(c.due)) ? inWeek(String(c.due)) : '' })).filter(c => c.title);
   return json({ summary: String(out.summary).slice(0, 600), cands });
