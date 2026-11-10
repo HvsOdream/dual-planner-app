@@ -235,12 +235,20 @@ function aiText(out) {
   if (Array.isArray(out.output)) return out.output.flatMap(o => (o.content || []).map(c => c.text || '')).join('');
   return JSON.stringify(out);
 }
-async function llm(env, messages, maxTokens, model) {
+// meter: 호출마다 쓴 토큰을 모은다({calls:[{model,in,out}]})
+function meterAdd(meter, model, u) { if (!meter) return; u = u || {}; meter.calls.push({ model, in: Number(u.input_tokens || u.prompt_tokens || 0), out: Number(u.output_tokens || u.completion_tokens || 0) }); }
+async function meterSave(env, kind, meter) {
+  try { if (!meter || !meter.calls.length) return; const k = 'tok:' + new Date().toISOString().slice(0, 10) + ':' + kind, cur = JSON.parse(await env.PLANNER.get(k) || '{}');
+    for (const c of meter.calls) { const m = cur[c.model] = cur[c.model] || { n: 0, in: 0, out: 0 }; m.n++; m.in += c.in; m.out += c.out; }
+    await env.PLANNER.put(k, JSON.stringify(cur), { expirationTtl: 86400 * 100 }); } catch {}
+}
+async function llm(env, messages, maxTokens, model, meter) {
   if (model && /^claude-/.test(model)) {
     if (!env.ANTHROPIC_API_KEY) throw new Error('no anthropic key');
     const sys = messages.filter(m => m.role === 'system').map(m => m.content).join('\n'), rest = messages.filter(m => m.role !== 'system');
     const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model, system: sys, messages: rest, max_tokens: Math.max(maxTokens || 600, 4000) }) });
     const j = await r.json(); if (!r.ok) throw new Error('anthropic ' + r.status + ' ' + JSON.stringify(j).slice(0, 200));
+    meterAdd(meter, model, j.usage);
     return (j.content || []).map(c => c.text || '').join('');
   }
   if (model && env.AI) {
@@ -248,6 +256,7 @@ async function llm(env, messages, maxTokens, model) {
     try { out = await env.AI.run(model, { messages, max_tokens: mt, temperature: 0.2 }); }
     catch (e) { e1 = e; try { out = await env.AI.run(model, { messages, max_completion_tokens: mt }); }
       catch (e2) { try { out = await env.AI.run(model, { messages }); } catch (e3) { throw new Error('A:' + String(e1 && e1.message || e1).slice(0, 160) + ' | C:' + String(e3 && e3.message || e3).slice(0, 160)); } } }
+    meterAdd(meter, model, out && out.usage);
     return aiText(out).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
   }
   if (env.LLM_URL) {
@@ -256,6 +265,7 @@ async function llm(env, messages, maxTokens, model) {
   }
   if (!env.AI) throw new Error('no model');
   const out = await env.AI.run(env.AI_MODEL || '@cf/meta/llama-3.3-70b-instruct-fp8-fast', { messages, max_tokens: maxTokens || 600, temperature: 0.2 });
+  meterAdd(meter, env.AI_MODEL || 'llama-3.3-70b', out && out.usage);
   if (typeof out === 'string') return out;
   if (out && typeof out.response === 'object') return JSON.stringify(out.response);
   return (out && (out.response || (((out.choices || [])[0] || {}).message || {}).content)) || JSON.stringify(out || '');
@@ -307,10 +317,11 @@ async function group(req, env, token) {
   const lang = langOf(items.map(x => x.title));
   const user = (lang !== 'ko' ? `글 언어: ${LANG_NAME[lang]} — 역할 이름과 관계를 ${LANG_NAME[lang]}로 쓴다\n` : '') + '기존 역할: ' + (roles.join(', ') || '없음') + '\n사람(사용자가 적은 설명. 그 사람이 나오는 할 일은 이 설명으로 역할을 정한다): ' + (people.map(([n, r]) => n + '=' + r).join(', ') || '없음') + '\n할 일:\n' + items.map(x => `- id=${x.id}: ${x.title}`).join('\n');
   const msgs = [{ role: 'system', content: sys }, ...example, { role: 'user', content: user }];
+  const meter = { calls: [] };
   let raw = '', out;
   try {
-    raw = await llm(env, msgs, 700); out = jsonIn(raw);
-    if (!out || !Array.isArray(out.groups)) { raw = await llm(env, msgs.concat([{ role: 'assistant', content: String(raw).slice(0, 400) }, { role: 'user', content: 'JSON 형식이 아니다. {"groups":[...]} 하나만 다시 출력해.' }]), 700); out = jsonIn(raw); }
+    raw = await llm(env, msgs, 700, '', meter); out = jsonIn(raw);
+    if (!out || !Array.isArray(out.groups)) { raw = await llm(env, msgs.concat([{ role: 'assistant', content: String(raw).slice(0, 400) }, { role: 'user', content: 'JSON 형식이 아니다. {"groups":[...]} 하나만 다시 출력해.' }]), 700, '', meter); out = jsonIn(raw); }
   } catch (e) { return json({ error: 'model failed', reason: String(e.message || e) }, 502); }
   await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
   const known = new Set(items.map(x => x.id)), seen = new Set();
@@ -348,7 +359,8 @@ async function group(req, env, token) {
     const seen2 = new Set();
     found.filter(([n]) => !stop.has(n) && !known2.has(n) && !known2.has(n.split(' ')[0]) && !roles.includes(n) && !groups.some(g => g.name === n) && !seen2.has(n) && seen2.add(n)).slice(0, 5).forEach(([n, g]) => ppl.push({ name: n, guess: g === '아들' ? '모름' : g }));
   }
-  return json(Object.assign({ groups, people: ppl, model: env.LLM_URL ? 'sllm' : 'workers-ai' }, body.debug ? { raw: String(raw).slice(0, 1500) } : {}));
+  await meterSave(env, 'group', meter);
+  return json(Object.assign({ groups, people: ppl, model: env.LLM_URL ? 'sllm' : 'workers-ai', usage: meter.calls }, body.debug ? { raw: String(raw).slice(0, 1500) } : {}));
 }
 
 // ── 주간 리뷰: 앱이 보낸 한 주의 사실로 3~4문장 리뷰와 다음 주 B 후보를 쓴다 ──
@@ -390,13 +402,13 @@ async function review(req, env, token) {
     { role: 'assistant', content: '{"summary":"거래처 견적 회신과 영업 회의 자료, 하은 피아노 학원 상담까지 끝냈어요. 캘린더에 잡힌 시간은 영업 과장 일에 11시간, 하은 아빠 일에 1시간이었어요. 다음 주엔 마감이 지난 신규 거래처 제안서를 먼저 보면 좋겠어요. 치과 예약은 아직 그대로예요.","cands":[{"title":"제안서 첫 장 고객 문제 세 줄만 적기","role":"영업 과장","due":"2026-11-24"},{"title":"치과 두 곳 이번 주 빈 시간 묻기","role":"나 자신","due":"2026-11-26"}]}' }
   ];
   let out;
-  let rawText = ''; const t0 = Date.now();
+  let rawText = ''; const t0 = Date.now(); const meter = { calls: [] };
   // 주간 리뷰는 Claude Haiku가 쓴다(키가 있을 때). 실패하거나 답이 비면 기본 모델이 대신 쓴다.
   const msgs = [{ role: 'system', content: sys }, ...ex, { role: 'user', content: user }];
   const mainModel = evalModel || (env.ANTHROPIC_API_KEY ? (env.REVIEW_MODEL || 'claude-haiku-5-5') : '');
   try {
-    try { rawText = await llm(env, msgs, 600, mainModel); out = jsonIn(rawText); } catch (e) { if (evalModel || !mainModel) throw e; }
-    if (!evalModel && mainModel && !(out && out.summary)) { rawText = await llm(env, msgs, 600, ''); out = jsonIn(rawText); }
+    try { rawText = await llm(env, msgs, 600, mainModel, meter); out = jsonIn(rawText); } catch (e) { if (evalModel || !mainModel) throw e; }
+    if (!evalModel && mainModel && !(out && out.summary)) { rawText = await llm(env, msgs, 600, '', meter); out = jsonIn(rawText); }
   } catch (e) { return json({ error: 'model failed', detail: wantRaw ? String(e && e.message || e).slice(0, 300) : undefined }, 502); }
   const evalInfo = wantRaw ? { raw: String(rawText).slice(0, 3000), ms: Date.now() - t0, model: evalModel } : undefined;
   if (!out || !out.summary) return json({ error: 'no summary', eval: evalInfo }, 502);
@@ -424,7 +436,8 @@ async function review(req, env, token) {
     const d = new Date(Date.parse(x.due) - 864e5).toISOString().slice(0, 10);
     cands.unshift({ title: String(x.title).slice(0, 60), role: roles.has(String(x.role)) ? String(x.role) : '', due: d < nx ? nx : d }); });
   cands = cands.slice(0, 4);
-  return json({ summary: String(out.summary).slice(0, 600), cands, eval: evalInfo });
+  await meterSave(env, 'review', meter);
+  return json({ summary: String(out.summary).slice(0, 600), cands, eval: evalInfo, usage: meter.calls });
 }
 
 // ── 일정: 사용자가 준 iCal 주소(구글 캘린더 '비공개 주소' 등)를 받아 기간 안의 일정을 한국 시간으로 펼친다 ──
