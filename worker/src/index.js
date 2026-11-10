@@ -244,8 +244,10 @@ async function llm(env, messages, maxTokens, model) {
     return (j.content || []).map(c => c.text || '').join('');
   }
   if (model && env.AI) {
-    let out; try { out = await env.AI.run(model, { messages, max_tokens: Math.max(maxTokens || 600, 1500), temperature: 0.2 }); }
-    catch (e) { out = await env.AI.run(model, { input: messages, max_output_tokens: Math.max(maxTokens || 600, 1500) }); }
+    const mt = Math.max(maxTokens || 600, 1500); let out, e1;
+    try { out = await env.AI.run(model, { messages, max_tokens: mt, temperature: 0.2 }); }
+    catch (e) { e1 = e; try { out = await env.AI.run(model, { messages, max_completion_tokens: mt }); }
+      catch (e2) { try { out = await env.AI.run(model, { messages }); } catch (e3) { throw new Error('A:' + String(e1 && e1.message || e1).slice(0, 160) + ' | C:' + String(e3 && e3.message || e3).slice(0, 160)); } } }
     return aiText(out).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
   }
   if (env.LLM_URL) {
