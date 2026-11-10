@@ -59,6 +59,12 @@ a { color: inherit; }
 /* ── 노트 페이지 ── */
 .page { display: none; }
 .page.on { display: block; }
+/* 작은 화면: 손가락으로 끌어서 탭 넘기기 */
+.page.drag { transition: none; will-change: transform; }
+.page.snap { transition: transform .18s ease-out, opacity .18s ease-out; }
+@keyframes pin-r { from { transform: translateX(36px); opacity: .4; } to { transform: none; opacity: 1; } }
+@keyframes pin-l { from { transform: translateX(-36px); opacity: .4; } to { transform: none; opacity: 1; } }
+.page.in-r { animation: pin-r .2s ease-out; } .page.in-l { animation: pin-l .2s ease-out; }
 .sheet {
   max-width: 560px; margin: 0 auto; padding: 0 16px 0 0; position: relative; min-height: calc(100vh - 60px - 76px - env(safe-area-inset-bottom));
   background-image: linear-gradient(to right, transparent 39px, var(--margin) 39px, var(--margin) 40px, transparent 40px);
@@ -578,6 +584,33 @@ function go(t) {
   render();
 }
 SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
+// 작은 화면에서 좌우로 끌면 오늘 ↔ 할 일 ↔ 기록 ↔ 메뉴
+const SWIPE_TABS = ['today', 'week', 'review', 'more'];
+(function swipeTabs() {
+  let x0 = 0, y0 = 0, t0 = 0, dx = 0, mode = '', pg = null;
+  const skip = el => el && el.closest && el.closest('input, textarea, select, .bslot, .sel, .ptabs, .cal, [data-noswipe]');
+  document.addEventListener('touchstart', e => {
+    mode = ''; pg = null;
+    if (spread() || e.touches.length !== 1 || !SWIPE_TABS.includes(tab) || skip(e.target) || document.querySelector('.more.on, .login.on')) return;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); dx = 0; mode = 'wait'; pg = document.getElementById('p-' + tab);
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!mode || !pg) return;
+    const ddx = e.touches[0].clientX - x0, ddy = e.touches[0].clientY - y0;
+    if (mode === 'wait') { if (Math.abs(ddx) < 10 && Math.abs(ddy) < 10) return; mode = Math.abs(ddx) > Math.abs(ddy) * 1.4 ? 'x' : ''; if (mode !== 'x') return; pg.classList.add('drag'); }
+    const i = SWIPE_TABS.indexOf(tab), edge = (ddx > 0 && i === 0) || (ddx < 0 && i === SWIPE_TABS.length - 1);
+    dx = edge ? ddx * 0.25 : ddx; pg.style.transform = `translateX(${dx}px)`;
+  }, { passive: true });
+  document.addEventListener('touchend', () => {
+    if (mode !== 'x' || !pg) { mode = ''; return; }
+    const p = pg, i = SWIPE_TABS.indexOf(tab), fast = Math.abs(dx) > 40 && Date.now() - t0 < 300;
+    const next = (Math.abs(dx) > innerWidth * 0.28 || fast) ? SWIPE_TABS[i + (dx < 0 ? 1 : -1)] : null;
+    p.classList.remove('drag'); mode = '';
+    if (!next) { p.classList.add('snap'); p.style.transform = ''; setTimeout(() => p.classList.remove('snap'), 200); return; }
+    p.style.transform = ''; if (next === 'more') openMore(); else go(next);
+    const np = document.getElementById('p-' + next); if (np) { np.classList.remove('in-r', 'in-l'); void np.offsetWidth; np.classList.add(dx < 0 ? 'in-r' : 'in-l'); setTimeout(() => np.classList.remove('in-r', 'in-l'), 220); }
+  }, { passive: true });
+})();
 function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); loadAuthConf().then(renderAccount); go('more'); }
 function renderMore() { setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; }
 function closeMore() { if (tab === 'more') go('today'); }
