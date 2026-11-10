@@ -321,8 +321,10 @@ async function group(req, env, token) {
   const meter = { calls: [] };
   let raw = '', out;
   try {
-    raw = await llm(env, msgs, 700, gModel, meter); out = jsonIn(raw);
-    if (!out || !Array.isArray(out.groups)) { raw = await llm(env, msgs.concat([{ role: 'assistant', content: String(raw).slice(0, 400) }, { role: 'user', content: 'JSON 형식이 아니다. {"groups":[...]} 하나만 다시 출력해.' }]), 700, gModel, meter); out = jsonIn(raw); }
+    // 역할 묶기도 Claude Haiku가 한다(키가 있을 때). 실패하거나 형식이 틀리면 기본 모델이 대신 한다.
+    const gMain = gModel || (env.ANTHROPIC_API_KEY ? (env.GROUP_MODEL || 'claude-haiku-5-5') : '');
+    try { raw = await llm(env, msgs, 700, gMain, meter); out = jsonIn(raw); } catch (e) { if (gModel || !gMain) throw e; }
+    if (!out || !Array.isArray(out.groups)) { const fb = gModel || ''; raw = await llm(env, fb === gMain ? msgs.concat([{ role: 'assistant', content: String(raw).slice(0, 400) }, { role: 'user', content: 'JSON 형식이 아니다. {"groups":[...]} 하나만 다시 출력해.' }]) : msgs, 700, fb, meter); out = jsonIn(raw); }
   } catch (e) { return json({ error: 'model failed', reason: String(e.message || e) }, 502); }
   await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
   const known = new Set(items.map(x => x.id)), seen = new Set();
@@ -361,7 +363,7 @@ async function group(req, env, token) {
     found.filter(([n]) => !stop.has(n) && !known2.has(n) && !known2.has(n.split(' ')[0]) && !roles.includes(n) && !groups.some(g => g.name === n) && !seen2.has(n) && seen2.add(n)).slice(0, 5).forEach(([n, g]) => ppl.push({ name: n, guess: g === '아들' ? '모름' : g }));
   }
   await meterSave(env, 'group', meter);
-  return json(Object.assign({ groups, people: ppl, model: env.LLM_URL ? 'sllm' : 'workers-ai', usage: meter.calls }, body.debug ? { raw: String(raw).slice(0, 1500) } : {}));
+  return json(Object.assign({ groups, people: ppl, model: (meter.calls[meter.calls.length - 1] || {}).model || 'workers-ai', usage: meter.calls }, body.debug ? { raw: String(raw).slice(0, 1500) } : {}));
 }
 
 // ── 주간 리뷰: 앱이 보낸 한 주의 사실로 3~4문장 리뷰와 다음 주 B 후보를 쓴다 ──
