@@ -235,6 +235,9 @@ async function llm(env, messages, maxTokens) {
   return (out && (out.response || (((out.choices || [])[0] || {}).message || {}).content)) || JSON.stringify(out || '');
 }
 function jsonIn(text) { const a = text.indexOf('{'), b = text.lastIndexOf('}'); if (a < 0 || b <= a) return null; try { return JSON.parse(text.slice(a, b + 1)); } catch { return null; } }
+// 사용자가 적은 글의 언어: 한글이 대부분이면 ko, 아니면 가나가 있으면 ja, 그 밖은 en
+function langOf(texts) { const t = (texts || []).join(' '); const ko = (t.match(/[가-힣]/g) || []).length, ja = (t.match(/[\u3040-\u30ff]/g) || []).length, la = (t.match(/[A-Za-z]/g) || []).length; return ko >= (la + ja) / 2 ? 'ko' : ja > 0 ? 'ja' : 'en'; }
+const LANG_NAME = { en: '영어', ja: '일본어' };
 async function group(req, env, token) {
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
   if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
@@ -263,6 +266,7 @@ async function group(req, env, token) {
     '"사람" 목록이 주어지면 그 관계를 그대로 믿는다(예: 준서=아들이면 준서 관련 일은 부모, 지영=아내면 배우자). 관계로 이 사람의 성별이 드러나면 아빠·엄마·남편·아내를 써도 된다(아내가 있으면 남편, 아들 일은 아빠).',
     '모든 id를 빠짐없이 정확히 한 번씩, 가장 주된 역할 하나에만 넣는다. [일정] 줄도 빠뜨리지 않는다.',
     '할 일에 나오는 사람(이름 2~4자, 별명, "최 대리"·"정 대표"·"박 선생님"처럼 호칭이 붙은 사람)을 최대 5개 골라 people에 넣고, 글로 보아 가장 그럴듯한 관계를 guess에 짧게 적는다(아들, 딸, 배우자, 연인, 부모님, 형제, 동료, 팀원, 고객, 학생, 선생님, 회원, 친구, 모름). 엄마·언니처럼 관계 단어만 있는 것은 넣지 않는다. "사람" 목록에 이미 있는 이름은 넣지 않는다. 역할명·회사명·과목명·가게 이름은 사람이 아니다.',
+    '할 일이 대부분 한국어가 아니면(영어·일본어 등) 역할 이름과 관계(guess)를 그 언어로 쓴다(영어 예: Parent, Product Manager, Runner, Myself, Family / 일본어 예: 親, 営業課長, 自分). 이때 역할 이름은 1~3단어.',
     '설명 없이 JSON 하나만 출력한다: {"groups":[{"name":"역할","ids":["id",...]}],"people":[{"name":"이름","guess":"관계"}]}'
   ].join('\n');
   const example = [
@@ -273,7 +277,8 @@ async function group(req, env, token) {
     { role: 'user', content: '기존 역할: 없음\n할 일:\n- id=c1: 서윤 담임 김지은 선생님께 상담 답장\n- id=c2: 박 과장에게 출하 검사표 보내기\n- id=c3: 전기기사 기출 2회분 풀기\n- id=c4: 언니랑 엄마 생신 선물 정하기\n- id=c5: 요가 주 3회\n- id=c6: [일정] 주간 회의\n- id=c7: [일정] 서윤 피아노 픽업' },
     { role: 'assistant', content: '{"groups":[{"name":"품질관리","ids":["c2","c6"]},{"name":"부모","ids":["c1","c7"]},{"name":"수험생","ids":["c3"]},{"name":"가족","ids":["c4"]},{"name":"나 자신","ids":["c5"]}],"people":[{"name":"서윤","guess":"딸"},{"name":"김지은","guess":"선생님"},{"name":"박 과장","guess":"동료"}]}' }
   ];
-  const user = '기존 역할: ' + (roles.join(', ') || '없음') + '\n사람(사용자가 적은 설명. 그 사람이 나오는 할 일은 이 설명으로 역할을 정한다): ' + (people.map(([n, r]) => n + '=' + r).join(', ') || '없음') + '\n할 일:\n' + items.map(x => `- id=${x.id}: ${x.title}`).join('\n');
+  const lang = langOf(items.map(x => x.title));
+  const user = (lang !== 'ko' ? `글 언어: ${LANG_NAME[lang]} — 역할 이름과 관계를 ${LANG_NAME[lang]}로 쓴다\n` : '') + '기존 역할: ' + (roles.join(', ') || '없음') + '\n사람(사용자가 적은 설명. 그 사람이 나오는 할 일은 이 설명으로 역할을 정한다): ' + (people.map(([n, r]) => n + '=' + r).join(', ') || '없음') + '\n할 일:\n' + items.map(x => `- id=${x.id}: ${x.title}`).join('\n');
   const msgs = [{ role: 'system', content: sys }, ...example, { role: 'user', content: user }];
   let raw = '', out;
   try {
@@ -282,7 +287,7 @@ async function group(req, env, token) {
   } catch (e) { return json({ error: 'model failed', reason: String(e.message || e) }, 502); }
   await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
   const known = new Set(items.map(x => x.id)), seen = new Set();
-  const groups = ((out && out.groups) || []).map(g => ({ name: String(g.name || '').replace(/[\[\]"'`]/g, '').trim().slice(0, 8), ids: (g.ids || []).map(String).filter(id => known.has(id) && !seen.has(id) && seen.add(id)) })).filter(g => g.name && g.ids.length);
+  const groups = ((out && out.groups) || []).map(g => ({ name: String(g.name || '').replace(/[\[\]"'`]/g, '').trim().slice(0, /[가-힣]/.test(String(g.name || '')) ? 8 : 24), ids: (g.ids || []).map(String).filter(id => known.has(id) && !seen.has(id) && seen.add(id)) })).filter(g => g.name && g.ids.length);
   // 사람 사전으로 내 자리가 드러나면 이름을 사람 말로: 배우자=아내 → 남편, 아이 일 → 준서 아빠
   if (!roles.length && people.length) {
     // 사람 설명은 자유롭게 적힌다('와이프', '아들 민준', '진흥원 연구원'): 앞쪽 관계 단어만 뽑아 쓴다
@@ -327,10 +332,10 @@ async function review(req, env, token) {
   if (used >= 5) return json({ error: 'daily limit' }, 429);
   let b; try { b = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
   const cut = (a, n, f) => (Array.isArray(a) ? a : []).slice(0, n).map(f);
-  const done = cut(b.done, 30, x => `- ${String(x.title).slice(0, 60)}${x.role ? ' (' + String(x.role).slice(0, 8) + ')' : ''}`);
+  const done = cut(b.done, 30, x => `- ${String(x.title).slice(0, 60)}${x.role ? ' (' + String(x.role).slice(0, 24) + ')' : ''}`);
   const td = String(b.today || '').slice(0, 10);
-  const open = cut(b.open, 25, x => `- ${String(x.title).slice(0, 60)}${x.role ? ' (' + String(x.role).slice(0, 8) + ')' : ''}${x.due ? (String(x.due) < td ? ' 마감 지남(' + String(x.due).slice(0, 10) + ')' : ' 마감 ' + String(x.due).slice(0, 10)) : ''}${x.wait ? ' 남의 답 기다리는 중' : ''}`);
-  const hours = Object.entries(b.hours || {}).slice(0, 10).map(([k, v]) => `${k === '역할 없음' ? '역할을 아직 안 정한 일정' : String(k).slice(0, 8)} ${Number(v) || 0}시간`).join(', ');
+  const open = cut(b.open, 25, x => `- ${String(x.title).slice(0, 60)}${x.role ? ' (' + String(x.role).slice(0, 24) + ')' : ''}${x.due ? (String(x.due) < td ? ' 마감 지남(' + String(x.due).slice(0, 10) + ')' : ' 마감 ' + String(x.due).slice(0, 10)) : ''}${x.wait ? ' 남의 답 기다리는 중' : ''}`);
+  const hours = Object.entries(b.hours || {}).slice(0, 10).map(([k, v]) => `${k === '역할 없음' ? '역할을 아직 안 정한 일정' : String(k).slice(0, 24)} ${Number(v) || 0}시간`).join(', ');
   const notes = cut(b.notes, 7, x => '- ' + String(x).slice(0, 80));
   // 먼저 볼 일은 코드가 정한다(모델이 순서를 자주 틀린다): 마감 지난 A → 마감 지난 B → 사흘 안 마감 → 나머지 A·B
   const rank = x => { const d = String(x.due || ''), over = d && d < td, b3 = d && !over && (new Date(d) - new Date(td)) / 86400000 <= 3; return (x.wait ? 9 : 0) + (over && x.bucket === 'urgent' ? 0 : over && x.bucket === 'important' ? 1 : over ? 2 : b3 ? 3 : x.bucket === 'urgent' ? 4 : x.bucket === 'important' ? 5 : 6); };
@@ -347,9 +352,11 @@ async function review(req, env, token) {
     '다음 주 후보는 최대 3개. 남은 일 제목을 그대로 베끼지 말고, 그 일을 시작하는 30분~1시간짜리 첫 행동으로 쓴다. 예: "사업계획서 다시 쓰기" → "사업계획서 2장 소제목만 다시 적기", "거래처 승인 받아 계약서 마무리" → "거래처에 승인 가능한 날짜 묻는 메시지 보내기", "토익 문제집 끝내기" → "LC 파트2 한 세트 풀고 틀린 유형만 표시". 역할은 주어진 역할 이름 중 하나, due는 그 행동을 해 볼 날로 다음 주 월~일 사이(YYYY-MM-DD).',
     '후보는 반드시 그 일 자체를 한 걸음 진전시키는 행동이어야 한다. 늦은 이유 분석·원인 찾기·회고·"현황 확인"·"다시 확인"처럼 일을 앞으로 보내지 않는 것은 후보로 쓰지 않는다. 일이 아직 시작 전 단계면 그 앞 단계를 쓴다(발표 주제를 아직 안 정했으면 "자료 만들기"가 아니라 "주제 후보 3개만 적기"). 큰 일은 30분 안에 끝나는 범위로 줄인다(대청소 → "현관 신발장만 정리").',
     '역할 이름은 주어진 그대로 쓴다. "아내" 역할을 "아내와 보내는 시간"처럼 관계를 바꿔 풀어 쓰지 않는다("아내 역할에 1시간").',
+    '할 일이 대부분 한국어가 아니면 summary와 후보 제목을 그 언어로 쓴다(영어면 짧고 담백한 2인칭 평서문, 칭찬·감탄 없이). 규칙은 위와 같다.',
     '설명 없이 JSON 하나만: {"summary":"...","cands":[{"title":"...","role":"...","due":"YYYY-MM-DD"}]}'
   ].join('\n');
-  const user = `오늘: ${String(b.today || '').slice(0, 10)} / 다음 주 시작: ${String(b.next || '').slice(0, 10)}\n역할: ${cut(b.roles, 8, String).join(', ') || '없음'}\n이번 주 끝낸 일:\n${done.join('\n') || '- 없음'}\n남은 일:\n${open.join('\n') || '- 없음'}\n먼저 볼 일: ${firstLine || '없음'}\n캘린더 시간: ${hours || '없음'}\n한 줄 일기:\n${notes.join('\n') || '- 없음'}`;
+  const rlang = langOf((b.open || []).concat(b.done || []).map(x => String((x && x.title) || '')));
+  const user = (rlang !== 'ko' ? `글 언어: ${LANG_NAME[rlang]} — summary와 후보를 ${LANG_NAME[rlang]}로 쓴다\n` : '') + `오늘: ${String(b.today || '').slice(0, 10)} / 다음 주 시작: ${String(b.next || '').slice(0, 10)}\n역할: ${cut(b.roles, 8, String).join(', ') || '없음'}\n이번 주 끝낸 일:\n${done.join('\n') || '- 없음'}\n남은 일:\n${open.join('\n') || '- 없음'}\n먼저 볼 일: ${firstLine || '없음'}\n캘린더 시간: ${hours || '없음'}\n한 줄 일기:\n${notes.join('\n') || '- 없음'}`;
   const ex = [
     { role: 'user', content: '오늘: 2026-11-22 / 다음 주 시작: 2026-11-23\n역할: 영업 과장, 하은 아빠, 나 자신\n이번 주 끝낸 일:\n- 거래처 3곳 견적 회신 (영업 과장)\n- 주간 영업 회의 자료 (영업 과장)\n- 하은 피아노 학원 상담 (하은 아빠)\n남은 일:\n- 신규 거래처 제안서 (영업 과장) 마감 지남(2026-11-20)\n- 치과 예약 (나 자신)\n먼저 볼 일: 신규 거래처 제안서 (마감 지남 11/20)\n캘린더 시간: 영업 과장 11시간, 하은 아빠 1시간\n한 줄 일기:\n- 없음' },
     { role: 'assistant', content: '{"summary":"거래처 견적 회신과 영업 회의 자료, 하은 피아노 학원 상담까지 끝냈어요. 캘린더에 잡힌 시간은 영업 과장 일에 11시간, 하은 아빠 일에 1시간이었어요. 다음 주엔 마감이 지난 신규 거래처 제안서를 먼저 보면 좋겠어요. 치과 예약은 아직 그대로예요.","cands":[{"title":"제안서 첫 장 고객 문제 세 줄만 적기","role":"영업 과장","due":"2026-11-24"},{"title":"치과 두 곳 이번 주 빈 시간 묻기","role":"나 자신","due":"2026-11-26"}]}' }
@@ -368,7 +375,7 @@ async function review(req, env, token) {
   // 후보 날짜는 다음 주 안으로
   const nx = String(b.next || '').slice(0, 10), nxEnd = /^\d{4}-\d{2}-\d{2}$/.test(nx) ? new Date(Date.parse(nx) + 6 * 864e5).toISOString().slice(0, 10) : '';
   const inWeek = d => !nx || (d >= nx && d <= nxEnd) ? d : nx;
-  out.cands = (out.cands || []).filter(c => !/(왜|이유|원인|분석|현황 확인|다시 확인|초안 확인|진행 확인|여부 확인|해야 하는지)/.test(String(c && c.title || '')));
+  out.cands = (out.cands || []).filter(c => !/(왜|이유|원인|분석|현황 확인|다시 확인|초안 확인|진행 확인|여부 확인|해야 하는지|\bwhy\b|\breasons?\b|analy[sz]e|\bcheck (?:the )?status|\bre-?check|\breview again|\bconfirm whether)/i.test(String(c && c.title || '')));
   out.summary = String(out.summary || '').replace(/(아내|남편)와 보내는 (시간|일)/g, '$1 역할').replace(/(아내|남편)로서의 일/g, '$1 역할 일');
   const cands = cut(out.cands, 3, c => ({ title: String(c.title || '').slice(0, 60), role: roles.has(String(c.role)) ? String(c.role) : '', due: /^\d{4}-\d{2}-\d{2}$/.test(String(c.due)) ? inWeek(String(c.due)) : '' })).filter(c => c.title);
   return json({ summary: String(out.summary).slice(0, 600), cands });
