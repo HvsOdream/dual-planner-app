@@ -278,7 +278,14 @@ html.native .tabbar { padding-left: env(safe-area-inset-left); padding-right: en
 /* 빅록 추가 폼 */
 .addrock { display: none; }
 .addrock.on { display: block; }
-.addrock .sel { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 52px; min-height: var(--row); align-items: center; }
+.addrock .sel { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.addrock .arin { font-size: 17px; padding-left: 0; }
+.addrock .arrow { display: flex; align-items: center; gap: 8px; padding: 6px 16px 6px 52px; flex-wrap: wrap; }
+.addrock .arl { font-size: 12px; color: var(--muted); flex: none; }
+.addrock .arf { font: inherit; font-size: 14px; color: var(--ink); background: transparent; border: none; border-bottom: 1px solid var(--rule); padding: 2px 0; }
+.addrock .arh { font-size: 12px; color: var(--muted); padding: 0 16px 0 52px; }
+.addrock .arbtn { display: flex; justify-content: flex-end; gap: 20px; padding: 8px 16px 12px 52px; }
+.addrock .arbtn button { font-size: 14px; text-decoration: underline; text-underline-offset: 3px; } .addrock .arbtn .ghost { color: var(--muted); } .addrock .arbtn .go { font-weight: 700; color: var(--ink); }
 .addrock .sel button { height: 24px; line-height: 22px; padding: 0 8px; font-size: 11px; border: 1px solid var(--faint); border-radius: 4px; color: var(--muted); }
 .addrock .sel button.on { border-color: var(--accent); color: var(--accent); }
 .addrock input[type=date] { font-family: var(--mono); font-size: 13px; }
@@ -1440,22 +1447,26 @@ function renderWeek() {
     const list = items.filter(r => (r.bucket||'nice') === b).sort((x, y) => (x.due || '9999') < (y.due || '9999') ? -1 : (x.due || '9999') > (y.due || '9999') ? 1 : 0).concat(doneToday);
     if (b === 'nice' && !showD && !(addOpen && addBucket==='nice')) { h += `<div class="lbl"><span>${name} <span class="mono" style="letter-spacing:0">${list.length}</span></span><button onclick="showD=true;renderWeek()">펼치기 ›</button></div><div class="sp"></div>`; return; }
     h += `<div class="lbl"><span>${name} <span class="mono" style="letter-spacing:0">${list.length - doneToday.length}</span></span><button onclick="openAdd('${b}')">+ 추가</button></div>`;
+    if (addOpen && addBucket === b) h += addFormHtml(b);
     if (!list.length) h += `<div class="line faint ruled">${b==='important'?'언제까지만?':''}</div>`;
     list.forEach(r => { n++; h += itemRow(r, n); });
-    if (addOpen && addBucket === b) h += addFormHtml(b);
     h += `<div class="sp"></div>`;
   });
   document.getElementById('week').innerHTML = h;
 }
+let addKeepV = {};
+function addKeep() { const g = id => (document.getElementById(id) || {}).value; addPrefill = g('rockTitle') || ''; addKeepV = { due: g('rockDue'), at: g('rockAt') }; }
 function addFormHtml(b) {
-  const due = dstr(new Date(Date.now()+6*86400000));
+  // 새 줄 하나를 적는 모양: 제목 → 역할 → 언제까지·약속 → 적기
+  const due = dstr(new Date(Date.now()+6*86400000)), needDue = b === 'important' && !addRoutine;
   return `<div class="addrock on" id="addrock">
-    <div class="sel" id="roleSel">${D.roles.map(r=>`<button class="${addRole===r?'on':''}" onclick="addRole='${esc(r)}';renderWeek()">${esc(r)}</button>`).join('')}${b!=='urgent'?`<button class="${addRoutine?'on':''}" onclick="addRoutine=!addRoutine;renderWeek()">루틴</button>`:''}</div>
-    <input class="wr" id="rockTitle" placeholder="" value="${esc(addPrefill)}">
-    <div class="line sub" style="display:flex;gap:10px;align-items:center">${addRoutine?`주 <select id="rockN" style="background:transparent;border:none;border-bottom:1px solid var(--rule)"><option>2</option><option selected>3</option><option>4</option><option>5</option></select> 회`:`까지만 <input type="date" id="rockDue" style="background:transparent;border:none;border-bottom:1px solid var(--rule)" value="${b==='important'?due:''}"> 약속 <input type="time" id="rockAt" style="background:transparent;border:none;border-bottom:1px solid var(--rule)">`}</div>
-    <div class="pbtns" style="padding-left:52px"><button class="cta" style="margin-left:0;width:auto;flex:1" onclick="addRock('${b}')">저장</button><button class="cta ghost" style="margin-left:0;width:auto;flex:1" onclick="addOpen=false;addPrefill='';renderWeek()">취소</button></div></div>`;
+    <div class="item"><div class="mg"><span class="chk" style="border-style:dashed"></span></div><div class="bd"><input class="wr arin" id="rockTitle" placeholder="${b === 'nice' ? '언젠가 하고 싶은 일' : b === 'important' ? '오래 걸리는 중요한 일' : '할 일'}" value="${esc(addPrefill)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')addRock('${b}')"></div></div>
+    ${D.roles.length || b !== 'urgent' ? `<div class="arrow"><span class="arl">역할</span><div class="sel" id="roleSel">${D.roles.map(r=>`<button class="${addRole===r?'on':''}" onclick="addKeep();addRole=addRole==='${esc(r)}'?'':'${esc(r)}';renderWeek()">${esc(r)}</button>`).join('')}${b!=='urgent'?`<button class="${addRoutine?'on':''}" onclick="addKeep();addRoutine=!addRoutine;renderWeek()">루틴</button>`:''}</div></div>` : ''}
+    <div class="arrow">${addRoutine ? `<span class="arl">주</span><select id="rockN" class="arf"><option>2</option><option selected>3</option><option>4</option><option>5</option></select><span class="arl">회</span>` : `<span class="arl">${needDue ? '언제까지' : '마감'}</span><input type="date" id="rockDue" class="arf" value="${addKeepV.due !== undefined ? addKeepV.due : needDue ? due : ''}"><span class="arl">약속</span><input type="time" id="rockAt" class="arf" value="${addKeepV.at || ''}">`}</div>
+    ${needDue ? '<div class="arh">B는 언제까지만 할지 날짜가 필요해요</div>' : ''}
+    <div class="arbtn"><button class="ghost" onclick="addOpen=false;addPrefill='';addKeepV={};renderWeek()">취소</button><button class="go" onclick="addRock('${b}')">적기</button></div></div>`;
 }
-function openAdd(b) { addBucket = b; addOpen = true; addRoutine = false; renderWeek(); setTimeout(()=>{ const e=document.getElementById('rockTitle'); if (e) e.focus(); }, 50); }
+function openAdd(b) { addBucket = b; addOpen = true; addRoutine = false; addKeepV = {}; renderWeek(); setTimeout(()=>{ const e=document.getElementById('rockTitle'); if (e) e.focus(); }, 50); }
 function addRock(b) {
   b = b || addBucket;
   const title = (document.getElementById('rockTitle').value||'').trim();
@@ -1463,7 +1474,7 @@ function addRock(b) {
   const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: addRole || '', title, done: false, carry: 0, checks: {} };
   if (addRoutine) r.routine = Number((document.getElementById('rockN')||{}).value||3);
   else { const due = (document.getElementById('rockDue')||{}).value || ''; if (b==='important' && !due) { toast('B는 끝 조건이 필요해요'); return; } if (due) r.due = due; const at = (document.getElementById('rockAt')||{}).value || ''; if (at) { r.due = r.due || today(); r.at = r.due + 'T' + at; } }
-  r.vol = (curVol()||{}).id; D.rocks.push(r); addOpen = false; addPrefill = ''; save(); renderWeek(); renderCover(); toast('적었어요');
+  r.vol = (curVol()||{}).id; D.rocks.push(r); addOpen = false; addPrefill = ''; addKeepV = {}; save(); renderWeek(); renderCover(); toast('적었어요');
 }
 function finishRock(id) { const r = rock(id); if (!r) return; const td = today(); r.checks = r.checks || {}; if (r.done) { if (r.doneAt) delete r.checks[r.doneAt]; r.done = false; r.doneAt = null; } else { r.done = true; r.doneAt = td; r.checks[td] = true; if (navigator.vibrate) navigator.vibrate(12); } save(); render(); }
 function delRock(id) { if (!confirm('이 항목을 지울까요?')) return; const r = rock(id); if (r) r._deleted = true; save(); render(); }
