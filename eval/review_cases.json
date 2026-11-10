@@ -1,0 +1,1923 @@
+{
+"hk:2026-11-22": {
+"roles": [
+"모임장",
+"봉사자",
+"아내",
+"친구",
+"나 자신",
+"가족"
+],
+"done": [
+{
+"title": "수진에게 다음 독서모임 책 공지",
+"role": "모임장"
+},
+{
+"title": "도서관 박 선생님께 봉사 시간 확인",
+"role": "봉사자"
+},
+{
+"title": "영호와 산책 날짜 정하기",
+"role": "아내"
+},
+{
+"title": "은정이랑 갈 전시 예약",
+"role": "친구"
+}
+],
+"open": [
+{
+"id": "hk7",
+"title": "엄마 생신 식당 예약",
+"role": "가족",
+"bucket": "important",
+"due": "2026-12-11",
+"wait": false
+}
+],
+"later": [
+"지난 여행 사진 정리",
+"수채화 다시 시작하기"
+],
+"hours": {
+"봉사자": 4,
+"모임장": 2,
+"아내": 1
+},
+"notes": [],
+"today": "2026-11-22",
+"week": "2026-11-16",
+"next": "2026-11-23"
+},
+"hk:2026-12-06": {
+"roles": [
+"모임장",
+"봉사자",
+"아내",
+"친구",
+"나 자신",
+"가족"
+],
+"done": [],
+"open": [
+{
+"id": "hk7",
+"title": "엄마 생신 식당 예약",
+"role": "가족",
+"bucket": "important",
+"due": "2026-12-11",
+"wait": false
+},
+{
+"id": "hk8",
+"title": "12월 독서모임 책 3권 후보 고르기",
+"role": "모임장",
+"bucket": "important",
+"due": "2026-12-01",
+"wait": false
+}
+],
+"later": [
+"지난 여행 사진 정리",
+"수채화 다시 시작하기"
+],
+"hours": {
+"봉사자": 4,
+"모임장": 2,
+"아내": 1
+},
+"notes": [],
+"today": "2026-12-06",
+"week": "2026-11-30",
+"next": "2026-12-07"
+},
+"hk:2026-12-13": {
+"roles": [
+"모임장",
+"봉사자",
+"아내",
+"친구",
+"나 자신",
+"가족"
+],
+"done": [
+{
+"title": "엄마 생신 식당 예약",
+"role": "가족"
+}
+],
+"open": [
+{
+"id": "hk8",
+"title": "12월 독서모임 책 3권 후보 고르기",
+"role": "모임장",
+"bucket": "important",
+"due": "2026-12-01",
+"wait": false
+}
+],
+"later": [
+"지난 여행 사진 정리",
+"수채화 다시 시작하기"
+],
+"hours": {
+"봉사자": 4,
+"모임장": 2,
+"아내": 1
+},
+"notes": [],
+"today": "2026-12-13",
+"week": "2026-12-07",
+"next": "2026-12-14"
+},
+"jh:2026-11-23": {
+"roles": [
+"기획자",
+"연인",
+"가족"
+],
+"done": [
+{
+"title": "검색 개편 기획서 초안",
+"role": "기획자"
+},
+{
+"title": "디자인팀에 와이어프레임 피드백 회신",
+"role": "기획자"
+},
+{
+"title": "개발 리드와 일정 리스크 정리",
+"role": "기획자"
+},
+{
+"title": "분기 지표 대시보드 확인",
+"role": "기획자"
+},
+{
+"title": "사용자 인터뷰 질문지 작성",
+"role": "기획자"
+}
+],
+"open": [
+{
+"id": "jh5",
+"title": "소연이랑 주말 여행 숙소 예약",
+"role": "연인",
+"bucket": "important",
+"due": "2026-11-22",
+"wait": false
+},
+{
+"id": "jh6",
+"title": "엄마 생신 선물 고르기",
+"role": "가족",
+"bucket": "important",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "jh9",
+"title": "검색 개편 PRD 리뷰 반영",
+"role": "기획자",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "jh10",
+"title": "QA 일정 공유",
+"role": "기획자",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [
+"블로그 글 하나 쓰기"
+],
+"hours": {
+"기획자": 10,
+"역할 없음": 1
+},
+"notes": [],
+"today": "2026-11-23",
+"week": "2026-11-16",
+"next": "2026-11-23"
+},
+"jh:2026-11-30": {
+"roles": [
+"기획자",
+"연인",
+"가족"
+],
+"done": [
+{
+"title": "소연이랑 주말 여행 숙소 예약",
+"role": "연인"
+}
+],
+"open": [
+{
+"id": "jh6",
+"title": "엄마 생신 선물 고르기",
+"role": "가족",
+"bucket": "important",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "jh9",
+"title": "검색 개편 PRD 리뷰 반영",
+"role": "기획자",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "jh10",
+"title": "QA 일정 공유",
+"role": "기획자",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [
+"블로그 글 하나 쓰기"
+],
+"hours": {
+"기획자": 10,
+"역할 없음": 1
+},
+"notes": [],
+"today": "2026-11-30",
+"week": "2026-11-23",
+"next": "2026-11-30"
+},
+"jh:2026-12-14": {
+"roles": [
+"기획자",
+"연인",
+"가족"
+],
+"done": [
+{
+"title": "엄마 생신 선물 고르기",
+"role": "가족"
+}
+],
+"open": [
+{
+"id": "jh9",
+"title": "검색 개편 PRD 리뷰 반영",
+"role": "기획자",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "jh10",
+"title": "QA 일정 공유",
+"role": "기획자",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [
+"블로그 글 하나 쓰기"
+],
+"hours": {
+"기획자": 10,
+"역할 없음": 1
+},
+"notes": [],
+"today": "2026-12-14",
+"week": "2026-12-07",
+"next": "2026-12-14"
+},
+"mj:2026-11-23": {
+"roles": [
+"프리랜서",
+"가족",
+"나 자신",
+"친구"
+],
+"done": [
+{
+"title": "하진에게 루프커피 로고 1차 시안 전달",
+"role": "프리랜서"
+},
+{
+"title": "유라가 보낸 오후서점 포스터 문구 반영",
+"role": "프리랜서"
+},
+{
+"title": "정 대표에게 새 프로젝트 견적서 보내기",
+"role": "프리랜서"
+},
+{
+"title": "엄마 안과 예약",
+"role": "가족"
+},
+{
+"title": "지수와 토요일 저녁 약속 확정",
+"role": "친구"
+},
+{
+"title": "지난달 계산서 파일 정리",
+"role": "프리랜서"
+}
+],
+"open": [
+{
+"id": "mj4",
+"title": "하진에게 최종 문구 받아 브랜드 안내서 완성",
+"role": "프리랜서",
+"bucket": "important",
+"due": "2026-12-07",
+"wait": false
+},
+{
+"id": "mj7",
+"title": "포트폴리오 첫 화면 교체",
+"role": "프리랜서",
+"bucket": "important",
+"due": "2026-11-30",
+"wait": false
+},
+{
+"id": "mj9",
+"title": "오후서점 포스터 2차 수정",
+"role": "프리랜서",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "mj10",
+"title": "새 고객 미팅 자료",
+"role": "프리랜서",
+"bucket": "important",
+"due": "2026-11-28",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"프리랜서": 2,
+"나 자신": 2
+},
+"notes": [],
+"today": "2026-11-23",
+"week": "2026-11-16",
+"next": "2026-11-23"
+},
+"mj:2026-12-14": {
+"roles": [
+"프리랜서",
+"가족",
+"나 자신",
+"친구"
+],
+"done": [],
+"open": [
+{
+"id": "mj4",
+"title": "하진에게 최종 문구 받아 브랜드 안내서 완성",
+"role": "프리랜서",
+"bucket": "important",
+"due": "2026-12-07",
+"wait": false
+},
+{
+"id": "mj7",
+"title": "포트폴리오 첫 화면 교체",
+"role": "프리랜서",
+"bucket": "important",
+"due": "2026-11-30",
+"wait": false
+},
+{
+"id": "mj9",
+"title": "오후서점 포스터 2차 수정",
+"role": "프리랜서",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "mj10",
+"title": "새 고객 미팅 자료",
+"role": "프리랜서",
+"bucket": "important",
+"due": "2026-11-28",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"프리랜서": 2,
+"나 자신": 2
+},
+"notes": [],
+"today": "2026-12-14",
+"week": "2026-12-07",
+"next": "2026-12-14"
+},
+"sy:2026-11-22": {
+"roles": [
+"품질관리",
+"수험생",
+"가족",
+"나 자신"
+],
+"done": [
+{
+"title": "최 대리에게 검사 성적서 보내기",
+"role": "품질관리"
+},
+{
+"title": "공정능력 강의 두 개 듣기",
+"role": "수험생"
+},
+{
+"title": "부적합 보고서 양식 수정",
+"role": "품질관리"
+},
+{
+"title": "언니 생일 케이크 예약",
+"role": "가족"
+}
+],
+"open": [
+{
+"id": "sy2",
+"title": "현진과 스터디에서 오답 20문제 확인",
+"role": "수험생",
+"bucket": "important",
+"due": "2026-11-21",
+"wait": false
+},
+{
+"id": "sy3",
+"title": "기출 3개년 유형별 정리",
+"role": "수험생",
+"bucket": "important",
+"due": "2026-12-07",
+"wait": false
+},
+{
+"id": "sy7",
+"title": "필라테스 주 2회",
+"role": "나 자신",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "sy8",
+"title": "시험 접수",
+"role": "수험생",
+"bucket": "important",
+"due": "2026-11-26",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"품질관리": 3.5,
+"수험생": 2,
+"나 자신": 2
+},
+"notes": [],
+"today": "2026-11-22",
+"week": "2026-11-16",
+"next": "2026-11-23"
+},
+"sy:2026-11-29": {
+"roles": [
+"품질관리",
+"수험생",
+"가족",
+"나 자신"
+],
+"done": [
+{
+"title": "시험 접수",
+"role": "수험생"
+}
+],
+"open": [
+{
+"id": "sy2",
+"title": "현진과 스터디에서 오답 20문제 확인",
+"role": "수험생",
+"bucket": "important",
+"due": "2026-11-21",
+"wait": false
+},
+{
+"id": "sy3",
+"title": "기출 3개년 유형별 정리",
+"role": "수험생",
+"bucket": "important",
+"due": "2026-12-07",
+"wait": false
+},
+{
+"id": "sy7",
+"title": "필라테스 주 2회",
+"role": "나 자신",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "sy9",
+"title": "월간 불량률 보고",
+"role": "품질관리",
+"bucket": "urgent",
+"due": "2026-11-26",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"품질관리": 3.5,
+"수험생": 2,
+"나 자신": 2
+},
+"notes": [],
+"today": "2026-11-29",
+"week": "2026-11-23",
+"next": "2026-11-30"
+},
+"sy:2026-12-13": {
+"roles": [
+"품질관리",
+"수험생",
+"가족",
+"나 자신"
+],
+"done": [
+{
+"title": "현진과 스터디에서 오답 20문제 확인",
+"role": "수험생"
+}
+],
+"open": [
+{
+"id": "sy3",
+"title": "기출 3개년 유형별 정리",
+"role": "수험생",
+"bucket": "important",
+"due": "2026-12-07",
+"wait": false
+},
+{
+"id": "sy7",
+"title": "필라테스 주 2회",
+"role": "나 자신",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "sy9",
+"title": "월간 불량률 보고",
+"role": "품질관리",
+"bucket": "urgent",
+"due": "2026-11-26",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"품질관리": 3.5,
+"수험생": 2,
+"나 자신": 2
+},
+"notes": [],
+"today": "2026-12-13",
+"week": "2026-12-07",
+"next": "2026-12-14"
+},
+"tj:2026-11-22": {
+"roles": [
+"민준 아빠",
+"교수",
+"학과장",
+"가족",
+"나 자신"
+],
+"done": [
+{
+"title": "민준 담임 박서현 선생님께 상담 시간 답장",
+"role": "민준 아빠"
+},
+{
+"title": "이수진 교수에게 취업률 자료 요청",
+"role": "교수"
+},
+{
+"title": "다음 강의 평가방법 슬라이드 정리",
+"role": "교수"
+},
+{
+"title": "지연이와 부모님 생신 식당 정하기",
+"role": "가족"
+},
+{
+"title": "졸업작품 3팀 피드백",
+"role": "교수"
+},
+{
+"title": "학과회의 안건 작성",
+"role": "학과장"
+}
+],
+"open": [
+{
+"id": "tj7",
+"title": "건강검진 예약",
+"role": "나 자신",
+"bucket": "light",
+"due": "",
+"wait": false
+},
+{
+"id": "tj8",
+"title": "논문 초안 목차 다시 짜기",
+"role": "교수",
+"bucket": "important",
+"due": "2026-12-06",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"교수": 9,
+"역할 없음": 2,
+"나 자신": 1
+},
+"notes": [],
+"today": "2026-11-22",
+"week": "2026-11-16",
+"next": "2026-11-23"
+},
+"tj:2026-11-29": {
+"roles": [
+"민준 아빠",
+"교수",
+"학과장",
+"가족",
+"나 자신"
+],
+"done": [],
+"open": [
+{
+"id": "tj7",
+"title": "건강검진 예약",
+"role": "나 자신",
+"bucket": "light",
+"due": "",
+"wait": false
+},
+{
+"id": "tj8",
+"title": "논문 초안 목차 다시 짜기",
+"role": "교수",
+"bucket": "important",
+"due": "2026-12-06",
+"wait": false
+},
+{
+"id": "tj9",
+"title": "학과평가 자체평가서 초안",
+"role": "학과장",
+"bucket": "urgent",
+"due": "2026-11-27",
+"wait": false
+},
+{
+"id": "tj10",
+"title": "민준 수학학원 상담",
+"role": "민준 아빠",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"교수": 9,
+"역할 없음": 2,
+"나 자신": 1
+},
+"notes": [],
+"today": "2026-11-29",
+"week": "2026-11-23",
+"next": "2026-11-30"
+},
+"tj:2026-12-06": {
+"roles": [
+"민준 아빠",
+"교수",
+"학과장",
+"가족",
+"나 자신"
+],
+"done": [],
+"open": [
+{
+"id": "tj7",
+"title": "건강검진 예약",
+"role": "나 자신",
+"bucket": "light",
+"due": "",
+"wait": false
+},
+{
+"id": "tj8",
+"title": "논문 초안 목차 다시 짜기",
+"role": "교수",
+"bucket": "important",
+"due": "2026-12-06",
+"wait": false
+},
+{
+"id": "tj9",
+"title": "학과평가 자체평가서 초안",
+"role": "학과장",
+"bucket": "urgent",
+"due": "2026-11-27",
+"wait": false
+},
+{
+"id": "tj10",
+"title": "민준 수학학원 상담",
+"role": "민준 아빠",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"교수": 9,
+"역할 없음": 2,
+"나 자신": 1
+},
+"notes": [],
+"today": "2026-12-06",
+"week": "2026-11-30",
+"next": "2026-12-07"
+},
+"em:2026-11-23": {
+"roles": [
+"Product Manager",
+"Parent",
+"Myself",
+"Family"
+],
+"done": [
+{
+"title": "Send Q1 launch messaging draft to Priya",
+"role": "Product Manager"
+},
+{
+"title": "Book Ava's dentist appointment",
+"role": "Parent"
+},
+{
+"title": "Finish competitive analysis deck for exec review",
+"role": "Product Manager"
+},
+{
+"title": "Reply to Mark about Thanksgiving travel",
+"role": "Family"
+},
+{
+"title": "Review agency invoice from Brightline",
+"role": "Product Manager"
+}
+],
+"open": [
+{
+"id": "em4",
+"title": "Plan Leo's 5th birthday party",
+"role": "Parent",
+"bucket": "important",
+"due": "2026-11-28",
+"wait": false
+},
+{
+"id": "em6",
+"title": "Run 3x a week",
+"role": "Myself",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "em8",
+"title": "Write customer story blog post",
+"role": "Product Manager",
+"bucket": "important",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "em9",
+"title": "Prep slides for pricing page test",
+"role": "Product Manager",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "em10",
+"title": "Order Leo's party cake",
+"role": "Parent",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"Product Manager": 3,
+"Parent": 1.5
+},
+"notes": [],
+"today": "2026-11-23",
+"week": "2026-11-16",
+"next": "2026-11-23"
+},
+"em:2026-11-30": {
+"roles": [
+"Product Manager",
+"Parent",
+"Myself",
+"Family"
+],
+"done": [
+{
+"title": "Write customer story blog post",
+"role": "Product Manager"
+}
+],
+"open": [
+{
+"id": "em4",
+"title": "Plan Leo's 5th birthday party",
+"role": "Parent",
+"bucket": "important",
+"due": "2026-11-28",
+"wait": false
+},
+{
+"id": "em6",
+"title": "Run 3x a week",
+"role": "Myself",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "em9",
+"title": "Prep slides for pricing page test",
+"role": "Product Manager",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "em10",
+"title": "Order Leo's party cake",
+"role": "Parent",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"Product Manager": 3,
+"Parent": 1.5
+},
+"notes": [],
+"today": "2026-11-30",
+"week": "2026-11-23",
+"next": "2026-11-30"
+},
+"em:2026-12-07": {
+"roles": [
+"Product Manager",
+"Parent",
+"Myself",
+"Family"
+],
+"done": [],
+"open": [
+{
+"id": "em4",
+"title": "Plan Leo's 5th birthday party",
+"role": "Parent",
+"bucket": "important",
+"due": "2026-11-28",
+"wait": false
+},
+{
+"id": "em6",
+"title": "Run 3x a week",
+"role": "Myself",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "em9",
+"title": "Prep slides for pricing page test",
+"role": "Product Manager",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "em10",
+"title": "Order Leo's party cake",
+"role": "Parent",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"Product Manager": 3,
+"Parent": 1.5
+},
+"notes": [],
+"today": "2026-12-07",
+"week": "2026-11-30",
+"next": "2026-12-07"
+},
+"em:2026-12-14": {
+"roles": [
+"Product Manager",
+"Parent",
+"Myself",
+"Family"
+],
+"done": [
+{
+"title": "Plan Leo's 5th birthday party",
+"role": "Parent"
+}
+],
+"open": [
+{
+"id": "em6",
+"title": "Run 3x a week",
+"role": "Myself",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "em9",
+"title": "Prep slides for pricing page test",
+"role": "Product Manager",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "em10",
+"title": "Order Leo's party cake",
+"role": "Parent",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"Product Manager": 3,
+"Parent": 1.5
+},
+"notes": [],
+"today": "2026-12-14",
+"week": "2026-12-07",
+"next": "2026-12-14"
+},
+"jw:2026-11-22": {
+"roles": [
+"Manager",
+"Parent",
+"Myself",
+"Family"
+],
+"done": [
+{
+"title": "Send winter bed capacity plan to Dr Okafor",
+"role": "Manager"
+},
+{
+"title": "Read safeguarding report before governors meeting",
+"role": "Manager"
+},
+{
+"title": "Book Chloe's train home for Christmas",
+"role": "Parent"
+},
+{
+"title": "December rota changes",
+"role": "Manager"
+},
+{
+"title": "Call Mum about her GP results",
+"role": "Family"
+}
+],
+"open": [
+{
+"id": "jw5",
+"title": "Long run on Sunday",
+"role": "Myself",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "jw6",
+"title": "Renew car insurance",
+"role": "Family",
+"bucket": "light",
+"due": "",
+"wait": false
+},
+{
+"id": "jw7",
+"title": "Draft business case for discharge lounge",
+"role": "Manager",
+"bucket": "important",
+"due": "2026-12-06",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"Manager": 7.5,
+"Myself": 2
+},
+"notes": [],
+"today": "2026-11-22",
+"week": "2026-11-16",
+"next": "2026-11-23"
+},
+"jw:2026-11-29": {
+"roles": [
+"Manager",
+"Parent",
+"Myself",
+"Family"
+],
+"done": [],
+"open": [
+{
+"id": "jw5",
+"title": "Long run on Sunday",
+"role": "Myself",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "jw6",
+"title": "Renew car insurance",
+"role": "Family",
+"bucket": "light",
+"due": "",
+"wait": false
+},
+{
+"id": "jw7",
+"title": "Draft business case for discharge lounge",
+"role": "Manager",
+"bucket": "important",
+"due": "2026-12-06",
+"wait": false
+},
+{
+"id": "jw9",
+"title": "Respond to CQC data request",
+"role": "Manager",
+"bucket": "urgent",
+"due": "2026-11-26",
+"wait": false
+},
+{
+"id": "jw10",
+"title": "Book anniversary dinner with Sarah",
+"role": "Parent",
+"bucket": "important",
+"due": "2026-12-03",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"Manager": 7.5,
+"Myself": 2
+},
+"notes": [],
+"today": "2026-11-29",
+"week": "2026-11-23",
+"next": "2026-11-30"
+},
+"jw:2026-12-06": {
+"roles": [
+"Manager",
+"Parent",
+"Myself",
+"Family"
+],
+"done": [],
+"open": [
+{
+"id": "jw5",
+"title": "Long run on Sunday",
+"role": "Myself",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "jw6",
+"title": "Renew car insurance",
+"role": "Family",
+"bucket": "light",
+"due": "",
+"wait": false
+},
+{
+"id": "jw7",
+"title": "Draft business case for discharge lounge",
+"role": "Manager",
+"bucket": "important",
+"due": "2026-12-06",
+"wait": false
+},
+{
+"id": "jw9",
+"title": "Respond to CQC data request",
+"role": "Manager",
+"bucket": "urgent",
+"due": "2026-11-26",
+"wait": false
+},
+{
+"id": "jw10",
+"title": "Book anniversary dinner with Sarah",
+"role": "Parent",
+"bucket": "important",
+"due": "2026-12-03",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"Manager": 7.5,
+"Myself": 2
+},
+"notes": [],
+"today": "2026-12-06",
+"week": "2026-11-30",
+"next": "2026-12-07"
+},
+"ks:2026-11-23": {
+"roles": [
+"チームリーダー",
+"営業",
+"父",
+"社交",
+"自分",
+"夫"
+],
+"done": [
+{
+"title": "田中部長に週次売上報告を送る",
+"role": "チームリーダー"
+},
+{
+"title": "大阪支社の見積もり確認",
+"role": "営業"
+},
+{
+"title": "部下3人と1on1",
+"role": "チームリーダー"
+},
+{
+"title": "陽翔の塾の面談予約",
+"role": "父"
+}
+],
+"open": [
+{
+"id": "ks5",
+"title": "年末の挨拶回りリスト作成",
+"role": "社交",
+"bucket": "important",
+"due": "2026-11-26",
+"wait": false
+},
+{
+"id": "ks6",
+"title": "健康診断の再検査予約",
+"role": "自分",
+"bucket": "light",
+"due": "",
+"wait": false
+},
+{
+"id": "ks7",
+"title": "TOEIC対策 週3回",
+"role": "自分",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "ks8",
+"title": "ゆきと結婚記念日のレストラン予約",
+"role": "夫",
+"bucket": "important",
+"due": "2026-11-24",
+"wait": false
+},
+{
+"id": "ks9",
+"title": "新製品カタログを顧客に送付",
+"role": "チームリーダー",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "ks10",
+"title": "課の忘年会の幹事",
+"role": "チームリーダー",
+"bucket": "important",
+"due": "2026-12-05",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"チームリーダー": 5
+},
+"notes": [],
+"today": "2026-11-23",
+"week": "2026-11-16",
+"next": "2026-11-23"
+},
+"ks:2026-11-30": {
+"roles": [
+"チームリーダー",
+"営業",
+"父",
+"社交",
+"自分",
+"夫"
+],
+"done": [
+{
+"title": "ゆきと結婚記念日のレストラン予約",
+"role": "夫"
+}
+],
+"open": [
+{
+"id": "ks5",
+"title": "年末の挨拶回りリスト作成",
+"role": "社交",
+"bucket": "important",
+"due": "2026-11-26",
+"wait": false
+},
+{
+"id": "ks6",
+"title": "健康診断の再検査予約",
+"role": "自分",
+"bucket": "light",
+"due": "",
+"wait": false
+},
+{
+"id": "ks7",
+"title": "TOEIC対策 週3回",
+"role": "自分",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "ks9",
+"title": "新製品カタログを顧客に送付",
+"role": "チームリーダー",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "ks10",
+"title": "課の忘年会の幹事",
+"role": "チームリーダー",
+"bucket": "important",
+"due": "2026-12-05",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"チームリーダー": 5
+},
+"notes": [],
+"today": "2026-11-30",
+"week": "2026-11-23",
+"next": "2026-11-30"
+},
+"ks:2026-12-08": {
+"roles": [
+"チームリーダー",
+"営業",
+"父",
+"社交",
+"自分",
+"夫"
+],
+"done": [],
+"open": [
+{
+"id": "ks5",
+"title": "年末の挨拶回りリスト作成",
+"role": "社交",
+"bucket": "important",
+"due": "2026-11-26",
+"wait": false
+},
+{
+"id": "ks6",
+"title": "健康診断の再検査予約",
+"role": "自分",
+"bucket": "light",
+"due": "",
+"wait": false
+},
+{
+"id": "ks7",
+"title": "TOEIC対策 週3回",
+"role": "自分",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "ks9",
+"title": "新製品カタログを顧客に送付",
+"role": "チームリーダー",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "ks10",
+"title": "課の忘年会の幹事",
+"role": "チームリーダー",
+"bucket": "important",
+"due": "2026-12-05",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"チームリーダー": 5
+},
+"notes": [],
+"today": "2026-12-08",
+"week": "2026-11-30",
+"next": "2026-12-07"
+},
+"ks:2026-12-14": {
+"roles": [
+"チームリーダー",
+"営業",
+"父",
+"社交",
+"自分",
+"夫"
+],
+"done": [
+{
+"title": "年末の挨拶回りリスト作成",
+"role": "社交"
+}
+],
+"open": [
+{
+"id": "ks6",
+"title": "健康診断の再検査予約",
+"role": "自分",
+"bucket": "light",
+"due": "",
+"wait": false
+},
+{
+"id": "ks7",
+"title": "TOEIC対策 週3回",
+"role": "自分",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "ks9",
+"title": "新製品カタログを顧客に送付",
+"role": "チームリーダー",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "ks10",
+"title": "課の忘年会の幹事",
+"role": "チームリーダー",
+"bucket": "important",
+"due": "2026-12-05",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"チームリーダー": 5
+},
+"notes": [],
+"today": "2026-12-14",
+"week": "2026-12-07",
+"next": "2026-12-14"
+},
+"lf:2026-11-23": {
+"roles": [
+"Freelancer",
+"Myself",
+"Partner",
+"Designer"
+],
+"done": [
+{
+"title": "Deliver wireframes v2 to Nordlicht",
+"role": "Freelancer"
+},
+{
+"title": "Invoice Kraut & Co for October",
+"role": "Freelancer"
+},
+{
+"title": "Book Lisbon flights with Jonas",
+"role": "Partner"
+}
+],
+"open": [
+{
+"id": "lf3",
+"title": "Get Tobias's feedback on onboarding flow",
+"role": "Freelancer",
+"bucket": "important",
+"due": "2026-11-21",
+"wait": false
+},
+{
+"id": "lf4",
+"title": "Update portfolio case study",
+"role": "Designer",
+"bucket": "important",
+"due": "2026-11-30",
+"wait": false
+},
+{
+"id": "lf5",
+"title": "Pay tax prepayment (Vorauszahlung)",
+"role": "Myself",
+"bucket": "important",
+"due": "2026-12-10",
+"wait": false
+},
+{
+"id": "lf7",
+"title": "Yoga twice a week",
+"role": "Myself",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "lf8",
+"title": "Pitch deck for new client lead",
+"role": "Freelancer",
+"bucket": "important",
+"due": "2026-11-23",
+"wait": false
+},
+{
+"id": "lf9",
+"title": "Revise Nordlicht wireframes v3",
+"role": "Freelancer",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "lf10",
+"title": "Renew coworking membership",
+"role": "Freelancer",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"Freelancer": 2,
+"Myself": 2
+},
+"notes": [],
+"today": "2026-11-23",
+"week": "2026-11-16",
+"next": "2026-11-23"
+},
+"lf:2026-11-30": {
+"roles": [
+"Freelancer",
+"Myself",
+"Partner",
+"Designer"
+],
+"done": [],
+"open": [
+{
+"id": "lf3",
+"title": "Get Tobias's feedback on onboarding flow",
+"role": "Freelancer",
+"bucket": "important",
+"due": "2026-11-21",
+"wait": false
+},
+{
+"id": "lf4",
+"title": "Update portfolio case study",
+"role": "Designer",
+"bucket": "important",
+"due": "2026-11-30",
+"wait": false
+},
+{
+"id": "lf5",
+"title": "Pay tax prepayment (Vorauszahlung)",
+"role": "Myself",
+"bucket": "important",
+"due": "2026-12-10",
+"wait": false
+},
+{
+"id": "lf7",
+"title": "Yoga twice a week",
+"role": "Myself",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "lf8",
+"title": "Pitch deck for new client lead",
+"role": "Freelancer",
+"bucket": "important",
+"due": "2026-11-23",
+"wait": false
+},
+{
+"id": "lf9",
+"title": "Revise Nordlicht wireframes v3",
+"role": "Freelancer",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "lf10",
+"title": "Renew coworking membership",
+"role": "Freelancer",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"Freelancer": 2,
+"Myself": 2
+},
+"notes": [],
+"today": "2026-11-30",
+"week": "2026-11-23",
+"next": "2026-11-30"
+},
+"lf:2026-12-14": {
+"roles": [
+"Freelancer",
+"Myself",
+"Partner",
+"Designer"
+],
+"done": [
+{
+"title": "Pitch deck for new client lead",
+"role": "Freelancer"
+}
+],
+"open": [
+{
+"id": "lf3",
+"title": "Get Tobias's feedback on onboarding flow",
+"role": "Freelancer",
+"bucket": "important",
+"due": "2026-11-21",
+"wait": false
+},
+{
+"id": "lf4",
+"title": "Update portfolio case study",
+"role": "Designer",
+"bucket": "important",
+"due": "2026-11-30",
+"wait": false
+},
+{
+"id": "lf5",
+"title": "Pay tax prepayment (Vorauszahlung)",
+"role": "Myself",
+"bucket": "important",
+"due": "2026-12-10",
+"wait": false
+},
+{
+"id": "lf7",
+"title": "Yoga twice a week",
+"role": "Myself",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "lf9",
+"title": "Revise Nordlicht wireframes v3",
+"role": "Freelancer",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "lf10",
+"title": "Renew coworking membership",
+"role": "Freelancer",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"Freelancer": 2,
+"Myself": 2
+},
+"notes": [],
+"today": "2026-12-14",
+"week": "2026-12-07",
+"next": "2026-12-14"
+},
+"pn:2026-11-22": {
+"roles": [
+"Accountant",
+"Family",
+"Roommate",
+"Myself",
+"Employee"
+],
+"done": [
+{
+"title": "Finish month-end reconciliation for client B",
+"role": "Accountant"
+},
+{
+"title": "Split utilities with Aisha",
+"role": "Roommate"
+},
+{
+"title": "Read FAR chapter 8",
+"role": "Accountant"
+}
+],
+"open": [
+{
+"id": "pn2",
+"title": "CPA module 3 practice exam",
+"role": "Accountant",
+"bucket": "important",
+"due": "2026-11-22",
+"wait": false
+},
+{
+"id": "pn3",
+"title": "Call Amma on Sunday",
+"role": "Family",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "pn6",
+"title": "Apply for CPA study grant",
+"role": "Accountant",
+"bucket": "important",
+"due": "2026-11-28",
+"wait": false
+},
+{
+"id": "pn7",
+"title": "Gym 3x a week",
+"role": "Myself",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "pn8",
+"title": "Ask Marcus about overtime policy",
+"role": "Employee",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"Employee": 1,
+"Accountant": 4,
+"Myself": 1
+},
+"notes": [],
+"today": "2026-11-22",
+"week": "2026-11-16",
+"next": "2026-11-23"
+},
+"pn:2026-12-06": {
+"roles": [
+"Accountant",
+"Family",
+"Roommate",
+"Myself",
+"Employee"
+],
+"done": [],
+"open": [
+{
+"id": "pn3",
+"title": "Call Amma on Sunday",
+"role": "Family",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "pn6",
+"title": "Apply for CPA study grant",
+"role": "Accountant",
+"bucket": "important",
+"due": "2026-11-28",
+"wait": false
+},
+{
+"id": "pn7",
+"title": "Gym 3x a week",
+"role": "Myself",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "pn8",
+"title": "Ask Marcus about overtime policy",
+"role": "Employee",
+"bucket": "light",
+"due": "",
+"wait": false
+},
+{
+"id": "pn9",
+"title": "Client C accruals",
+"role": "Accountant",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "pn10",
+"title": "Renew transit pass",
+"role": "Roommate",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"Employee": 1,
+"Accountant": 4,
+"Myself": 1
+},
+"notes": [],
+"today": "2026-12-06",
+"week": "2026-11-30",
+"next": "2026-12-07"
+},
+"pn:2026-12-13": {
+"roles": [
+"Accountant",
+"Family",
+"Roommate",
+"Myself",
+"Employee"
+],
+"done": [
+{
+"title": "Apply for CPA study grant",
+"role": "Accountant"
+}
+],
+"open": [
+{
+"id": "pn3",
+"title": "Call Amma on Sunday",
+"role": "Family",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "pn7",
+"title": "Gym 3x a week",
+"role": "Myself",
+"bucket": "important",
+"due": "",
+"wait": false
+},
+{
+"id": "pn8",
+"title": "Ask Marcus about overtime policy",
+"role": "Employee",
+"bucket": "light",
+"due": "",
+"wait": false
+},
+{
+"id": "pn9",
+"title": "Client C accruals",
+"role": "Accountant",
+"bucket": "urgent",
+"due": "2026-11-25",
+"wait": false
+},
+{
+"id": "pn10",
+"title": "Renew transit pass",
+"role": "Roommate",
+"bucket": "light",
+"due": "",
+"wait": false
+}
+],
+"later": [],
+"hours": {
+"Employee": 1,
+"Accountant": 4,
+"Myself": 1
+},
+"notes": [],
+"today": "2026-12-13",
+"week": "2026-12-07",
+"next": "2026-12-14"
+}
+}

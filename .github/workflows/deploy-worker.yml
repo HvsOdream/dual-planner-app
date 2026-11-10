@@ -10,6 +10,7 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,3 +18,7 @@ jobs:
       - name: Deploy
         working-directory: worker
         run: npx -y wrangler@3 deploy
+      - name: Anthropic key (있을 때만, 모델 비교용)
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
+        working-directory: worker
+        run: echo "$ANTHROPIC_API_KEY" | npx -y wrangler@3 secret put ANTHROPIC_API_KEY

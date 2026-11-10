@@ -1,0 +1,20 @@
+name: eval-review
+# 주간 리뷰 모델 비교(수동 실행). 결과는 아티팩트 eval-review
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: '쉼표로 구분한 모델 목록'
+        required: true
+        default: '@cf/meta/llama-3.3-70b-instruct-fp8-fast,@cf/openai/gpt-oss-120b,@cf/qwen/qwen3.8-27b,@cf/deepseek-ai/deepseek-v4.1-flash-1017,@cf/google/gemma-4-26b-a4b-it'
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node eval/run-review.mjs "${{ inputs.models }}"
+      - uses: actions/upload-artifact@v4
+        with: { name: eval-review, path: eval-out/ }

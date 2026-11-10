@@ -223,7 +223,31 @@ async function feedback(req, env, token) {
 }
 
 // ── 속지 비서: 작은 모델 하나로 묶기 등을 한다. LLM_URL(OpenAI 호환, 예: 직접 만든 sLLM)이 있으면 그쪽, 없으면 Workers AI ──
-async function llm(env, messages, maxTokens) {
+// 모델 비교용: 요청에 model을 주면 이 목록 안에서만 바꿔 쓴다(평가 워크플로가 씀)
+const EVAL_MODELS = ['@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/openai/gpt-oss-120b', '@cf/openai/gpt-oss-20b', '@cf/qwen/qwen3.8-27b', '@cf/qwen/qwen3-30b-a3b-fp8', '@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/deepseek-ai/deepseek-v4-pro-0813', '@cf/deepseek-ai/deepseek-v4.1-flash-1017', '@cf/google/gemma-4-26b-a4b-it', '@cf/meta/llama-4-scout-17b-16e-instruct', '@cf/mistralai/mistral-small-3.1-24b-instruct', '@cf/zai-org/glm-5.3', '@cf/zai-org/glm-5.3-flash', '@cf/moonshotai/kimi-k2.6', '@cf/nvidia/nemotron-3-120b-a12b', 'claude-haiku-5-5', 'claude-sonnet-5-5'];
+function aiText(out) {
+  if (typeof out === 'string') return out;
+  if (!out) return '';
+  if (typeof out.response === 'string') return out.response;
+  if (out.response && typeof out.response === 'object') return JSON.stringify(out.response);
+  const ch = (((out.choices || [])[0] || {}).message || {}).content; if (ch) return ch;
+  if (typeof out.output_text === 'string') return out.output_text;
+  if (Array.isArray(out.output)) return out.output.flatMap(o => (o.content || []).map(c => c.text || '')).join('');
+  return JSON.stringify(out);
+}
+async function llm(env, messages, maxTokens, model) {
+  if (model && /^claude-/.test(model)) {
+    if (!env.ANTHROPIC_API_KEY) throw new Error('no anthropic key');
+    const sys = messages.filter(m => m.role === 'system').map(m => m.content).join('\n'), rest = messages.filter(m => m.role !== 'system');
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model, system: sys, messages: rest, max_tokens: maxTokens || 600, temperature: 0.2 }) });
+    const j = await r.json(); if (!r.ok) throw new Error('anthropic ' + r.status + ' ' + JSON.stringify(j).slice(0, 200));
+    return (j.content || []).map(c => c.text || '').join('');
+  }
+  if (model && env.AI) {
+    let out; try { out = await env.AI.run(model, { messages, max_tokens: Math.max(maxTokens || 600, 1500), temperature: 0.2 }); }
+    catch (e) { out = await env.AI.run(model, { input: messages, max_output_tokens: Math.max(maxTokens || 600, 1500) }); }
+    return aiText(out).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  }
   if (env.LLM_URL) {
     const r = await fetch(env.LLM_URL.replace(/\/$/, '') + '/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + (env.LLM_KEY || '') }, body: JSON.stringify({ model: env.LLM_MODEL || 'default', messages, temperature: 0.2, max_tokens: maxTokens || 600 }) });
     const j = await r.json(); return (((j.choices || [])[0] || {}).message || {}).content || '';
@@ -332,6 +356,7 @@ async function review(req, env, token) {
   const dk = 'r:' + token + ':' + new Date().toISOString().slice(0, 10), used = Number(await env.PLANNER.get(dk) || 0);
   if (used >= 5) return json({ error: 'daily limit' }, 429);
   let b; try { b = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const evalModel = EVAL_MODELS.includes(String(b.model || '')) ? String(b.model) : '', wantRaw = !!b.raw && !!evalModel;
   const cut = (a, n, f) => (Array.isArray(a) ? a : []).slice(0, n).map(f);
   const done = cut(b.done, 30, x => `- ${String(x.title).slice(0, 60)}${x.role ? ' (' + String(x.role).slice(0, 24) + ')' : ''}`);
   const td = String(b.today || '').slice(0, 10);
@@ -363,8 +388,10 @@ async function review(req, env, token) {
     { role: 'assistant', content: '{"summary":"거래처 견적 회신과 영업 회의 자료, 하은 피아노 학원 상담까지 끝냈어요. 캘린더에 잡힌 시간은 영업 과장 일에 11시간, 하은 아빠 일에 1시간이었어요. 다음 주엔 마감이 지난 신규 거래처 제안서를 먼저 보면 좋겠어요. 치과 예약은 아직 그대로예요.","cands":[{"title":"제안서 첫 장 고객 문제 세 줄만 적기","role":"영업 과장","due":"2026-11-24"},{"title":"치과 두 곳 이번 주 빈 시간 묻기","role":"나 자신","due":"2026-11-26"}]}' }
   ];
   let out;
-  try { out = jsonIn(await llm(env, [{ role: 'system', content: sys }, ...ex, { role: 'user', content: user }], 600)); } catch (e) { return json({ error: 'model failed' }, 502); }
-  if (!out || !out.summary) return json({ error: 'no summary' }, 502);
+  let rawText = ''; const t0 = Date.now();
+  try { rawText = await llm(env, [{ role: 'system', content: sys }, ...ex, { role: 'user', content: user }], 600, evalModel); out = jsonIn(rawText); } catch (e) { return json({ error: 'model failed', detail: wantRaw ? String(e && e.message || e).slice(0, 300) : undefined }, 502); }
+  const evalInfo = wantRaw ? { raw: String(rawText).slice(0, 3000), ms: Date.now() - t0, model: evalModel } : undefined;
+  if (!out || !out.summary) return json({ error: 'no summary', eval: evalInfo }, 502);
   // 끝낸 일이 있는데 '체크한 일이 없다'고 하면 그 문장을 뺀다
   if ((b.done || []).length) out.summary = String(out.summary).split(/(?<=[.요])\s+/).filter(x => !/체크한 일이 없|끝낸 일이 없/.test(x)).join(' ');
   // '아직 해야 하는 일인지 확인' 문구를 규칙처럼 매번 따라 한다: 이어지는 절은 떼고, 문장은 마감 지난 일이 있을 때 한 번만
@@ -389,7 +416,7 @@ async function review(req, env, token) {
     const d = new Date(Date.parse(x.due) - 864e5).toISOString().slice(0, 10);
     cands.unshift({ title: String(x.title).slice(0, 60), role: roles.has(String(x.role)) ? String(x.role) : '', due: d < nx ? nx : d }); });
   cands = cands.slice(0, 4);
-  return json({ summary: String(out.summary).slice(0, 600), cands });
+  return json({ summary: String(out.summary).slice(0, 600), cands, eval: evalInfo });
 }
 
 // ── 일정: 사용자가 준 iCal 주소(구글 캘린더 '비공개 주소' 등)를 받아 기간 안의 일정을 한국 시간으로 펼친다 ──
