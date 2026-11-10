@@ -463,6 +463,7 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
   <section class="page" id="p-vol"><div class="sheet" id="vol"></div></section>
   <section class="page" id="p-close"><div class="sheet" id="close"></div></section>
   <section class="page" id="p-refill"><div class="sheet" id="refill"></div></section>
+  <section class="page" id="p-roles"><div class="sheet"><div class="mpage" id="rolesBox"></div></div></section>
   <section class="page" id="p-more"><div class="sheet" id="moreP"><div class="mpage">
     <div id="acctBox"></div><div id="subBox"></div><div id="roleBox"></div><div id="calBox"></div><div id="notifyBox"></div><div id="coverBox"></div><div id="devBox"></div>
     <div class="lbl" style="padding-left:0">비서 연결</div>
@@ -480,7 +481,6 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
   <button data-tab="more" onclick="go('more')"><i></i>메뉴</button>
 </nav>
 
-<div class="more" id="rolesSheet" onclick="if(event.target===this)closeRoles()"><div class="box" id="rolesBox"></div></div>
 <div class="login" id="login" aria-modal="true" role="dialog" aria-label="로그인">
   <div class="lseal" aria-label="DUAL Planner"><svg viewBox="0 0 100 100" aria-hidden="true"><rect x="16" y="16" width="26" height="68" rx="5" fill="currentColor"/><path d="M48 16 H55 A34 34 0 0 1 55 84 H48 Z" fill="currentColor"/></svg><b>DUAL Planner</b></div>
   <div class="btns">
@@ -614,7 +614,7 @@ const SWIPE_TABS = ['today', 'week', 'review', 'more'];
 function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); loadAuthConf().then(renderAccount); go('more'); }
 function renderMore() { setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; }
 function closeMore() { if (tab === 'more') go('today'); }
-function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); }
+function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); else if (t==='roles') renderRoles(); }
 function markSeen() { const td = today(); if (D.seenDay !== td) { D.seenPrev = D.seenDay || ''; D.seenDay = td; _save0(); } }
 function awayDays() { const p = D.seenPrev; return p ? Math.round((new Date(today()) - new Date(p)) / 86400000) : 0; }
 function backMode() { return awayDays() >= 4 && !noteOff('back:' + today()) && (overdueItems().length + staleItems().length) >= 2; }
@@ -648,6 +648,7 @@ function coverParts(tab) {
   let t1, t2, left = '';
   const yw = `${now.getFullYear()} · W${weekNo(now)}`;
   if (tab==='today') { const pk = (dayOf(today()).picks || []).map(rock).filter(r => r && !r._deleted), dn = pk.filter(r => r.checks && r.checks[today()]).length; t1 = `${now.getMonth()+1}월 ${now.getDate()}일 ${DOW[(now.getDay()+6)%7]}요일`; t2 = yw + (pk.length ? ` · 오늘 ${dn}/${pk.length}` : ''); }
+  else if (tab==='roles') { t1 = '내 역할'; t2 = roleItems ? '할 일·일정마다 역할 정하기' : '역할 이름 고치기'; left = `<button class="ibtn" aria-label="뒤로" onclick="closeRoles()">‹</button>`; }
   else if (tab==='more') { t1 = '메뉴'; t2 = yw + ' · ' + (subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'); }
   else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${yw} · 열린 일 ${o.length}`; }
   else if (tab==='shelf') { t1 = '책장'; t2 = `속지 ${liveVols().length}권`; left = `<button class="ibtn" aria-label="뒤로" onclick="go('review')">‹</button>`; }
@@ -782,7 +783,15 @@ function openRoles(groups) {
   roleSuggest = groups ? JSON.parse(JSON.stringify(groups)) : null;
   roleSel = groups ? groups.map(g => g.name) : D.roles.slice();
   roleItems = groups ? Object.fromEntries(groups.flatMap(g => g.ids.map(id => [id, g.name]))) : null;
-  renderRoles(); document.getElementById('rolesSheet').classList.add('on');
+  if (tab !== 'roles') rolesBack = tab; go('roles');
+}
+let rolesBack = 'more';
+// 메뉴에서: 할 일과 일정 전부를 지금 역할로 묶어 보여 주고 하나씩 옮긴다
+function openAllRoles() {
+  syncRoles(); const er = evRoles(), g = D.roles.map(n => ({ name: n, ids: [] })), un = [];
+  openItems().forEach(r => { const x = g.find(q => q.name === r.role); if (x) x.ids.push(r.id); else un.push(r.id); });
+  allEvTitles().forEach(t => { const x = g.find(q => q.name === er[t]); if (x) x.ids.push(evId(t)); else un.push(evId(t)); });
+  openRoles(g); un.forEach(id => roleItems[id] = ''); renderRoles();
 }
 function allEvTitles() { return [...new Set(calEvents().map(e => (e.title || '').trim()).filter(Boolean))]; }
 // 일정마다 역할 정하기: 지금 역할로 묶어 보여 주고, 아직 없는 일정은 '정하기 전'
@@ -791,19 +800,18 @@ function openEvRoles() {
   allEvTitles().forEach(t => { const x = g.find(q => q.name === er[t]); if (x) x.ids.push(evId(t)); else un.push(evId(t)); });
   openRoles(g); un.forEach(id => roleItems[id] = ''); renderRoles();
 }
-function closeRoles() { document.getElementById('rolesSheet').classList.remove('on'); }
+function closeRoles() { if (tab === 'roles') go(rolesBack === 'roles' ? 'more' : rolesBack); }
 function toggleRole(n) { n = n.trim(); if (!n) return; const i = roleSel.indexOf(n); if (i >= 0) roleSel.splice(i, 1); else if (roleSel.length < 7) roleSel.push(n); else toast('역할은 일곱 개까지'); renderRoles(); }
 function renameRole(i, v) { v = v.trim(); if (!v) return; const o = roleSel[i]; roleSel[i] = v; if (roleItems) Object.keys(roleItems).forEach(k => { if (roleItems[k] === o) roleItems[k] = v; }); renderRoles(); }
 function dropRole(i) { const o = roleSel[i]; roleSel.splice(i, 1); if (roleItems) Object.keys(roleItems).forEach(k => { if (roleItems[k] === o) roleItems[k] = roleSel[0] || ''; }); renderRoles(); }
 function renderRoles() {
   const items = roleItems ? Object.keys(roleItems).map(id => ({ id, title: titleOf(id) })).filter(x => x.title) : [];
-  document.getElementById('rolesBox').innerHTML = `<div class="mhead"><b>내 역할</b><button onclick="closeRoles()">닫기 ✕</button></div>
-    <div class="rh">${roleItems ? '이름을 내 말로 바꾸고, 잘못 들어간 할 일은 옮겨 주세요' : '이름을 고치거나 빼고, 빠진 게 있으면 더하세요'}</div>
+  const el = document.getElementById('rolesBox'); if (!el) return;
+  el.innerHTML = `<div class="rh" style="margin-top:12px">${roleItems ? '이름을 내 말로 바꾸고, 잘못 들어간 할 일은 옮겨 주세요' : '이름을 고치거나 빼고, 빠진 게 있으면 더하세요'}</div>
     ${roleSel.map((n, i) => `<div class="rrow"><input value="${esc(n)}" onchange="renameRole(${i}, this.value)"><button onclick="dropRole(${i})" aria-label="빼기" style="color:var(--muted);font-size:18px;padding:0 6px">×</button></div>`).join('')}
     <div class="rrow"><input id="roleIn" placeholder="+ 역할 더하기 (예: 준서 아빠, 러너)" onchange="toggleRole(this.value)"></div>
     ${roleItems ? `<div class="lbl" style="padding-left:0;margin-top:14px">할 일</div>${items.map(r => `<div class="ritem"><span>${esc(r.title)}</span><select onchange="roleItems['${r.id}']=this.value">${roleItems[r.id] ? '' : '<option value="" selected>정하기 전</option>'}${roleSel.map(n => `<option ${roleItems[r.id] === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></div>`).join('')}` : ''}
-    <label class="learn"><input type="checkbox" ${learnOk() ? 'checked' : ''} onchange="setLearn(this.checked)"> 고친 내용을 비서가 배우는 데 써도 돼요<small>할 일 제목과 고친 역할이 이름 없이 저장돼요. 메뉴에서 언제든 끌 수 있어요</small></label>
-    <button class="mclose" style="background:var(--ink);color:var(--paper)" onclick="saveRoles()">이렇게 정하기</button>`;
+    <div class="acts" style="padding:16px 0 8px;gap:20px"><button class="cta" style="width:auto" onclick="saveRoles()">이렇게 정하기</button><button class="cta ghost" style="width:auto;margin-left:0" onclick="closeRoles()">그만두기</button></div>`;
 }
 function saveRoles() {
   const old = D.roles.slice(), t = new Date().toISOString();
@@ -851,7 +859,7 @@ function roleFinder() {
 function acceptGroups() { const g = sugGroups(); if (g) sendFeedback(g, null); applyGroups(); }
 function renderRoleBox() {
   const el = document.getElementById('roleBox'); if (!el) return;
-  el.innerHTML = `<div class="lbl" style="padding-left:0">내 역할</div><div class="subst">${D.roles.length ? D.roles.map(esc).join(' · ') : '아직 정하지 않았어요'}</div><button class="cta" style="margin:0 0 4px" onclick="openRoles()">${D.roles.length ? '고치기' : '정하기'}</button><button class="feat ${learnOk() ? 'on' : ''}" style="margin-bottom:12px" onclick="setLearn(${!learnOk()});renderRoleBox()"><span class="nm"><b>고친 내용을 비서 학습에 쓰기</b><i>할 일 제목과 고친 역할이 이름 없이 저장돼요</i></span><span class="st">${learnOk() ? '켬' : '끔'}</span></button>`;
+  el.innerHTML = `<div class="lbl" style="padding-left:0">내 역할</div><div class="subst">${D.roles.length ? D.roles.map(esc).join(' · ') : '아직 정하지 않았어요'}</div><div class="acts" style="padding:0 0 4px;gap:20px"><button class="cta" style="width:auto;margin:0" onclick="openRoles()">${D.roles.length ? '이름 고치기' : '정하기'}</button>${D.roles.length ? `<button class="cta" style="width:auto;margin:0" onclick="openAllRoles()">할 일·일정마다 정하기</button>` : ''}</div><button class="feat ${learnOk() ? 'on' : ''}" style="margin-bottom:12px" onclick="setLearn(${!learnOk()});renderRoleBox()"><span class="nm"><b>고친 내용을 비서 학습에 쓰기</b><i>할 일 제목과 고친 역할이 이름 없이 저장돼요</i></span><span class="st">${learnOk() ? '켬' : '끔'}</span></button>`;
 }
 
 // ── 비서 포스트잇: 무엇을 붙이는지(메뉴에서 켜고 끈다) ──
@@ -874,6 +882,7 @@ function noteOff(k) { return (D.noteOff || {})[k]; }
 function dropNote(k) { D.noteOff = D.noteOff || {}; D.noteOff[k] = today(); _save0(); render(); }
 // 비서 포스트잇 한 장: 구독(또는 체험) 중이면 또렷하게, 아니면 흐리게
 function aNote(o) {
+  if (!/\bwide\b/.test(o.cls || '') && String(o.text || '').length > 44) o = Object.assign({}, o, { cls: ((o.cls || '') + ' wide').trim() });
   if (!paid()) return backSticky(o.label, o.meta || '', o.text, o.cls);
   useMark();
   return `<div class="sticky ${o.cls || ''}"><div class="who"><span>비서</span><span>${esc(o.label)}${o.meta ? ' · ' + esc(o.meta) : ''}</span></div><div class="tx">${o.html || esc(o.text)}</div>${o.acts ? `<div class="act">${o.acts}</div>` : ''}</div>`;
@@ -988,7 +997,7 @@ function evRoles() { return Object.assign({}, (D.settings || {}).evRoles); }
 function evId(t) { let h = 0; for (const ch of t) h = (h * 31 + ch.charCodeAt(0)) | 0; return 'e' + (h >>> 0).toString(36); }
 function evTitles() { const er = evRoles(), cnt = {}; calEvents().forEach(e => { const t = (e.title || '').trim(); if (t && !(t in er)) cnt[t] = (cnt[t] || 0) + 1; }); return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).slice(0, 15); }
 function groupInputs() { return unroled().map(r => ({ id: r.id, title: r.title })).concat(evTitles().map(t => ({ id: evId(t), title: '[일정] ' + t, ev: t }))); }
-function titleOf(id) { const r = rock(id); if (r) return r.title; const t = evTitles().concat(Object.keys(evRoles())).find(x => evId(x) === id); return t ? '📅 ' + t : ''; }
+function titleOf(id) { const r = rock(id); if (r) return r.title; const t = evTitles().concat(Object.keys(evRoles())).find(x => evId(x) === id); return t ? '일정 · ' + t : ''; }
 function setEvRoles(patch) { D.settings = Object.assign({}, D.settings, { evRoles: Object.assign(evRoles(), patch), u: new Date().toISOString() }); D._modified = D.settings.u; }
 function groupSig(list) { return list.map(r => r.id).sort().join(',') + '|' + JSON.stringify(peopleMap()); }
 let _grouping = false;
