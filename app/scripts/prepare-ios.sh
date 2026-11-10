@@ -41,6 +41,8 @@ set_plist UIStatusBarStyle string UIStatusBarStyleDarkContent
 set_plist UIViewControllerBasedStatusBarAppearance bool true
 set_plist NSCalendarsFullAccessUsageDescription string "오늘 일정을 플래너 맨 위 일정 칸에 보여 줘요"
 set_plist NSCalendarsUsageDescription string "오늘 일정을 플래너 맨 위 일정 칸에 보여 줘요"
+set_plist NSCameraUsageDescription string "오늘 사진 한 장을 찍어 그날 기록에 붙여요"
+set_plist NSPhotoLibraryUsageDescription string "앨범에서 고른 사진을 그날 기록에 붙여요"
 
 # 앱 아이콘: 레포의 1024 아이콘(테라코타 천 + 접힌 D)
 ICON_DIR=ios/App/App/Assets.xcassets/AppIcon.appiconset
