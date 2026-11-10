@@ -239,7 +239,7 @@ async function llm(env, messages, maxTokens, model) {
   if (model && /^claude-/.test(model)) {
     if (!env.ANTHROPIC_API_KEY) throw new Error('no anthropic key');
     const sys = messages.filter(m => m.role === 'system').map(m => m.content).join('\n'), rest = messages.filter(m => m.role !== 'system');
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model, system: sys, messages: rest, max_tokens: Math.max(maxTokens || 600, 1200) }) });
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model, system: sys, messages: rest, max_tokens: Math.max(maxTokens || 600, 4000) }) });
     const j = await r.json(); if (!r.ok) throw new Error('anthropic ' + r.status + ' ' + JSON.stringify(j).slice(0, 200));
     return (j.content || []).map(c => c.text || '').join('');
   }
