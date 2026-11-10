@@ -239,12 +239,12 @@ async function llm(env, messages, maxTokens, model) {
   if (model && /^claude-/.test(model)) {
     if (!env.ANTHROPIC_API_KEY) throw new Error('no anthropic key');
     const sys = messages.filter(m => m.role === 'system').map(m => m.content).join('\n'), rest = messages.filter(m => m.role !== 'system');
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model, system: sys, messages: rest, max_tokens: maxTokens || 600, temperature: 0.2 }) });
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model, system: sys, messages: rest, max_tokens: Math.max(maxTokens || 600, 1200) }) });
     const j = await r.json(); if (!r.ok) throw new Error('anthropic ' + r.status + ' ' + JSON.stringify(j).slice(0, 200));
     return (j.content || []).map(c => c.text || '').join('');
   }
   if (model && env.AI) {
-    const mt = Math.max(maxTokens || 600, 1500); let out, e1;
+    const mt = Math.max(maxTokens || 600, 6000); let out, e1;
     try { out = await env.AI.run(model, { messages, max_tokens: mt, temperature: 0.2 }); }
     catch (e) { e1 = e; try { out = await env.AI.run(model, { messages, max_completion_tokens: mt }); }
       catch (e2) { try { out = await env.AI.run(model, { messages }); } catch (e3) { throw new Error('A:' + String(e1 && e1.message || e1).slice(0, 160) + ' | C:' + String(e3 && e3.message || e3).slice(0, 160)); } } }
