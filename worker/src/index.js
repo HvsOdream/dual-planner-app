@@ -391,7 +391,13 @@ async function review(req, env, token) {
   ];
   let out;
   let rawText = ''; const t0 = Date.now();
-  try { rawText = await llm(env, [{ role: 'system', content: sys }, ...ex, { role: 'user', content: user }], 600, evalModel); out = jsonIn(rawText); } catch (e) { return json({ error: 'model failed', detail: wantRaw ? String(e && e.message || e).slice(0, 300) : undefined }, 502); }
+  // 주간 리뷰는 Claude Haiku가 쓴다(키가 있을 때). 실패하거나 답이 비면 기본 모델이 대신 쓴다.
+  const msgs = [{ role: 'system', content: sys }, ...ex, { role: 'user', content: user }];
+  const mainModel = evalModel || (env.ANTHROPIC_API_KEY ? (env.REVIEW_MODEL || 'claude-haiku-5-5') : '');
+  try {
+    try { rawText = await llm(env, msgs, 600, mainModel); out = jsonIn(rawText); } catch (e) { if (evalModel || !mainModel) throw e; }
+    if (!evalModel && mainModel && !(out && out.summary)) { rawText = await llm(env, msgs, 600, ''); out = jsonIn(rawText); }
+  } catch (e) { return json({ error: 'model failed', detail: wantRaw ? String(e && e.message || e).slice(0, 300) : undefined }, 502); }
   const evalInfo = wantRaw ? { raw: String(rawText).slice(0, 3000), ms: Date.now() - t0, model: evalModel } : undefined;
   if (!out || !out.summary) return json({ error: 'no summary', eval: evalInfo }, 502);
   // 끝낸 일이 있는데 '체크한 일이 없다'고 하면 그 문장을 뺀다
