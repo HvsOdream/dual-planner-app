@@ -246,7 +246,7 @@ async function group(req, env, token) {
   let body; try { body = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
   const items = (body.items || []).filter(x => x && x.id && x.title).slice(0, 40).map(x => ({ id: String(x.id), title: String(x.title).slice(0, 80) }));
   const roles = (body.roles || []).map(String).slice(0, 12);
-  const people = Object.entries(body.people || {}).slice(0, 20).map(([n, r]) => [String(n).slice(0, 10), String(r).replace(/[\n=,]/g, ' ').slice(0, 30)]).filter(([n, r]) => n && r && r !== '모름');
+  const people = Object.entries(body.people || {}).slice(0, 20).map(([n, r]) => [String(n).slice(0, 20), String(r).replace(/[\n=,]/g, ' ').slice(0, 30)]).filter(([n, r]) => n && r && r !== '모름');
   if (items.length < 3) return json({ groups: [] });
   const sys = [
     '너는 종이 플래너를 함께 쓰는 비서다. 할 일 목록을 보고, 이 사람이 삶에서 맡고 있는 "역할"을 찾아 할 일을 역할별로 묶는다.',
@@ -307,7 +307,7 @@ async function group(req, env, token) {
   if (groups.some(g => g.name === '수험생')) groups.forEach(g => { if (g.name === '학생') g.name = '수험생'; });
   for (let i = groups.length - 1; i > 0; i--) { const j = groups.findIndex(x => x.name === groups[i].name); if (j < i) { groups[j].ids.push(...groups[i].ids); groups.splice(i, 1); } }
   const known2 = new Set(people.map(([n]) => n));
-  const ppl = ((out && out.people) || []).map(x => ({ name: String(x.name || '').replace(/[^가-힣A-Za-z0-9 ]/g, '').trim().replace(/^([가-힣]{2})이$/, '$1').slice(0, 8), guess: String(x.guess || '모름').slice(0, 6) })).filter(x => x.name.length >= 2 && !known2.has(x.name) && !known2.has(x.name.split(' ')[0]) && items.some(it => it.title.includes(x.name))).slice(0, 5);
+  const ppl = ((out && out.people) || []).map(x => ({ name: String(x.name || '').replace(/[^가-힣A-Za-z0-9 .\u3040-\u30ff\u4e00-\u9fff]/g, '').trim().replace(/^([가-힣]{2})이$/, '$1').slice(0, /[가-힣]/.test(String(x.name || '')) ? 8 : 20), guess: String(x.guess || '모름').slice(0, /[가-힣]/.test(String(x.guess || '')) ? 6 : 20) })).filter(x => x.name.length >= 2 && !known2.has(x.name) && !known2.has(x.name.split(' ')[0]) && items.some(it => it.title.includes(x.name))).slice(0, 5);
   // 모델이 사람을 못 뽑았을 때: 호칭·조사 앞의 이름을 글에서 직접 찾는다
   if (!ppl.length) {
     const stop = new Set(['다음', '이번', '지난', '학과', '팀원', '고객', '회사', '학생', '수업', '강의', '주말', '오늘', '내일', '부모님', '선생님', '친구', '동료', '가족', '엄마', '아빠', '언니', '누나', '오빠', '동생', '아내', '남편', '담임', '교수', '부모', '대리', '대표', '선생', '과장', '팀장']);
