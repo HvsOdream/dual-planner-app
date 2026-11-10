@@ -353,6 +353,10 @@ async function review(req, env, token) {
   if (!out || !out.summary) return json({ error: 'no summary' }, 502);
   // 끝낸 일이 있는데 '체크한 일이 없다'고 하면 그 문장을 뺀다
   if ((b.done || []).length) out.summary = String(out.summary).split(/(?<=[.요])\s+/).filter(x => !/체크한 일이 없|끝낸 일이 없/.test(x)).join(' ');
+  // '아직 해야 하는 일인지 확인' 문구를 규칙처럼 매번 따라 한다: 이어지는 절은 떼고, 문장은 마감 지난 일이 있을 때 한 번만
+  { const hasOver = (b.open || []).some(x => x.due && x.due < (b.today || '')); let seen = false;
+    let t = String(out.summary).replace(/아직 해야 하는 일인지 (?:먼저 )?확인해 보시고,?\s*/g, '').replace(/,?\s*아직 해야 하는 일인지 (?:먼저 )?확인해 (?:봐야|보아야) 할\s*/g, ' ');
+    out.summary = t.split(/(?<=[.요])\s+/).filter(x => { if (!/아직 해야 하는 일인지/.test(x)) return true; if (!hasOver || seen) return false; seen = true; return true; }).join(' ').replace(/\s{2,}/g, ' ').trim(); }
   await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
   const roles = new Set(cut(b.roles, 8, String));
   // 후보 날짜는 다음 주 안으로

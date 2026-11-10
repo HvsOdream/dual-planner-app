@@ -693,7 +693,7 @@ function renderToday() {
   ${firstHtml(ds)}
   ${trialHtml(ds)}
   ${ds === today() && backMode() ? `<div class="stickies">${backHtml()}</div>` : ''}
-  ${briefHtml(ds)}
+  ${ds === today() && backMode() ? '' : briefHtml(ds)}
   ${calHtml(ds)}
   <div class="lbl">의도</div>
   <input class="wr" style="font-size:18px;font-weight:600" placeholder="" value="${esc(day.intent)}" onchange="dayOf('${ds}').intent=this.value;save()">
