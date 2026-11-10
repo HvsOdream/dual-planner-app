@@ -1,0 +1,21 @@
+name: eval-group
+# 역할 묶기 모델 비교(수동 실행). 결과는 실행 로그의 SUM·OUT 줄
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: '쉼표로 구분한 모델 목록'
+        required: true
+        default: '@cf/meta/llama-3.3-70b-instruct-fp8-fast,claude-haiku-5-5'
+      reps:
+        description: '반복 수'
+        default: '3'
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node eval/run-group.mjs "${{ inputs.models }}" "${{ inputs.reps }}"

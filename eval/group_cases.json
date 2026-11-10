@@ -1,1 +1,1505 @@
-{"tj": {"key": "tj", "items": [["tj1", "민준 담임 박서현 선생님께 상담 시간 답장"], ["tj2", "이수진 교수에게 취업률 자료 요청"], ["tj3", "다음 강의 평가방법 슬라이드 정리"], ["tj4", "지연이와 부모님 생신 식당 정하기"], ["tj5", "졸업작품 3팀 피드백"], ["tj6", "학과회의 안건 작성"], ["tj7", "건강검진 예약"], ["tj8", "논문 초안 목차 다시 짜기"]], "people": {"민준": "아들", "박서현 선생님": "선생님", "박서현": "선생님", "지연": "아내", "이수진 교수": "동료", "이수진": "동료"}, "ev": ["게임기획론 강의", "교무위원회", "교수 연구 미팅", "러닝", "졸업작품 지도", "학과 회의", "학과평가 준비"]}, "mj": {"key": "mj", "items": [["mj1", "하진에게 루프커피 로고 1차 시안 전달"], ["mj2", "유라가 보낸 오후서점 포스터 문구 반영"], ["mj3", "정 대표에게 새 프로젝트 견적서 보내기"], ["mj4", "하진에게 최종 문구 받아 브랜드 안내서 완성"], ["mj5", "엄마 안과 예약"], ["mj6", "지수와 토요일 저녁 약속 확정"], ["mj7", "포트폴리오 첫 화면 교체"], ["mj8", "지난달 계산서 파일 정리"]], "people": {"하진": "고객", "유라": "동료", "정 대표": "고객", "지수": "친구"}, "ev": ["루프커피 미팅", "오후서점 통화", "필라테스"]}, "jh": {"key": "jh", "items": [["jh1", "검색 개편 기획서 초안"], ["jh2", "디자인팀에 와이어프레임 피드백 회신"], ["jh3", "개발 리드와 일정 리스크 정리"], ["jh4", "분기 지표 대시보드 확인"], ["jh5", "소연이랑 주말 여행 숙소 예약"], ["jh6", "엄마 생신 선물 고르기"], ["jh7", "블로그 글 하나 쓰기"], ["jh8", "사용자 인터뷰 질문지 작성"]], "people": {"소연": "연인", "엄마": "부모님"}, "ev": ["PM 1:1", "개발 싱크", "검색 개편 킥오프", "디자인 리뷰", "로드맵 리뷰", "사용자 인터뷰", "스탠드업", "스프린트 플래닝", "주간 스탠드업", "주간 회고"]}, "sy": {"key": "sy", "items": [["sy1", "최 대리에게 검사 성적서 보내기"], ["sy2", "현진과 스터디에서 오답 20문제 확인"], ["sy3", "기출 3개년 유형별 정리"], ["sy4", "공정능력 강의 두 개 듣기"], ["sy5", "부적합 보고서 양식 수정"], ["sy6", "언니 생일 케이크 예약"], ["sy7", "필라테스 주 2회"], ["sy8", "시험 접수"]], "people": {"최 대리": "동료", "현진": "친구", "언니": "형제"}, "ev": ["스터디", "품질 조회", "필라테스", "협력사 감사"]}, "hk": {"key": "hk", "items": [["hk1", "수진에게 다음 독서모임 책 공지"], ["hk2", "도서관 박 선생님께 봉사 시간 확인"], ["hk3", "영호와 산책 날짜 정하기"], ["hk4", "은정이랑 갈 전시 예약"], ["hk5", "지난 여행 사진 정리"], ["hk6", "수채화 다시 시작하기"], ["hk7", "엄마 생신 식당 예약"]], "people": {"수진": "회원", "박 선생님": "선생님", "영호": "남편", "은정": "친구", "엄마": "부모님"}, "ev": ["도서관 봉사", "독서모임", "산책"]}, "em": {"key": "em", "items": [["em1", "Send Q1 launch messaging draft to Priya"], ["em2", "Book Ava's dentist appointment"], ["em3", "Finish competitive analysis deck for exec review"], ["em4", "Plan Leo's 5th birthday party"], ["em5", "Reply to Mark about Thanksgiving travel"], ["em6", "Run 3x a week"], ["em7", "Review agency invoice from Brightline"], ["em8", "Write customer story blog post"]], "people": {"Priya": "my manager", "Ava": "my daughter", "Leo": "my son", "Mark": "my husband"}, "ev": ["1:1 with Priya", "Ava soccer practice", "Launch sync", "Marketing standup", "School drop-off"]}, "jw": {"key": "jw", "items": [["jw1", "Send winter bed capacity plan to Dr Okafor"], ["jw2", "Read safeguarding report before governors meeting"], ["jw3", "Book Chloe's train home for Christmas"], ["jw4", "December rota changes"], ["jw5", "Long run on Sunday"], ["jw6", "Renew car insurance"], ["jw7", "Draft business case for discharge lounge"], ["jw8", "Call Mum about her GP results"]], "people": {"Dr Okafor": "consultant colleague", "Chloe": "my daughter", "Sarah": "my wife", "Mum": "my mother"}, "ev": ["Bed meeting", "Governors meeting", "Long run", "Ops board"]}, "lf": {"key": "lf", "items": [["lf1", "Deliver wireframes v2 to Nordlicht"], ["lf2", "Invoice Kraut & Co for October"], ["lf3", "Get Tobias's feedback on onboarding flow"], ["lf4", "Update portfolio case study"], ["lf5", "Pay tax prepayment (Vorauszahlung)"], ["lf6", "Book Lisbon flights with Jonas"], ["lf7", "Yoga twice a week"], ["lf8", "Pitch deck for new client lead"]], "people": {"Tobias": "client (Kraut & Co)", "Jonas": "my partner"}, "ev": ["Kraut & Co call", "Nordlicht review", "Yoga"]}, "ks": {"key": "ks", "items": [["ks1", "田中部長に週次売上報告を送る"], ["ks2", "大阪支社の見積もり確認"], ["ks3", "部下3人と1on1"], ["ks4", "陽翔の塾の面談予約"], ["ks5", "年末の挨拶回りリスト作成"], ["ks6", "健康診断の再検査予約"], ["ks7", "TOEIC対策 週3回"], ["ks8", "ゆきと結婚記念日のレストラン予約"]], "people": {"田中部長": "上司", "陽翔": "息子", "ゆき": "妻"}, "ev": ["営業会議", "接待", "顧客訪問"]}, "pn": {"key": "pn", "items": [["pn1", "Finish month-end reconciliation for client B"], ["pn2", "CPA module 3 practice exam"], ["pn3", "Call Amma on Sunday"], ["pn4", "Split utilities with Aisha"], ["pn5", "Read FAR chapter 8"], ["pn6", "Apply for CPA study grant"], ["pn7", "Gym 3x a week"], ["pn8", "Ask Marcus about overtime policy"]], "people": {"Aisha": "roommate", "Marcus": "my manager", "Amma": "my mother", "Dev": "study group friend"}, "ev": ["CPA study group", "Gym", "Team huddle"]}}
+{
+"tj": {
+"key": "tj",
+"items": [
+[
+"tj1",
+"민준 담임 박서현 선생님께 상담 시간 답장"
+],
+[
+"tj2",
+"이수진 교수에게 취업률 자료 요청"
+],
+[
+"tj3",
+"다음 강의 평가방법 슬라이드 정리"
+],
+[
+"tj4",
+"지연이와 부모님 생신 식당 정하기"
+],
+[
+"tj5",
+"졸업작품 3팀 피드백"
+],
+[
+"tj6",
+"학과회의 안건 작성"
+],
+[
+"tj7",
+"건강검진 예약"
+],
+[
+"tj8",
+"논문 초안 목차 다시 짜기"
+]
+],
+"people": {
+"민준": "아들",
+"박서현 선생님": "선생님",
+"박서현": "선생님",
+"지연": "아내",
+"이수진 교수": "동료",
+"이수진": "동료"
+},
+"ev": [
+"게임기획론 강의",
+"교무위원회",
+"교수 연구 미팅",
+"러닝",
+"졸업작품 지도",
+"학과 회의",
+"학과평가 준비"
+],
+"gold": {
+"lang": "ko",
+"together": [
+[
+"tj2",
+"tj6",
+"ev:학과 회의",
+"ev:학과평가 준비",
+"ev:교무위원회"
+],
+[
+"tj3",
+"tj5",
+"tj8",
+"ev:게임기획론 강의",
+"ev:졸업작품 지도"
+]
+],
+"apart": [
+[
+"tj1",
+"tj4"
+],
+[
+"tj6",
+"tj8"
+],
+[
+"tj7",
+"tj3"
+],
+[
+"tj1",
+"tj3"
+]
+],
+"must": [
+"학과장",
+"교수",
+"아빠|부모"
+],
+"ban": [
+"학생",
+"^직장인$"
+]
+}
+},
+"mj": {
+"key": "mj",
+"items": [
+[
+"mj1",
+"하진에게 루프커피 로고 1차 시안 전달"
+],
+[
+"mj2",
+"유라가 보낸 오후서점 포스터 문구 반영"
+],
+[
+"mj3",
+"정 대표에게 새 프로젝트 견적서 보내기"
+],
+[
+"mj4",
+"하진에게 최종 문구 받아 브랜드 안내서 완성"
+],
+[
+"mj5",
+"엄마 안과 예약"
+],
+[
+"mj6",
+"지수와 토요일 저녁 약속 확정"
+],
+[
+"mj7",
+"포트폴리오 첫 화면 교체"
+],
+[
+"mj8",
+"지난달 계산서 파일 정리"
+]
+],
+"people": {
+"하진": "고객",
+"유라": "동료",
+"정 대표": "고객",
+"지수": "친구"
+},
+"ev": [
+"루프커피 미팅",
+"오후서점 통화",
+"필라테스"
+],
+"gold": {
+"lang": "ko",
+"together": [
+[
+"mj1",
+"mj2",
+"mj3",
+"mj4",
+"ev:루프커피 미팅"
+]
+],
+"apart": [
+[
+"mj5",
+"mj1"
+],
+[
+"mj6",
+"mj5"
+],
+[
+"mj6",
+"mj1"
+]
+],
+"must": [
+"프리랜서|디자이너",
+"가족",
+"친구"
+],
+"ban": [
+"팀장",
+"^부모$"
+]
+}
+},
+"jh": {
+"key": "jh",
+"items": [
+[
+"jh1",
+"검색 개편 기획서 초안"
+],
+[
+"jh2",
+"디자인팀에 와이어프레임 피드백 회신"
+],
+[
+"jh3",
+"개발 리드와 일정 리스크 정리"
+],
+[
+"jh4",
+"분기 지표 대시보드 확인"
+],
+[
+"jh5",
+"소연이랑 주말 여행 숙소 예약"
+],
+[
+"jh6",
+"엄마 생신 선물 고르기"
+],
+[
+"jh7",
+"블로그 글 하나 쓰기"
+],
+[
+"jh8",
+"사용자 인터뷰 질문지 작성"
+]
+],
+"people": {
+"소연": "연인",
+"엄마": "부모님"
+},
+"ev": [
+"PM 1:1",
+"개발 싱크",
+"검색 개편 킥오프",
+"디자인 리뷰",
+"로드맵 리뷰",
+"사용자 인터뷰",
+"스탠드업",
+"스프린트 플래닝",
+"주간 스탠드업",
+"주간 회고"
+],
+"gold": {
+"lang": "ko",
+"together": [
+[
+"jh1",
+"jh2",
+"jh3",
+"jh4",
+"jh8"
+]
+],
+"apart": [
+[
+"jh5",
+"jh6"
+],
+[
+"jh5",
+"jh1"
+],
+[
+"jh6",
+"jh1"
+]
+],
+"must": [
+"기획자|PM|프로덕트",
+"연인|애인|파트너",
+"가족"
+],
+"ban": [
+"팀장"
+]
+}
+},
+"sy": {
+"key": "sy",
+"items": [
+[
+"sy1",
+"최 대리에게 검사 성적서 보내기"
+],
+[
+"sy2",
+"현진과 스터디에서 오답 20문제 확인"
+],
+[
+"sy3",
+"기출 3개년 유형별 정리"
+],
+[
+"sy4",
+"공정능력 강의 두 개 듣기"
+],
+[
+"sy5",
+"부적합 보고서 양식 수정"
+],
+[
+"sy6",
+"언니 생일 케이크 예약"
+],
+[
+"sy7",
+"필라테스 주 2회"
+],
+[
+"sy8",
+"시험 접수"
+]
+],
+"people": {
+"최 대리": "동료",
+"현진": "친구",
+"언니": "형제"
+},
+"ev": [
+"스터디",
+"품질 조회",
+"필라테스",
+"협력사 감사"
+],
+"gold": {
+"lang": "ko",
+"together": [
+[
+"sy1",
+"sy5"
+],
+[
+"sy2",
+"sy3",
+"sy8"
+]
+],
+"apart": [
+[
+"sy1",
+"sy3"
+],
+[
+"sy6",
+"sy1"
+],
+[
+"sy7",
+"sy3"
+],
+[
+"sy6",
+"sy3"
+]
+],
+"must": [
+"품질",
+"수험생",
+"가족"
+],
+"ban": [
+"^학생$",
+"팀장"
+]
+}
+},
+"hk": {
+"key": "hk",
+"items": [
+[
+"hk1",
+"수진에게 다음 독서모임 책 공지"
+],
+[
+"hk2",
+"도서관 박 선생님께 봉사 시간 확인"
+],
+[
+"hk3",
+"영호와 산책 날짜 정하기"
+],
+[
+"hk4",
+"은정이랑 갈 전시 예약"
+],
+[
+"hk5",
+"지난 여행 사진 정리"
+],
+[
+"hk6",
+"수채화 다시 시작하기"
+],
+[
+"hk7",
+"엄마 생신 식당 예약"
+]
+],
+"people": {
+"수진": "회원",
+"박 선생님": "선생님",
+"영호": "남편",
+"은정": "친구",
+"엄마": "부모님"
+},
+"ev": [
+"도서관 봉사",
+"독서모임",
+"산책"
+],
+"gold": {
+"lang": "ko",
+"together": [
+[
+"hk1",
+"ev:독서모임"
+],
+[
+"hk2",
+"ev:도서관 봉사"
+]
+],
+"apart": [
+[
+"hk1",
+"hk2"
+],
+[
+"hk3",
+"hk7"
+],
+[
+"hk4",
+"hk3"
+],
+[
+"hk4",
+"hk7"
+]
+],
+"must": [
+"모임장|독서모임",
+"봉사",
+"아내|배우자",
+"친구",
+"가족"
+],
+"ban": [
+"도서관",
+"직장인"
+]
+}
+},
+"em": {
+"key": "em",
+"items": [
+[
+"em1",
+"Send Q1 launch messaging draft to Priya"
+],
+[
+"em2",
+"Book Ava's dentist appointment"
+],
+[
+"em3",
+"Finish competitive analysis deck for exec review"
+],
+[
+"em4",
+"Plan Leo's 5th birthday party"
+],
+[
+"em5",
+"Reply to Mark about Thanksgiving travel"
+],
+[
+"em6",
+"Run 3x a week"
+],
+[
+"em7",
+"Review agency invoice from Brightline"
+],
+[
+"em8",
+"Write customer story blog post"
+]
+],
+"people": {
+"Priya": "my manager",
+"Ava": "my daughter",
+"Leo": "my son",
+"Mark": "my husband"
+},
+"ev": [
+"1:1 with Priya",
+"Ava soccer practice",
+"Launch sync",
+"Marketing standup",
+"School drop-off"
+],
+"gold": {
+"lang": "en",
+"together": [
+[
+"em1",
+"em3",
+"em8",
+"em7"
+],
+[
+"em2",
+"em4",
+"ev:Ava soccer practice",
+"ev:School drop-off"
+]
+],
+"apart": [
+[
+"em5",
+"em2"
+],
+[
+"em6",
+"em1"
+],
+[
+"em2",
+"em1"
+]
+],
+"must": [
+"market",
+"parent|mom|mother"
+],
+"ban": [
+"^product manager$",
+"student",
+"team lead"
+]
+}
+},
+"jw": {
+"key": "jw",
+"items": [
+[
+"jw1",
+"Send winter bed capacity plan to Dr Okafor"
+],
+[
+"jw2",
+"Read safeguarding report before governors meeting"
+],
+[
+"jw3",
+"Book Chloe's train home for Christmas"
+],
+[
+"jw4",
+"December rota changes"
+],
+[
+"jw5",
+"Long run on Sunday"
+],
+[
+"jw6",
+"Renew car insurance"
+],
+[
+"jw7",
+"Draft business case for discharge lounge"
+],
+[
+"jw8",
+"Call Mum about her GP results"
+]
+],
+"people": {
+"Dr Okafor": "consultant colleague",
+"Chloe": "my daughter",
+"Sarah": "my wife",
+"Mum": "my mother"
+},
+"ev": [
+"Bed meeting",
+"Governors meeting",
+"Long run",
+"Ops board"
+],
+"gold": {
+"lang": "en",
+"together": [
+[
+"jw1",
+"jw4",
+"jw7",
+"ev:Bed meeting",
+"ev:Ops board"
+],
+[
+"jw2",
+"ev:Governors meeting"
+]
+],
+"apart": [
+[
+"jw2",
+"jw1"
+],
+[
+"jw3",
+"jw1"
+],
+[
+"jw5",
+"jw1"
+],
+[
+"jw8",
+"jw2"
+]
+],
+"must": [
+"governor",
+"manager|operations|nhs|hospital",
+"parent|father|dad|family"
+],
+"ban": [
+"consultant",
+"doctor",
+"student"
+]
+}
+},
+"lf": {
+"key": "lf",
+"items": [
+[
+"lf1",
+"Deliver wireframes v2 to Nordlicht"
+],
+[
+"lf2",
+"Invoice Kraut & Co for October"
+],
+[
+"lf3",
+"Get Tobias's feedback on onboarding flow"
+],
+[
+"lf4",
+"Update portfolio case study"
+],
+[
+"lf5",
+"Pay tax prepayment (Vorauszahlung)"
+],
+[
+"lf6",
+"Book Lisbon flights with Jonas"
+],
+[
+"lf7",
+"Yoga twice a week"
+],
+[
+"lf8",
+"Pitch deck for new client lead"
+]
+],
+"people": {
+"Tobias": "client (Kraut & Co)",
+"Jonas": "my partner"
+},
+"ev": [
+"Kraut & Co call",
+"Nordlicht review",
+"Yoga"
+],
+"gold": {
+"lang": "en",
+"together": [
+[
+"lf1",
+"lf3",
+"lf8",
+"ev:Kraut & Co call",
+"ev:Nordlicht review"
+],
+[
+"lf2",
+"lf5"
+]
+],
+"apart": [
+[
+"lf6",
+"lf1"
+],
+[
+"lf7",
+"lf1"
+],
+[
+"lf5",
+"lf7"
+]
+],
+"must": [
+"freelanc|designer|ux",
+"partner"
+],
+"ban": [
+"team lead",
+"parent"
+]
+}
+},
+"ks": {
+"key": "ks",
+"items": [
+[
+"ks1",
+"田中部長に週次売上報告を送る"
+],
+[
+"ks2",
+"大阪支社の見積もり確認"
+],
+[
+"ks3",
+"部下3人と1on1"
+],
+[
+"ks4",
+"陽翔の塾の面談予約"
+],
+[
+"ks5",
+"年末の挨拶回りリスト作成"
+],
+[
+"ks6",
+"健康診断の再検査予約"
+],
+[
+"ks7",
+"TOEIC対策 週3回"
+],
+[
+"ks8",
+"ゆきと結婚記念日のレストラン予約"
+]
+],
+"people": {
+"田中部長": "上司",
+"陽翔": "息子",
+"ゆき": "妻"
+},
+"ev": [
+"営業会議",
+"接待",
+"顧客訪問"
+],
+"gold": {
+"lang": "ja",
+"together": [
+[
+"ks1",
+"ks2",
+"ks5",
+"ev:営業会議",
+"ev:顧客訪問",
+"ev:接待"
+]
+],
+"apart": [
+[
+"ks4",
+"ks8"
+],
+[
+"ks6",
+"ks1"
+],
+[
+"ks7",
+"ks4"
+],
+[
+"ks8",
+"ks1"
+]
+],
+"must": [
+"営業|課長",
+"父|親|パパ",
+"夫"
+],
+"ban": [
+"社交",
+"学生",
+"[가-힣]"
+]
+}
+},
+"pn": {
+"key": "pn",
+"items": [
+[
+"pn1",
+"Finish month-end reconciliation for client B"
+],
+[
+"pn2",
+"CPA module 3 practice exam"
+],
+[
+"pn3",
+"Call Amma on Sunday"
+],
+[
+"pn4",
+"Split utilities with Aisha"
+],
+[
+"pn5",
+"Read FAR chapter 8"
+],
+[
+"pn6",
+"Apply for CPA study grant"
+],
+[
+"pn7",
+"Gym 3x a week"
+],
+[
+"pn8",
+"Ask Marcus about overtime policy"
+]
+],
+"people": {
+"Aisha": "roommate",
+"Marcus": "my manager",
+"Amma": "my mother",
+"Dev": "study group friend"
+},
+"ev": [
+"CPA study group",
+"Gym",
+"Team huddle"
+],
+"gold": {
+"lang": "en",
+"together": [
+[
+"pn2",
+"pn5",
+"pn6",
+"ev:CPA study group"
+],
+[
+"pn1",
+"pn8",
+"ev:Team huddle"
+]
+],
+"apart": [
+[
+"pn2",
+"pn1"
+],
+[
+"pn3",
+"pn4"
+],
+[
+"pn7",
+"pn2"
+],
+[
+"pn4",
+"pn1"
+]
+],
+"must": [
+"account",
+"cpa|candidate|exam",
+"family|daughter"
+],
+"ban": [
+"^employee$",
+"team lead"
+]
+}
+},
+"n1": {
+"key": "n1",
+"items": [
+[
+"n11",
+"3병동 인수인계 노트 정리"
+],
+[
+"n12",
+"신규 간호사 프리셉터 체크리스트 작성"
+],
+[
+"n13",
+"수간호사님께 12월 듀티 변경 요청"
+],
+[
+"n14",
+"대학원 통계 과제 제출"
+],
+[
+"n15",
+"지도교수 면담 일정 잡기"
+],
+[
+"n16",
+"서아 어린이집 준비물 챙기기"
+],
+[
+"n17",
+"서아 예방접종 예약"
+],
+[
+"n18",
+"시어머니 김장 날짜 확인"
+],
+[
+"n19",
+"요가 주 1회"
+]
+],
+"ev": [
+"데이 근무",
+"대학원 수업",
+"서아 하원"
+],
+"people": {
+"서아": "딸",
+"수간호사님": "상사",
+"수간호사": "상사",
+"시어머니": "시어머니"
+},
+"gold": {
+"lang": "ko",
+"together": [
+[
+"n11",
+"n12",
+"n13",
+"ev:데이 근무"
+],
+[
+"n14",
+"n15",
+"ev:대학원 수업"
+],
+[
+"n16",
+"n17",
+"ev:서아 하원"
+]
+],
+"apart": [
+[
+"n14",
+"n11"
+],
+[
+"n16",
+"n18"
+],
+[
+"n19",
+"n11"
+],
+[
+"n16",
+"n11"
+]
+],
+"must": [
+"간호사",
+"대학원생|학생",
+"엄마|부모",
+"가족|며느리"
+],
+"ban": [
+"교수",
+"팀장",
+"수험생"
+]
+},
+"unseen": true
+},
+"n2": {
+"key": "n2",
+"items": [
+[
+"n21",
+"원두 거래처에 12월 발주 넣기"
+],
+[
+"n22",
+"알바 주말 근무표 짜기"
+],
+[
+"n23",
+"부가세 신고 자료 세무사에게 보내기"
+],
+[
+"n24",
+"신메뉴 가격표 인쇄"
+],
+[
+"n25",
+"조기축구회 회비 정산"
+],
+[
+"n26",
+"조기축구 12월 경기 구장 예약"
+],
+[
+"n27",
+"아버지 병원 모시고 가기"
+],
+[
+"n28",
+"준영이와 낚시 날짜 잡기"
+]
+],
+"ev": [
+"매장 오픈",
+"조기축구",
+"세무사 통화"
+],
+"people": {
+"준영": "친구",
+"준영이": "친구"
+},
+"gold": {
+"lang": "ko",
+"together": [
+[
+"n21",
+"n22",
+"n23",
+"n24",
+"ev:매장 오픈",
+"ev:세무사 통화"
+],
+[
+"n25",
+"n26",
+"ev:조기축구"
+]
+],
+"apart": [
+[
+"n25",
+"n21"
+],
+[
+"n27",
+"n28"
+],
+[
+"n27",
+"n21"
+],
+[
+"n28",
+"n25"
+]
+],
+"must": [
+"사장|자영업|카페|점주",
+"총무|축구",
+"가족|아들",
+"친구"
+],
+"ban": [
+"직장인",
+"알바생",
+"팀장",
+"세무사"
+]
+},
+"unseen": true
+},
+"n3": {
+"key": "n3",
+"items": [
+[
+"n31",
+"자소서 3번 문항 고치기"
+],
+[
+"n32",
+"SW 역량테스트 기출 풀기"
+],
+[
+"n33",
+"편의점 야간 근무 교대 요청"
+],
+[
+"n34",
+"토익 스피킹 접수"
+],
+[
+"n35",
+"밴드 동아리 정기공연 셋리스트 정하기"
+],
+[
+"n36",
+"합주실 예약"
+],
+[
+"n37",
+"할머니 생신 선물 사기"
+]
+],
+"ev": [
+"편의점 근무",
+"합주",
+"취업 스터디"
+],
+"people": {},
+"gold": {
+"lang": "ko",
+"together": [
+[
+"n31",
+"n32",
+"ev:취업 스터디"
+],
+[
+"n35",
+"n36",
+"ev:합주"
+],
+[
+"n33",
+"ev:편의점 근무"
+]
+],
+"apart": [
+[
+"n33",
+"n31"
+],
+[
+"n35",
+"n31"
+],
+[
+"n37",
+"n35"
+],
+[
+"n37",
+"n33"
+]
+],
+"must": [
+"취준|구직|취업",
+"알바",
+"동아리|밴드",
+"가족|손"
+],
+"ban": [
+"회장",
+"직장인",
+"팀장"
+]
+},
+"unseen": true
+},
+"n4": {
+"key": "n4",
+"items": [
+[
+"n41",
+"Review Sam's pull request for the billing service"
+],
+[
+"n42",
+"Write design doc for rate limiter"
+],
+[
+"n43",
+"On-call handoff notes"
+],
+[
+"n44",
+"Email parents about Saturday's U10 match time"
+],
+[
+"n45",
+"Order cones and bibs for the team"
+],
+[
+"n46",
+"Sign Mia's field trip permission slip"
+],
+[
+"n47",
+"Book Mia's swim lessons"
+],
+[
+"n48",
+"Fix leaking tap in the rental flat"
+],
+[
+"n49",
+"Send tenant the renewed lease"
+],
+[
+"n410",
+"Bike to work twice a week"
+]
+],
+"ev": [
+"Sprint planning",
+"U10 training",
+"On-call"
+],
+"people": {
+"Sam": "teammate",
+"Mia": "my daughter"
+},
+"gold": {
+"lang": "en",
+"together": [
+[
+"n41",
+"n42",
+"n43",
+"ev:Sprint planning",
+"ev:On-call"
+],
+[
+"n44",
+"n45",
+"ev:U10 training"
+],
+[
+"n46",
+"n47"
+],
+[
+"n48",
+"n49"
+]
+],
+"apart": [
+[
+"n44",
+"n46"
+],
+[
+"n41",
+"n44"
+],
+[
+"n48",
+"n41"
+],
+[
+"n410",
+"n41"
+],
+[
+"n48",
+"n46"
+]
+],
+"must": [
+"engineer|developer",
+"coach",
+"parent|dad|father",
+"landlord"
+],
+"ban": [
+"manager",
+"team lead",
+"tenant",
+"student"
+]
+},
+"unseen": true
+},
+"n5": {
+"key": "n5",
+"items": [
+[
+"n51",
+"Grade Year 10 essays"
+],
+[
+"n52",
+"Prepare Monday's lesson on the French Revolution"
+],
+[
+"n53",
+"Write reference for Tom's college application"
+],
+[
+"n54",
+"Collect member concerns for union meeting"
+],
+[
+"n55",
+"Email head about workload agreement breach"
+],
+[
+"n56",
+"Take Dad to cardiology appointment"
+],
+[
+"n57",
+"Refill Dad's prescriptions"
+],
+[
+"n58",
+"Learn alto part for Messiah"
+],
+[
+"n59",
+"Pay choir subscription"
+]
+],
+"ev": [
+"Year 10 history",
+"Union branch meeting",
+"Choir rehearsal",
+"Parents' evening"
+],
+"people": {
+"Tom": "my student",
+"Dad": "my father"
+},
+"gold": {
+"lang": "en",
+"together": [
+[
+"n51",
+"n52",
+"n53",
+"ev:Year 10 history",
+"ev:Parents' evening"
+],
+[
+"n54",
+"n55",
+"ev:Union branch meeting"
+],
+[
+"n56",
+"n57"
+],
+[
+"n58",
+"n59",
+"ev:Choir rehearsal"
+]
+],
+"apart": [
+[
+"n54",
+"n51"
+],
+[
+"n56",
+"n58"
+],
+[
+"n56",
+"n51"
+],
+[
+"n58",
+"n51"
+]
+],
+"must": [
+"teacher",
+"union|rep",
+"family|son|daughter|care",
+"choir|singer"
+],
+"ban": [
+"^parent$",
+"^student$",
+"manager"
+]
+},
+"unseen": true
+},
+"n6": {
+"key": "n6",
+"items": [
+[
+"n61",
+"PTA広報誌の原稿を集める"
+],
+[
+"n62",
+"PTA役員会の議事録を作る"
+],
+[
+"n63",
+"パートのシフト希望を店長に出す"
+],
+[
+"n64",
+"レジ締めマニュアルを読み直す"
+],
+[
+"n65",
+"結衣の習字道具を買う"
+],
+[
+"n66",
+"結衣の歯医者予約"
+],
+[
+"n67",
+"義母にお歳暮を送る"
+],
+[
+"n68",
+"ヨガ 週1回"
+],
+[
+"n69",
+"夫と年末の帰省日程を決める"
+]
+],
+"ev": [
+"PTA役員会",
+"パート勤務",
+"結衣のピアノ送迎"
+],
+"people": {
+"結衣": "娘",
+"店長": "上司"
+},
+"gold": {
+"lang": "ja",
+"together": [
+[
+"n61",
+"n62",
+"ev:PTA役員会"
+],
+[
+"n63",
+"n64",
+"ev:パート勤務"
+],
+[
+"n65",
+"n66",
+"ev:結衣のピアノ送迎"
+]
+],
+"apart": [
+[
+"n61",
+"n63"
+],
+[
+"n65",
+"n67"
+],
+[
+"n69",
+"n65"
+],
+[
+"n68",
+"n63"
+],
+[
+"n61",
+"n65"
+]
+],
+"must": [
+"PTA",
+"パート",
+"母|親|ママ",
+"妻|家族|嫁"
+],
+"ban": [
+"店長",
+"学生",
+"[가-힣]"
+]
+},
+"unseen": true
+}
+}

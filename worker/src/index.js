@@ -284,6 +284,7 @@ async function group(req, env, token) {
   const roles = (body.roles || []).map(String).slice(0, 12);
   const people = Object.entries(body.people || {}).slice(0, 20).map(([n, r]) => [String(n).slice(0, 20), String(r).replace(/[\n=,]/g, ' ').slice(0, 30)]).filter(([n, r]) => n && r && r !== '모름');
   if (items.length < 3) return json({ groups: [] });
+  const gModel = EVAL_MODELS.includes(String(body.model || '')) ? String(body.model) : ''; // 모델 비교 시험용
   const sys = [
     '너는 종이 플래너를 함께 쓰는 비서다. 할 일 목록을 보고, 이 사람이 삶에서 맡고 있는 "역할"을 찾아 할 일을 역할별로 묶는다.',
     '역할은 일의 주제가 아니라 그 일을 하는 사람의 자리다. 단어보다 목적을 본다: 누구를 위해, 어떤 책임으로 하는 일인가.',
@@ -320,8 +321,8 @@ async function group(req, env, token) {
   const meter = { calls: [] };
   let raw = '', out;
   try {
-    raw = await llm(env, msgs, 700, '', meter); out = jsonIn(raw);
-    if (!out || !Array.isArray(out.groups)) { raw = await llm(env, msgs.concat([{ role: 'assistant', content: String(raw).slice(0, 400) }, { role: 'user', content: 'JSON 형식이 아니다. {"groups":[...]} 하나만 다시 출력해.' }]), 700, '', meter); out = jsonIn(raw); }
+    raw = await llm(env, msgs, 700, gModel, meter); out = jsonIn(raw);
+    if (!out || !Array.isArray(out.groups)) { raw = await llm(env, msgs.concat([{ role: 'assistant', content: String(raw).slice(0, 400) }, { role: 'user', content: 'JSON 형식이 아니다. {"groups":[...]} 하나만 다시 출력해.' }]), 700, gModel, meter); out = jsonIn(raw); }
   } catch (e) { return json({ error: 'model failed', reason: String(e.message || e) }, 502); }
   await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
   const known = new Set(items.map(x => x.id)), seen = new Set();
