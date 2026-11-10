@@ -165,6 +165,7 @@ a { color: inherit; }
 .chips button.on { border-color: var(--accent); background: var(--accent); color: var(--paper); font-weight: 700; }
 .ritem { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--rule); font-size: 14px; } .ritem span { flex: 1; min-width: 0; } .ritem select { flex: none; max-width: 40%; font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); }
 .learn { display: block; margin: 16px 0 4px; font-size: 13px; color: var(--ink-2); } .learn small { display: block; margin: 2px 0 0 22px; font-size: 11px; color: var(--muted); }
+.pv { display: grid; grid-template-columns: 1fr; gap: 2px; padding: 9px 0; border-bottom: 1px solid var(--rule, rgba(0,0,0,.08)); font-size: 13px; line-height: 1.6; } .pv > b { font-size: 13px; } .pv > span { color: var(--ink-2); }
 .ppl { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; } .ppl b { font-size: 15px; } .ppl span { display: flex; flex-wrap: wrap; gap: 5px; }
 .sticky.brief .tx { white-space: normal; line-height: 1.5; }
 .bev { font-size: 13px; padding: 0 0 6px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -476,6 +477,7 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
   <section class="page" id="p-refill"><div class="sheet" id="refill"></div></section>
   <section class="page" id="p-roles"><div class="sheet"><div class="mpage" id="rolesBox"></div></div></section>
   <section class="page" id="p-sub"><div class="sheet"><div class="mpage" id="subP"></div></div></section>
+  <section class="page" id="p-priv"><div class="sheet"><div class="mpage" id="privP"></div></div></section>
   <section class="page" id="p-more"><div class="sheet" id="moreP"><div class="mpage">
     <div id="acctBox"></div><div id="subBox"></div><div id="roleBox"></div><div id="calBox"></div><div id="notifyBox"></div><div id="coverBox"></div><div id="devBox"></div>
     <div class="lbl" style="padding-left:0">비서 연결</div>
@@ -587,7 +589,7 @@ function syncPages() {
   const sp = spread(); document.body.classList.toggle('spread', sp);
   const on = sp ? ['today', rightTab] : [tab];
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', on.includes(p.id.slice(2))));
-  const tb = ['sub', 'roles'].includes(tab) ? 'more' : tab; document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === tb));
+  const tb = ['sub', 'roles', 'priv'].includes(tab) ? 'more' : tab; document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === tb));
 }
 function go(t) {
   tab = t; if (t !== 'today') rightTab = t;
@@ -626,7 +628,7 @@ const SWIPE_TABS = ['today', 'week', 'review', 'more'];
 function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); loadAuthConf().then(renderAccount); go('more'); }
 function renderMore() { setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; }
 function closeMore() { if (tab === 'more') go('today'); }
-function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); else if (t==='roles') renderRoles(); else if (t==='sub') renderSubPage(); }
+function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); else if (t==='roles') renderRoles(); else if (t==='sub') renderSubPage(); else if (t==='priv') renderPrivPage(); }
 function markSeen() { const td = today(); if (D.seenDay !== td) { D.seenPrev = D.seenDay || ''; D.seenDay = td; _save0(); } }
 function awayDays() { const p = D.seenPrev; return p ? Math.round((new Date(today()) - new Date(p)) / 86400000) : 0; }
 function backMode() { return awayDays() >= 4 && !noteOff('back:' + today()) && (overdueItems().length + staleItems().length) >= 2; }
@@ -671,6 +673,7 @@ function coverParts(tab) {
   const yw = `${now.getFullYear()} · W${weekNo(now)}`;
   if (tab==='today') { const pk = (dayOf(today()).picks || []).map(rock).filter(r => r && !r._deleted && !(r.at && r.at.slice(0, 10) > today())), dn = pk.filter(r => r.checks && r.checks[today()]).length; t1 = `${now.getMonth()+1}월 ${now.getDate()}일 ${DOW[(now.getDay()+6)%7]}요일`; t2 = yw + (pk.length ? ` · 오늘 ${dn}/${pk.length}` : ''); }
   else if (tab==='sub') { t1 = '구독'; t2 = subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'; left = `<button class="ibtn" aria-label="뒤로" onclick="go(subBack === 'sub' ? 'more' : subBack)">‹</button>`; }
+  else if (tab==='priv') { t1 = '내 정보가 가는 곳'; t2 = aiOk() ? '비서 AI 켬' : '비서 AI 끔'; left = `<button class="ibtn" aria-label="뒤로" onclick="go(privBack === 'priv' ? 'more' : privBack)">‹</button>`; }
   else if (tab==='roles') { t1 = '내 역할'; t2 = roleItems ? '할 일·일정마다 역할 정하기' : '역할 이름 고치기'; left = `<button class="ibtn" aria-label="뒤로" onclick="closeRoles()">‹</button>`; }
   else if (tab==='more') { t1 = '메뉴'; t2 = yw + ' · ' + (subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'); }
   else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${yw} · 열린 일 ${o.length}`; }
@@ -793,6 +796,32 @@ function setPerson(n, r) {
   if (g && !left) D.groupSug = null; // 다 답했으면 사람 사전을 넣고 다시 찾는다
   save(); render();
 }
+// 비서 AI 동의: 할 일 제목을 AI 서버로 보내 역할을 찾고 주간 리뷰를 쓴다. 답하기 전에는 보내지 않는다(이미 역할을 정한 기존 사용자는 켠 것으로 본다)
+function aiAsked() { return typeof ((D.settings || {}).ai) === 'boolean'; }
+function aiOk() { const v = (D.settings || {}).ai; return typeof v === 'boolean' ? v : rolesSet(); }
+function meLine() { return String((D.settings || {}).me || ''); }
+function setAi(v, me) { const patch = { ai: !!v, u: new Date().toISOString() }; if (typeof me === 'string') patch.me = me.trim().slice(0, 40); D.settings = Object.assign({}, D.settings, patch); D._modified = D.settings.u; if (v) D.groupSug = null; _save0(); if (baseUrl()) pushState(); render(); if (v) maybeGroup(); }
+function setMe(v) { v = String(v || '').trim().slice(0, 40); if (v === meLine()) return; D.settings = Object.assign({}, D.settings, { me: v, u: new Date().toISOString() }); D._modified = D.settings.u; _save0(); if (baseUrl()) pushState(); toast(v ? '하는 일을 적어 뒀어요' : '하는 일을 지웠어요'); }
+let privBack = 'more';
+function openPrivacy() { if (tab !== 'priv') privBack = tab; go('priv'); }
+function renderPrivPage() {
+  const el = document.getElementById('privP'); if (!el) return;
+  const row = (a, b) => `<div class="pv"><b>${a}</b><span>${b}</span></div>`;
+  el.innerHTML = `<div class="lbl" style="padding-left:0">비서 AI</div>
+    <button class="feat ${aiOk() ? 'on' : ''}" onclick="setAi(${!aiOk()});renderPrivPage()"><span class="nm"><b>비서가 AI로 역할 찾기·주간 리뷰 쓰기</b><i>끄면 할 일 제목이 AI 회사로 가지 않아요. 역할은 직접 정하고, 주간 리뷰 글은 안 나와요</i></span><span class="st">${aiOk() ? '켬' : '끔'}</span></button>
+    <div class="lbl" style="padding-left:0;margin-top:10px">무엇이 어디로 가나요</div>
+    ${row('내 폰', '할 일·오늘·기록·약속 전부. 로그인하지 않으면 여기에만 있어요')}
+    ${row('DUAL 서버 (Cloudflare, 미국)', '로그인하거나 비서를 쓰면 플래너 내용이 저장돼요. 다른 기기와 맞추고 비서가 읽기 위해서예요')}
+    ${row('AI 회사 (Anthropic · Cloudflare, 미국)', '역할을 찾을 때: 할 일·일정 제목, 적어 준 사람 설명, 하는 일 한 줄<br>주간 리뷰를 쓸 때: 그 주의 할 일 제목, 역할 이름, 역할별 시간, 그 주 메모')}
+    ${row('보내지 않는 것', '이름, 이메일, 사진, 결제 정보')}
+    <div class="lbl" style="padding-left:0;margin-top:10px">AI 학습</div>
+    ${row('AI 회사', '두 회사 모두 약관에서 API로 받은 내용을 자기 모델 학습에 쓰지 않는다고 밝히고 있어요')}
+    ${row('DUAL', `역할을 고친 내용은 <b>${learnOk() ? '학습에 쓰기 켬' : '학습에 쓰기 끔'}</b> — 메뉴 › 내 역할에서 바꿔요. 켜도 이름 없이 저장돼요`)}
+    <div class="lbl" style="padding-left:0;margin-top:10px">보관과 삭제</div>
+    ${row('보관', '플래너는 계정을 지울 때까지 DUAL 서버에 있어요. AI 회사는 받은 내용을 안전 점검을 위해 짧은 기간 보관할 수 있어요(각 회사 방침)')}
+    ${row('삭제', '메뉴 › 계정 › 계정 삭제를 누르면 서버의 플래너가 지워져요. 내 데이터 받기로 먼저 내려받을 수 있어요')}
+    <div class="legal" style="margin-top:14px"><a href="legal/privacy.html" target="_blank">개인정보처리방침 전문</a><a href="mailto:withsky0@gmail.com">문의</a></div>`;
+}
 function learnOk() { return !!((D.settings || {}).learn); }
 function setLearn(v) { D.settings = Object.assign({}, D.settings, { learn: !!v, u: new Date().toISOString() }); D._modified = D.settings.u; _save0(); if (baseUrl()) pushState(); }
 function markRoles() { D.settings = Object.assign({}, D.settings, { rolesAt: today(), u: new Date().toISOString() }); }
@@ -870,6 +899,10 @@ function roleFinder() {
   if (total < 5) return `<div class="sticky guide"><div class="who"><span>DUAL</span><span>${total}/5</span></div><div class="tx">할 일을 다섯 개쯤 적어 보세요<div class="hint">적어 둔 할 일과 캘린더 일정을 보고 비서가 내 역할을 찾아 줘요</div></div></div>`;
   const g = D.groupSug;
   const what = `할 일 ${items.length}개${evn ? `와 일정 ${evn}개` : ''}`;
+  // 처음 한 번: 보내기 전에 묻는다. 하는 일 한 줄을 같이 받으면 직함이 정확해진다
+  if (!aiAsked()) return `<div class="sticky wide">${head('내 역할')}<div class="tx">${what}를 보고 비서가 내 역할을 찾아 드릴까요?<div class="ppl"><b>하는 일</b><span><input class="inp" id="meIn" maxlength="40" value="${esc(meLine())}" placeholder="예: 영업 과장, 프리랜서 디자이너, 대학원생" onkeydown="if(event.key==='Enter')setAi(true,this.value)"></span></div><div class="hint" style="opacity:.8;margin-top:8px">한 줄 적어 주면 더 정확해요(안 적어도 돼요). 할 일·일정 제목과 이 한 줄이 AI 서버로 전송돼요. 이름·이메일은 보내지 않아요 <a href="#" onclick="openPrivacy();return false" style="text-decoration:underline">자세히</a></div></div>
+    <div class="act"><button onclick="setAi(false)">직접 정할게요</button><button onclick="setAi(true,document.getElementById('meIn').value)">찾아 주세요</button></div></div>`;
+  if (!aiOk()) return `<div class="sticky guide"><div class="who"><span>DUAL</span><span>내 역할</span></div><div class="tx">역할을 직접 정해 보세요<div class="hint">비서에게 맡기려면 메뉴 › 내 정보가 가는 곳에서 켜요</div></div><div class="act"><button onclick="openRoles()">정하기</button></div></div>`;
   if (!g || !g.groups) return `<div class="sticky wide">${head('내 역할')}<div class="tx">${what}를 읽는 중이에요</div></div>`;
   // 사람 먼저: 할 일에 나온 이름을 한 번 묻는다
   const pm = peopleMap(), ask = (g.people || []).filter(x => !(x.name in pm)).slice(0, 3);
@@ -881,7 +914,7 @@ function roleFinder() {
 function acceptGroups() { const g = sugGroups(); if (g) sendFeedback(g, null); applyGroups(); }
 function renderRoleBox() {
   const el = document.getElementById('roleBox'); if (!el) return;
-  el.innerHTML = `<div class="lbl" style="padding-left:0">내 역할</div><div class="subst">${D.roles.length ? D.roles.map(esc).join(' · ') : '아직 정하지 않았어요'}</div><div class="acts" style="padding:0 0 4px;gap:20px"><button class="cta" style="width:auto;margin:0" onclick="openRoles()">${D.roles.length ? '이름 고치기' : '정하기'}</button>${D.roles.length ? `<button class="cta" style="width:auto;margin:0" onclick="openAllRoles()">할 일·일정마다 정하기</button>` : ''}</div><button class="feat ${learnOk() ? 'on' : ''}" style="margin-bottom:12px" onclick="setLearn(${!learnOk()});renderRoleBox()"><span class="nm"><b>고친 내용을 비서 학습에 쓰기</b><i>할 일 제목과 고친 역할이 이름 없이 저장돼요</i></span><span class="st">${learnOk() ? '켬' : '끔'}</span></button>`;
+  el.innerHTML = `<div class="lbl" style="padding-left:0">내 역할</div><div class="subst">${D.roles.length ? D.roles.map(esc).join(' · ') : '아직 정하지 않았어요'}</div><div class="acts" style="padding:0 0 4px;gap:20px"><button class="cta" style="width:auto;margin:0" onclick="openRoles()">${D.roles.length ? '이름 고치기' : '정하기'}</button>${D.roles.length ? `<button class="cta" style="width:auto;margin:0" onclick="openAllRoles()">할 일·일정마다 정하기</button>` : ''}</div><div class="ppl" style="margin:2px 0 10px"><b style="font-size:13px;color:var(--ink-2)">하는 일 한 줄</b><span><input class="inp" id="meMenu" maxlength="40" style="border:0;border-bottom:1px solid var(--rule);background:transparent;padding:6px 0;font-size:15px" value="${esc(meLine())}" placeholder="예: 영업 과장, 프리랜서 디자이너" onblur="setMe(this.value)" onkeydown="if(event.key==='Enter')this.blur()"></span></div><button class="feat on" onclick="openPrivacy()"><span class="nm"><b>내 정보가 가는 곳</b><i>${aiOk() ? '비서 AI 켬 · 무엇이 어디로 가는지' : '비서 AI 끔 · 할 일 제목이 AI 회사로 가지 않아요'}</i></span><span class="st">›</span></button><button class="feat ${learnOk() ? 'on' : ''}" style="margin-bottom:12px" onclick="setLearn(${!learnOk()});renderRoleBox()"><span class="nm"><b>고친 내용을 비서 학습에 쓰기</b><i>할 일 제목과 고친 역할이 이름 없이 저장돼요</i></span><span class="st">${learnOk() ? '켬' : '끔'}</span></button>`;
 }
 
 // ── 비서 포스트잇: 무엇을 붙이는지(메뉴에서 켜고 끈다) ──
@@ -1043,17 +1076,17 @@ function evTitles() { const er = evRoles(), cnt = {}; calEvents().forEach(e => {
 function groupInputs() { return unroled().map(r => ({ id: r.id, title: r.title })).concat(evTitles().map(t => ({ id: evId(t), title: '[일정] ' + t, ev: t }))); }
 function titleOf(id) { const r = rock(id); if (r) return r.title; const t = evTitles().concat(Object.keys(evRoles())).find(x => evId(x) === id); return t ? '일정 · ' + t : ''; }
 function setEvRoles(patch) { D.settings = Object.assign({}, D.settings, { evRoles: Object.assign(evRoles(), patch), u: new Date().toISOString() }); D._modified = D.settings.u; }
-function groupSig(list) { return list.map(r => r.id).sort().join(',') + '|' + JSON.stringify(peopleMap()); }
+function groupSig(list) { return list.map(r => r.id).sort().join(',') + '|' + JSON.stringify(peopleMap()) + '|' + meLine(); }
 let _grouping = false;
 async function maybeGroup() {
-  const list = groupInputs(); if (list.length < 3 || _grouping || !baseUrl()) return;
+  const list = groupInputs(); if (list.length < 3 || _grouping || !baseUrl() || !aiOk()) return;
   if (rolesSet() ? !featOn('group') : openItems().length + evTitles().length < 5) return;
   const sig = groupSig(list), g = D.groupSug;
   if (g && (g.sig === sig || g.off === sig)) return;
   if (g && g.at && Date.now() - g.at < 60000) return;
   _grouping = true;
   try {
-    const req = () => fetch(baseUrl() + '/u/' + D.token + '/group', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: list.map(x => ({ id: x.id, title: x.title })), roles: D.roles, people: peopleMap() }) });
+    const req = () => fetch(baseUrl() + '/u/' + D.token + '/group', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: list.map(x => ({ id: x.id, title: x.title })), roles: D.roles, people: peopleMap(), me: meLine() }) });
     let r = await req();
     if (r.status === 404) { await pushState(); r = await req(); } // 처음 쓰는 사람: 플래너를 먼저 서버에 만든다
     const j = await r.json();
@@ -1554,7 +1587,7 @@ function weekFacts(wk) {
   };
 }
 async function maybeReview(wk) {
-  const rv = D.reviews[wk]; if (!rv || rv.summary || _reviewing || !baseUrl() || !paid() || !featOn('review')) return;
+  const rv = D.reviews[wk]; if (!rv || rv.summary || _reviewing || !baseUrl() || !paid() || !featOn('review') || !aiOk()) return;
   if (today() < weekDates(new Date(wk))[6] || rv.askedAt === today()) return;
   const f = weekFacts(wk), wds = weekDates(new Date(wk)); if (!f.done.length && !useDays().some(d => wds.includes(d))) return; // 그 주에 쓴 흔적이 있어야
   _reviewing = true; rv.askedAt = today();

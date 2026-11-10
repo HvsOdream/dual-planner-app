@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 const API = process.env.API || 'https://dual-planner-api.withsky0.workers.dev';
 const cases = JSON.parse(fs.readFileSync(new URL('./group_cases.json', import.meta.url)));
-const models = (process.argv[2] || '').split(',').map(s => s.trim()).filter(Boolean), REPS = Number(process.argv[3] || 3);
+const models = (process.argv[2] || '').split(',').map(s => s.trim()).filter(Boolean), REPS = Number(process.argv[3] || 3), ME = process.argv[4] === 'me'; // me: '하는 일' 한 줄을 같이 보낸다
 const evId = t => { let h = 0; for (const ch of t) h = (h * 31 + ch.charCodeAt(0)) | 0; return 'e' + (h >>> 0).toString(36); };
 const rid = x => x.startsWith('ev:') ? evId(x.slice(3)) : x;
 const post = async (t, body) => { const t0 = Date.now(); try { const r = await fetch(`${API}/u/${t}/group`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const j = await r.json().catch(() => ({})); j._status = r.status; j._ms = Date.now() - t0; return j; } catch (e) { return { _status: 0, _ms: Date.now() - t0, error: String(e) }; } };
@@ -12,9 +12,10 @@ async function one(p, model) {
   const t = 'evg' + p.key + Math.random().toString(36).slice(2, 12) + 'x0';
   await fetch(`${API}/u/${t}/state`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rocks: [], days: {}, settings: {} }) });
   const items = p.items.map(([id, title]) => ({ id, title })).concat(p.ev.map(x => ({ id: evId(x), title: '[일정] ' + x })));
-  const a = await post(t, { items, roles: [], people: {}, model });
+  const me = ME ? p.me || '' : '';
+  const a = await post(t, { items, roles: [], people: {}, model, me });
   const ans = {}; (a.people || []).forEach(x => { const v = p.people[x.name] || p.people[x.name.split(' ')[0]]; if (v) ans[x.name] = v; });
-  const b = Object.keys(ans).length ? await post(t, { items, roles: [], people: ans, model }) : a;
+  const b = Object.keys(ans).length ? await post(t, { items, roles: [], people: ans, model, me }) : a;
   const groups = b.groups || [], of = {}; groups.forEach((g, i) => g.ids.forEach(id => { of[id] = i; }));
   const G = p.gold, names = groups.map(g => g.name);
   const frac = (arr, f) => arr.length ? arr.filter(f).length / arr.length : 1;
@@ -26,6 +27,7 @@ async function one(p, model) {
     must: frac(G.must, re => names.some(n => new RegExp(re, 'i').test(n))),
     ban: G.ban.some(re => names.some(n => new RegExp(re, 'i').test(n))) ? 0 : 1,
     count: groups.length >= 3 && groups.length <= 7 ? 1 : 0,
+    title: frac(G.meMust || [], re => names.some(n => new RegExp(re, 'i').test(n))), // 직함 보존(종합에는 안 넣음)
   };
   const use = [...(a.usage || []), ...(b !== a ? b.usage || [] : [])];
   return { s, names, ms: (a._ms || 0) + (b !== a ? b._ms || 0 : 0), ok: b._status === 200 && groups.length > 0, asked: (a.people || []).map(x => x.name), tin: use.reduce((n, c) => n + c.in, 0), tout: use.reduce((n, c) => n + c.out, 0), err: b.error || a.error || '' };
@@ -42,7 +44,7 @@ for (const m of models) {
   const stab = Object.values(res).map(rs => { let n = 0, c = 0; for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) { n += jac(rs[i].names, rs[j].names); c++; } return c ? n / c : 1; });
   const uns = Object.entries(res).filter(([k]) => cases[k].unseen).flatMap(([, v]) => v);
   const ms = all.map(o => o.ms).sort((a, b) => a - b), pc = x => Math.round(x * 100);
-  const sum = { total: pc(avg(total)), together: pc(avg(o => o.s.together)), apart: pc(avg(o => o.s.apart)), must: pc(avg(o => o.s.must)), ban: pc(avg(o => o.s.ban)), stable: pc(stab.reduce((a, b) => a + b, 0) / stab.length), unseen: pc(uns.reduce((n, o) => n + total(o), 0) / (uns.length || 1)), p50ms: ms[Math.floor(ms.length / 2)], fail: all.filter(o => !o.ok).length, tin: Math.round(avg(o => o.tin)), tout: Math.round(avg(o => o.tout)) };
+  const sum = { total: pc(avg(total)), together: pc(avg(o => o.s.together)), apart: pc(avg(o => o.s.apart)), must: pc(avg(o => o.s.must)), ban: pc(avg(o => o.s.ban)), title: pc(avg(o => o.s.title)), stable: pc(stab.reduce((a, b) => a + b, 0) / stab.length), unseen: pc(uns.reduce((n, o) => n + total(o), 0) / (uns.length || 1)), p50ms: ms[Math.floor(ms.length / 2)], fail: all.filter(o => !o.ok).length, tin: Math.round(avg(o => o.tin)), tout: Math.round(avg(o => o.tout)) };
   console.log('SUM', m, JSON.stringify(sum));
   md += `| ${m} | ${sum.total} | ${sum.together} | ${sum.apart} | ${sum.must} | ${sum.ban} | ${sum.stable} | ${sum.unseen} | ${sum.p50ms} | ${sum.fail} | ${sum.tin}/${sum.tout} |\n`;
 }

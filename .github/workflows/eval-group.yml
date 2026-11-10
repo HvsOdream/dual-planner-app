@@ -10,6 +10,9 @@ on:
       reps:
         description: '반복 수'
         default: '3'
+      me:
+        description: "'me'면 하는 일 한 줄을 같이 보냄"
+        default: ''
 jobs:
   eval:
     runs-on: ubuntu-latest
@@ -18,4 +21,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: node eval/run-group.mjs "${{ inputs.models }}" "${{ inputs.reps }}"
+      - run: node eval/run-group.mjs "${{ inputs.models }}" "${{ inputs.reps }}" "${{ inputs.me }}"

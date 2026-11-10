@@ -284,6 +284,7 @@ async function group(req, env, token) {
   const roles = (body.roles || []).map(String).slice(0, 12);
   const people = Object.entries(body.people || {}).slice(0, 20).map(([n, r]) => [String(n).slice(0, 20), String(r).replace(/[\n=,]/g, ' ').slice(0, 30)]).filter(([n, r]) => n && r && r !== '모름');
   if (items.length < 3) return json({ groups: [] });
+  const me = String(body.me || '').replace(/[\n\r]/g, ' ').trim().slice(0, 40); // 사용자가 직접 적은 '하는 일' 한 줄
   const gModel = EVAL_MODELS.includes(String(body.model || '')) ? String(body.model) : ''; // 모델 비교 시험용
   const sys = [
     '너는 종이 플래너를 함께 쓰는 비서다. 할 일 목록을 보고, 이 사람이 삶에서 맡고 있는 "역할"을 찾아 할 일을 역할별로 묶는다.',
@@ -316,7 +317,7 @@ async function group(req, env, token) {
     { role: 'assistant', content: '{"groups":[{"name":"품질관리","ids":["c2","c6"]},{"name":"부모","ids":["c1","c7"]},{"name":"수험생","ids":["c3"]},{"name":"가족","ids":["c4"]},{"name":"나 자신","ids":["c5"]}],"people":[{"name":"서윤","guess":"딸"},{"name":"김지은","guess":"선생님"},{"name":"박 과장","guess":"동료"}]}' }
   ];
   const lang = langOf(items.map(x => x.title));
-  const user = (lang !== 'ko' ? `글 언어: ${LANG_NAME[lang]} — 역할 이름과 관계를 ${LANG_NAME[lang]}로 쓴다\n` : '') + '기존 역할: ' + (roles.join(', ') || '없음') + '\n사람(사용자가 적은 설명. 그 사람이 나오는 할 일은 이 설명으로 역할을 정한다): ' + (people.map(([n, r]) => n + '=' + r).join(', ') || '없음') + '\n할 일:\n' + items.map(x => `- id=${x.id}: ${x.title}`).join('\n');
+  const user = (lang !== 'ko' ? `글 언어: ${LANG_NAME[lang]} — 역할 이름과 관계를 ${LANG_NAME[lang]}로 쓴다\n` : '') + (me ? '하는 일(사용자가 직접 적음): ' + me + ' — 일하는 자리의 역할 이름은 이 말에서 가져온다. 직함은 바꾸거나 넓히지 않고, 길면 앞의 등급 말(Senior, 수석 등)만 뺀다. 두 자리가 적혀 있으면(예: 교수 겸 학과장) 책임이 다른 역할로 나눈다. 여기에 없는 직책은 지어내지 않는다\n' : '') + '기존 역할: ' + (roles.join(', ') || '없음') + '\n사람(사용자가 적은 설명. 그 사람이 나오는 할 일은 이 설명으로 역할을 정한다): ' + (people.map(([n, r]) => n + '=' + r).join(', ') || '없음') + '\n할 일:\n' + items.map(x => `- id=${x.id}: ${x.title}`).join('\n');
   const msgs = [{ role: 'system', content: sys }, ...example, { role: 'user', content: user }];
   const meter = { calls: [] };
   let raw = '', out;
@@ -328,7 +329,7 @@ async function group(req, env, token) {
   } catch (e) { return json({ error: 'model failed', reason: String(e.message || e) }, 502); }
   await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 });
   const known = new Set(items.map(x => x.id)), seen = new Set();
-  const groups = ((out && out.groups) || []).map(g => ({ name: String(g.name || '').replace(/[\[\]"'`]/g, '').trim().slice(0, /[가-힣]/.test(String(g.name || '')) ? 8 : 24), ids: (g.ids || []).map(String).filter(id => known.has(id) && !seen.has(id) && seen.add(id)) })).filter(g => g.name && g.ids.length);
+  const groups = ((out && out.groups) || []).map(g => ({ name: String(g.name || '').replace(/[\[\]"'`]/g, '').trim().slice(0, /[가-힣]/.test(String(g.name || '')) ? 10 : 28), ids: (g.ids || []).map(String).filter(id => known.has(id) && !seen.has(id) && seen.add(id)) })).filter(g => g.name && g.ids.length);
   // 사람 사전으로 내 자리가 드러나면 이름을 사람 말로: 배우자=아내 → 남편, 아이 일 → 준서 아빠
   if (!roles.length && people.length) {
     // 사람 설명은 자유롭게 적힌다('와이프', '아들 민준', '진흥원 연구원'): 앞쪽 관계 단어만 뽑아 쓴다
