@@ -1,0 +1,13 @@
+name: eval-live
+# 운영 모델로 주간 리뷰·역할 묶기를 돌려 답과 토큰 사용량을 로그에 남김(수동 실행)
+on:
+  workflow_dispatch:
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node eval/run-live.mjs
