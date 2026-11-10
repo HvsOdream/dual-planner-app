@@ -96,6 +96,7 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
         e.startDate = st
         e.endDate = st.addingTimeInterval(Double(call.getInt("minutes") ?? 60) * 60)
         e.calendar = cal
+        if let a = call.getInt("alarm") { e.addAlarm(EKAlarm(relativeOffset: -Double(a) * 60)) }
         do { try store.save(e, span: .thisEvent); call.resolve(["ok": true, "id": e.eventIdentifier ?? ""]) }
         catch { call.reject(error.localizedDescription) }
     }

@@ -40,6 +40,7 @@ function applyItems(S, items, src) {
     if (it.id && it.op === 'update') {
       const r = S.rocks.find(x => x.id === it.id); if (!r) return;
       ['title', 'role', 'due', 'routine', 'done', 'tomb'].forEach(k => { if (k in it) r[k] = it[k]; });
+      if ('at' in it) { const a = String(it.at || '').replace(' ', 'T').slice(0, 16); if (/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(a)) { r.at = a; r.due = r.due || a.slice(0, 10); } else delete r.at; }
       if ('bucket' in it) r.bucket = BUCKETS[String(it.bucket).toLowerCase()] || r.bucket;
       if (it.done) r.doneAt = r.doneAt || td;
       r.u = now; updated.push(r.id); return;
@@ -65,6 +66,7 @@ function applyItems(S, items, src) {
       const id = it.id || uid();
       const r = { id, week: wk, bucket, role: it.role || '', title: text, done: false, carry: 0, checks: {}, src, u: now };
       if (it.routine) r.routine = Number(it.routine); if (it.due) r.due = it.due;
+      const at = String(it.at || '').replace(' ', 'T').slice(0, 16); if (/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(at)) { r.at = at; r.due = r.due || at.slice(0, 10); }
       S.rocks.push(r); added.push(id);
     }
   });
@@ -80,7 +82,7 @@ function summary(S) {
   const names = { urgent: 'A 급함·중요', important: 'B 중요(장기)', light: 'C 급함', nice: 'D 나중에' };
   const cv = (S.vols || []).filter(x => x && !x.closedAt && !x._deleted).sort((x, y) => x.start < y.start ? -1 : 1).pop();
   const lines = [`# DUAL Planner · ${td} · W${wk}`, `역할: ${(S.roles || []).join(' / ')}`, cv ? `지금 속지: ${cv.start}부터 12개월 · 목표: ${(cv.goals || []).join(' / ') || '-'}` : '', ''];
-  ['urgent', 'important', 'light', 'nice'].forEach(b => { lines.push(`## ${names[b]}`); openI.filter(r => (r.bucket || 'nice') === b).forEach(r => lines.push(`- id=${r.id} (${r.role}) ${r.title}${r.due ? ' — ' + r.due + '까지만' : ''}${r.routine ? ' — 주 ' + r.routine + '회, 이번 주 ' + Object.keys(r.checks || {}).filter(k => ds.includes(k)).length : ''}`)); lines.push(''); });
+  ['urgent', 'important', 'light', 'nice'].forEach(b => { lines.push(`## ${names[b]}`); openI.filter(r => (r.bucket || 'nice') === b).forEach(r => lines.push(`- id=${r.id} (${r.role}) ${r.title}${r.at ? ' — 약속 ' + r.at.replace('T', ' ') : ''}${r.due ? ' — ' + r.due + '까지만' : ''}${r.routine ? ' — 주 ' + r.routine + '회, 이번 주 ' + Object.keys(r.checks || {}).filter(k => ds.includes(k)).length : ''}`)); lines.push(''); });
   const day = S.days[td]; if (day) { lines.push('## 오늘', `의도: ${day.intent || '-'}`, `오늘 고른 것: ${(day.picks || []).map(id => (live.find(r => r.id === id) || {}).title).filter(Boolean).join(', ') || '-'}`, `저녁 한 줄: ${day.note || '-'}`, ''); const inbox = (day.inbox || []).filter(x => !x.moved); if (inbox.length) { lines.push('## 인박스(아직 안 옮긴 것)'); inbox.forEach(x => lines.push(`- ${x.kind}: ${x.text}`)); lines.push(''); } }
   lines.push('## 이번 주 일별 기록 (달력)');
   ds.forEach((d, i) => { if (d > td) return; const dy = S.days[d] || {}; const done = live.filter(r => (r.checks && r.checks[d]) || r.doneAt === d).map(r => r.title); const notes = (dy.inbox || []).filter(x => x.kind === 'note').map(x => x.text);
@@ -94,15 +96,15 @@ function summary(S) {
 // ── MCP ──
 const INSTRUCTIONS = `DUAL Planner — 사용자의 노트형 플래너. 앱은 사용자의 정리 양식이고, 정리는 비서(너)가 한다.
 1) 플래너 관련 대화나 일을 시작하면 planner_read로 먼저 읽는다(역할, A/B/C/D 할 일, 오늘, 이번 주 일별 기록, 방치 항목).
-2) 대화 중 생긴 할 일·결정은 대화 끝에 한 번에 planner_add로 적는다. 분류해서 적어라: kind=item + bucket A(급함·중요) | B(중요한 장기 일, due 필수) | C(급함, 가벼운 일) | D(나중에). role은 사용자 역할 중 하나, 루틴은 routine=주당 횟수. 결정·메모는 kind=note.
+2) 대화 중 생긴 할 일·결정은 대화 끝에 한 번에 planner_add로 적는다. 분류해서 적어라: kind=item + bucket A(급함·중요) | B(중요한 장기 일, due 필수) | C(급함, 가벼운 일) | D(나중에). role은 사용자 역할 중 하나, 루틴은 routine=주당 횟수. 시각이 정해진 업무 약속(통화·미팅 등)은 at=YYYY-MM-DDTHH:MM을 넣는다 — 앱이 그 시각 전에 알림을 보낸다. 결정·메모는 kind=note.
 3) 끝난 일은 planner_update로 done=true. 2주 넘게 방치된 것은 분할·묘비를 제안만 하고, 사용자 허락 없이 tomb 하지 않는다.
 4) "속지 1년 리뷰" 요청: 속지 기간의 기록을 읽고(필요하면 사용자에게 달력 요약을 물어) 5~8문장 1년 리뷰를 kind=yearreview로 적는다.
 5) "주간 리뷰" 요청이나 일요일: planner_read의 일별 기록을 근거로 3~5문장 리뷰를 kind=review로 적고, 다음 주 B 후보를 kind=candidate(due 필수)로 최대 4개 적는다. 채택은 사용자가 앱에서 한다.
 6) 적은 뒤엔 무엇을 어느 칸에 적었는지 한 줄로 알려 준다.`;
 const TOOLS = [
   { name: 'planner_read', description: '(플래너 일을 시작할 때 먼저 호출) 플래너 현재 상태 요약(역할, A/B/C/D 할 일 목록과 id, 오늘 의도·고른 것·한 줄, 인박스, 이번 주 완료, 2주 방치 항목). 정리·제안 전에 먼저 읽는다.', inputSchema: { type: 'object', properties: {} } },
-  { name: 'planner_add', description: '비서가 플래너에 적는다. items 배열. 각 항목: text(필수), kind = item(할 일 목록에 바로 적음, bucket 필수: A|B|C|D) | todo(오늘 인박스 할 일) | note(오늘 인박스 메모) | candidate(일요일 리뷰용 다음 주 B 후보) | review(이번 주 리뷰 3~5문장, text에) | yearreview(지금 속지 1년 리뷰, text에). role(역할명), due(YYYY-MM-DD, B는 필수), routine(주 N회 숫자).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, kind: { type: 'string', enum: ['item', 'todo', 'note', 'candidate', 'review', 'yearreview'] }, bucket: { type: 'string', description: 'A|B|C|D' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' } }, required: ['text'] } } }, required: ['items'] } },
-  { name: 'planner_update', description: '기존 할 일 항목 수정. items 배열, 각 항목 id 필수. 바꿀 필드만: title, bucket(A|B|C|D), role, due, routine, done(true/false), tomb(true=묘비·목록에서 치움).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, bucket: { type: 'string' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' }, done: { type: 'boolean' }, tomb: { type: 'boolean' } }, required: ['id'] } } }, required: ['items'] } },
+  { name: 'planner_add', description: '비서가 플래너에 적는다. items 배열. 각 항목: text(필수), kind = item(할 일 목록에 바로 적음, bucket 필수: A|B|C|D) | todo(오늘 인박스 할 일) | note(오늘 인박스 메모) | candidate(일요일 리뷰용 다음 주 B 후보) | review(이번 주 리뷰 3~5문장, text에) | yearreview(지금 속지 1년 리뷰, text에). role(역할명), due(YYYY-MM-DD, B는 필수), routine(주 N회 숫자), at(YYYY-MM-DDTHH:MM 약속 시각, 있으면 앱이 알림).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, kind: { type: 'string', enum: ['item', 'todo', 'note', 'candidate', 'review', 'yearreview'] }, bucket: { type: 'string', description: 'A|B|C|D' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' }, at: { type: 'string' } }, required: ['text'] } } }, required: ['items'] } },
+  { name: 'planner_update', description: '기존 할 일 항목 수정. items 배열, 각 항목 id 필수. 바꿀 필드만: title, bucket(A|B|C|D), role, due, routine, at(YYYY-MM-DDTHH:MM 약속 시각, 빈 문자열이면 뺌), done(true/false), tomb(true=묘비·목록에서 치움).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, bucket: { type: 'string' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' }, at: { type: 'string' }, done: { type: 'boolean' }, tomb: { type: 'boolean' } }, required: ['id'] } } }, required: ['items'] } },
 ];
 async function mcp(req, env, token) {
   if (req.method === 'GET') return new Response('Method Not Allowed', { status: 405, headers: CORS });

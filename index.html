@@ -543,7 +543,18 @@ function waiting(r) { return !!(r.wait && r.wait > dstr(new Date(Date.now() - 7 
 function overdueItems() { const td = today(); return openItems().filter(r => r.due && r.due < td && r.bucket !== 'nice' && !waiting(r)); }
 function staleItems() { const cut = new Date(); cut.setDate(cut.getDate()-14); const c = dstr(cut), td = today(); return openItems().filter(r => !r.routine && r.bucket !== 'nice' && !waiting(r) && !(r.due && r.due < td) && lastTouched(r) < c); }
 function rock(id) { return D.rocks.find(r => r.id === id); }
-function fmtDue(r) { return (waiting(r) ? '기다리는 중 · ' : '') + (r.routine ? ('주 '+r.routine+'회') : r.due ? (md(r.due)+'까지만') : ''); }
+// 약속 시각(r.at = 'YYYY-MM-DDTHH:MM'): 캘린더 없이 플래너만으로 알림이 온다
+function atOn(r, ds) { return r && r.at && r.at.slice(0, 10) === ds ? r.at.slice(11, 16) : ''; }
+function apptsOn(ds) { return openItems().filter(r => atOn(r, ds)).sort((a, b) => a.at < b.at ? -1 : 1); }
+function apptLead() { const v = notifyCfg().appt; return v === undefined || v === null || v === '' ? 10 : Number(v); }
+// "14:00 통화", "14시 통화", "오후 2시 30분 통화" → [시각, 나머지]
+function parseTime(t) {
+  let m = t.match(/^\s*(\d{1,2}):(\d{2})\s+(.+)$/); if (m) return [m[1].padStart(2, '0') + ':' + m[2], m[3]];
+  m = t.match(/^\s*(오전|오후)?\s*(\d{1,2})시\s*(?:(\d{1,2})분|반)?\s+(.+)$/);
+  if (m) { let h = Number(m[2]); const mi = m[3] ? Number(m[3]) : /반/.test(t.split(m[4])[0]) ? 30 : 0; if (m[1] === '오후' && h < 12) h += 12; if (!m[1] && h >= 1 && h <= 7) h += 12; return [String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0'), m[4]]; }
+  return null;
+}
+function fmtDue(r) { const ad = r.at ? r.at.slice(0, 10) : ''; return (r.at ? (ad === today() ? '' : md(ad) + ' ') + r.at.slice(11, 16) + ' 약속' + (r.due && r.due !== ad ? ' · ' : '') : '') + (waiting(r) ? '기다리는 중 · ' : '') + (r.routine ? ('주 '+r.routine+'회') : r.due && r.due !== ad ? (md(r.due)+'까지만') : ''); }
 function checkedCount(r) { const ks = Object.keys(r.checks||{}); if (!r.routine) return ks.length; const ds = weekDates(weekStart(new Date())); return ks.filter(k => ds.includes(k)).length; }
 function streak() { let n = 0; const d = new Date(); for (let i=0;i<400;i++) { const ds = dstr(d); const day = D.days[ds]; const did = day && (day.picks||[]).some(id => (rock(id)||{}).checks && rock(id).checks[ds]); if (did) n++; else if (i>0) break; d.setDate(d.getDate()-1); } return n; }
 function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('on'), m.length > 30 ? 5000 : 1600); }
@@ -626,13 +637,16 @@ function itemHtml(r, ds, opts) {
 }
 function doneOn(ds) { return live().filter(r => (r.checks && r.checks[ds]) || r.doneAt === ds); }
 function addToday() {
-  const el = document.getElementById('quickIn'); const t = (el.value||'').trim(); if (!t) return;
+  const el = document.getElementById('quickIn'); let t = (el.value||'').trim(); if (!t) return;
+  const pt = parseTime(t); if (pt) t = pt[1];
   const r = { id: uid(), week: weekKey(new Date()), bucket: 'light', role: '', title: t, done: false, carry: 0, checks: {} };
+  if (pt) { r.at = today() + 'T' + pt[0]; r.due = today(); apptToast(pt[0]); }
   D.rocks.push(r); dayOf(today()).picks.push(r.id); markStarted(); save(); render(); setTimeout(()=>{ const e=document.getElementById('quickIn'); if (e) e.focus(); }, 30);
 }
 function renderToday() {
   const ds = today(), day = dayOf(ds);
   const picks = (day.picks||[]).map(rock).filter(r => r && !r._deleted);
+  apptsOn(ds).forEach(r => { if (!picks.includes(r)) picks.push(r); });
   const inbox = stuckNotes();
   const doneN = picks.filter(r=>r.checks&&r.checks[ds]).length;
   // 오늘 고를 만한 것: A 전부 + 3일 안에 끝나는 B (아직 안 고른 것)
@@ -650,7 +664,7 @@ function renderToday() {
   <input class="wr" style="font-size:18px;font-weight:600" placeholder="" value="${esc(day.intent)}" onchange="dayOf('${ds}').intent=this.value;save()">
   <div class="sp"></div>
   <div class="lbl"><span>오늘 할 것 <span style="font-weight:400;color:var(--muted)">${picks.length ? doneN+'/'+picks.length : ''}</span></span></div>`;
-  picks.sort((x, y) => ((day.times || {})[x.id] || '99') < ((day.times || {})[y.id] || '99') ? -1 : 1).forEach(r => { const tm = (day.times || {})[r.id]; h += itemHtml(r, ds, { meta: `${tm ? `<span style="font-weight:700">${tm}</span> ` : ''}<button onclick="unpick('${r.id}')">빼기</button>`, big: true }); });
+  picks.sort((x, y) => (atOn(x, ds) || '99') < (atOn(y, ds) || '99') ? -1 : 1).forEach(r => { const tm = atOn(r, ds); h += itemHtml(r, ds, { meta: `<button onclick="${tm ? `clearAt('${r.id}')` : `unpick('${r.id}')`}">${tm ? '시각 빼기' : '빼기'}</button>`, big: true }); });
   h += `<div class="item"><div class="mg"><span class="chk" style="border-style:dashed"></span></div><div class="bd"><input class="wr" id="quickIn" style="padding-left:12px;font-size:17px" placeholder="" aria-label="오늘 할 것" onkeydown="if(event.key==='Enter')addToday()"></div></div>`;
   if (sugg.length) {
     h += `<div class="sp"></div><div class="lbl"><span>가져올 것</span><button onclick="go('week')">할 일 ›</button></div>`;
@@ -1089,6 +1103,7 @@ function shortT(t) { let x = String(t || '').replace(/^\[[^\]]{1,8}\]\s*/, ''); 
 function briefRows(ds) {
   const b = briefOf(ds), rows = [], seen = new Set(), day = dayOf(ds);
   const add = (r, tag, hot) => { if (!r || seen.has(r.id) || rows.length >= 5) return; seen.add(r.id); rows.push({ r, tag, hot, picked: (day.picks || []).includes(r.id) }); };
+  apptsOn(ds).forEach(r => add(r, atOn(r, ds), true));
   b.due.forEach(r => add(r, '오늘', true));
   overdueItems().slice(0, 2).forEach(r => add(r, '지남', true));
   b.soon.slice(0, 3).forEach(r => add(r, 'D-' + dleft(r.due), dleft(r.due) <= 1));
@@ -1109,22 +1124,25 @@ function freeFrom(ds) {
 }
 function slotOpen(id) { _slot = _slot === id ? null : id; render(); }
 function pickHere(id) { const day = dayOf(today()); if (!day.picks.includes(id)) day.picks.push(id); save(); render(); toast('오늘 칸에 적었어요'); }
-async function placeSlot(id) {
+async function placeSlot(id, cal) {
   const r = rock(id); if (!r) return; const ds = today(), day = dayOf(ds);
   const st = (document.getElementById('slotT') || {}).value || freeFrom(ds), mins = Number((document.getElementById('slotL') || {}).value || 60);
   if (!day.picks.includes(id)) day.picks.push(id);
-  day.times = Object.assign({}, day.times, { [id]: st }); _slot = null; save();
-  if (nat() && (D.settings || {}).calNative) {
-    try { const res = await nat().calendarAdd({ date: ds, start: st, minutes: mins, title: shortT(r.title) }); if (res && res.ok) { toast(`캘린더 ${st}에 넣고 오늘 칸에도 적었어요`); loadCal(true); render(); return; } } catch(e) {}
+  r.at = ds + 'T' + st; r.u = new Date().toISOString(); _slot = null; save();
+  const lead = apptLead();
+  if (cal && nat() && (D.settings || {}).calNative) {
+    try { const res = await nat().calendarAdd({ date: ds, start: st, minutes: mins, title: shortT(r.title), alarm: lead }); if (res && res.ok) { toast(`${st} 약속 · 캘린더에도 넣었어요`); loadCal(true); render(); return; } } catch(e) {}
   }
-  render(); toast(`오늘 칸 ${st}에 적었어요`);
+  render(); apptToast(st);
 }
+function apptToast(st) { const lead = apptLead(); toast(isNative() && !notifyCfg().on ? `${st} 약속으로 적었어요 · 알림이 꺼져 있어요(메뉴 › 알림)` : `${st} 약속으로 적었어요 · ${lead ? lead + '분 전에' : '정각에'} 알려요`); }
+function clearAt(id) { const r = rock(id); if (!r) return; delete r.at; r.u = new Date().toISOString(); save(); render(); toast('시각을 뺐어요'); }
 function briefHtml(ds) {
   if (ds !== today() || !featOn('brief') || new Date().getHours() >= 12 || noteOff('brief:' + ds)) return '';
   const { b, rows } = briefRows(ds); if (!b.ev.length && !rows.length && !b.picks.length) return '';
   let h = '';
   if (b.ev.length) { const f = b.timed[0] || b.ev[0]; h += `<div class="bev">일정 ${b.ev.length}개 · 첫 일정 <b>${f.allDay ? '종일' : f.start}</b> ${esc(shortT(f.title))}</div>`; }
-  h += rows.map(({ r, tag, hot, picked }) => `<div class="bf"><span class="bt ${hot ? 'hot' : ''}">${esc(tag)}</span><span class="bn">${esc(shortT(r.title))}</span><span class="bb">${picked ? `<span class="bdone">${(dayOf(ds).times || {})[r.id] || '오늘 칸'} ✓</span>` : `<button onclick="pickHere('${r.id}')">오늘로</button>`}<button onclick="slotOpen('${r.id}')">시간</button></span></div>` + (_slot === r.id ? `<div class="bslot"><input type="time" id="slotT" value="${tag.endsWith(' 빔') ? tag.slice(0, 5) : freeFrom(ds)}"><select id="slotL"><option value="30">30분</option><option value="60" selected>1시간</option><option value="90">1시간 30분</option><option value="120">2시간</option></select><button onclick="placeSlot('${r.id}')">${nat() && (D.settings || {}).calNative ? '캘린더에' : '적기'}</button></div>` : '')).join('');
+  h += rows.map(({ r, tag, hot, picked }) => `<div class="bf"><span class="bt ${hot ? 'hot' : ''}">${esc(tag)}</span><span class="bn">${esc(shortT(r.title))}</span><span class="bb">${atOn(r, ds) ? `<span class="bdone">약속 ✓</span>` : picked ? `<span class="bdone">오늘 칸 ✓</span>` : `<button onclick="pickHere('${r.id}')">오늘로</button>`}<button onclick="slotOpen('${r.id}')">시간</button></span></div>` + (_slot === r.id ? `<div class="bslot"><input type="time" id="slotT" value="${tag.endsWith(' 빔') ? tag.slice(0, 5) : freeFrom(ds)}"><select id="slotL"><option value="30">30분</option><option value="60" selected>1시간</option><option value="90">1시간 30분</option><option value="120">2시간</option></select><button onclick="placeSlot('${r.id}')">약속으로</button>${nat() && (D.settings || {}).calNative ? `<button onclick="placeSlot('${r.id}', true)">캘린더에도</button>` : ''}</div>` : '')).join('');
   if (!rows.length && b.picks.length) h += `<div class="bev">오늘 칸 ${b.picks.length}개가 기다려요</div>`;
   return `<div class="stickies">${aNote({ label: '아침 브리핑', meta: md(ds), cls: 'wide brief', text: rows.map(x => shortT(x.r.title)).join(' / ') || '오늘 일정', html: h, acts: `<button onclick="dropNote('brief:${ds}')">떼기</button>` })}</div>`;
 }
@@ -1168,7 +1186,7 @@ function notifText(k, ds) {
 async function scheduleNotifs() {
   const LN = isNative() && capPlugin('LocalNotifications'); if (!LN) return;
   const c = notifyCfg();
-  const ids = NOTIFY.map(n => n.id); for (let i = 2000; i < 2030; i++) ids.push(i);
+  const ids = NOTIFY.map(n => n.id); for (let i = 2000; i < 2030; i++) ids.push(i); for (let i = 3000; i < 3040; i++) ids.push(i);
   // 먼저 지우고 다시 거는 사이에 앱이 멈추면 알림이 하나도 안 남는다: 새로 걸 것만 덮어쓰고, 안 쓰는 번호만 지운다
   const drop = async keep => { const k = new Set(keep), d = ids.filter(i => !k.has(i)).map(id => ({ id })); try { if (d.length) await LN.cancel({ notifications: d }); } catch(e) {} };
   if (!c.on) { await drop([]); D._pend = null; return; }
@@ -1187,6 +1205,12 @@ async function scheduleNotifs() {
     }
   } else {
     list = NOTIFY.filter(n => !c.off[n.k]).map(n => { const [h, m] = String(c[n.k] || n.t).split(':').map(Number); const on = { hour: h, minute: m }; if (n.k === 'sunday') on.weekday = 1; return { id: n.id, title: n.title, body: n.body, schedule: { on, allowWhileIdle: true } }; });
+  }
+  // 약속: 구독과 상관없이, 앞으로 7일 안의 시각 있는 일을 미리 알린다
+  if (!c.off.appt) {
+    const lead = apptLead(), now = Date.now();
+    openItems().filter(r => r.at).map(r => ({ r, t: new Date(r.at + ':00').getTime() })).filter(x => x.t - lead * 60000 > now && x.t - now < 7 * 86400000).sort((a, b) => a.t - b.t).slice(0, 40)
+      .forEach((x, i) => list.push({ id: 3000 + i, title: `${x.r.at.slice(11, 16)} ${shortT(x.r.title)}`, body: lead ? `${lead}분 뒤 약속이에요` : '지금 약속이에요', schedule: { at: new Date(x.t - lead * 60000), allowWhileIdle: true } }));
   }
   if (list.length) await LN.schedule({ notifications: list });
   await drop(list.map(n => n.id));
@@ -1211,7 +1235,7 @@ function setNotify(patch) { const c = notifyCfg(); Object.assign(c, patch); D.se
 function renderNotifyBox() {
   const el = document.getElementById('notifyBox'); if (!el) return; if (!isNative()) { el.innerHTML = ''; return; }
   const c = notifyCfg();
-  el.innerHTML = `<div class="lbl" style="padding-left:0">알림 <button style="font-size:12px;color:var(--ink-2);text-decoration:underline;font-weight:500" onclick="${c.on ? 'setNotify({on:false})' : 'enableNotifs()'}">${c.on ? '끄기' : '켜기'}</button></div>` + (c.on ? NOTIFY.map(n => `<div class="acts" style="padding:2px 0;align-items:center"><button onclick="setNotify({off:Object.assign({},notifyCfg().off,{${n.k}:!notifyCfg().off.${n.k}})})">${c.off[n.k] ? '○' : '●'} ${n.name}</button><input type="time" value="${esc(c[n.k])}" style="background:transparent;border:none;border-bottom:1px solid var(--rule);font:inherit;font-size:13px;color:var(--ink)" onchange="setNotify({${n.k}:this.value})"></div>`).join('') : '') + (c.on ? notifyNext() + notifyPreview() : '') + '<div style="height:10px"></div>';
+  el.innerHTML = `<div class="lbl" style="padding-left:0">알림 <button style="font-size:12px;color:var(--ink-2);text-decoration:underline;font-weight:500" onclick="${c.on ? 'setNotify({on:false})' : 'enableNotifs()'}">${c.on ? '끄기' : '켜기'}</button></div>` + (c.on ? NOTIFY.map(n => `<div class="acts" style="padding:2px 0;align-items:center"><button onclick="setNotify({off:Object.assign({},notifyCfg().off,{${n.k}:!notifyCfg().off.${n.k}})})">${c.off[n.k] ? '○' : '●'} ${n.name}</button><input type="time" value="${esc(c[n.k])}" style="background:transparent;border:none;border-bottom:1px solid var(--rule);font:inherit;font-size:13px;color:var(--ink)" onchange="setNotify({${n.k}:this.value})"></div>`).join('') : '') + (c.on ? `<div class="acts" style="padding:2px 0;align-items:center"><button onclick="setNotify({off:Object.assign({},notifyCfg().off,{appt:!notifyCfg().off.appt})})">${c.off.appt ? '○' : '●'} 약속</button><select style="background:transparent;border:none;border-bottom:1px solid var(--rule);font:inherit;font-size:13px;color:var(--ink)" onchange="setNotify({appt:Number(this.value)})">${[0, 5, 10, 15, 30, 60].map(m => `<option value="${m}" ${apptLead() === m ? 'selected' : ''}>${m ? m + '분 전' : '정각'}</option>`).join('')}</select></div>` : '') + (c.on ? notifyNext() + notifyPreview() : '') + '<div style="height:10px"></div>';
 }
 function notifyNext() {
   const p = D._pend; if (!p) return '';
@@ -1321,7 +1345,7 @@ function addFormHtml(b) {
   return `<div class="addrock on" id="addrock">
     <div class="sel" id="roleSel">${D.roles.map(r=>`<button class="${addRole===r?'on':''}" onclick="addRole='${esc(r)}';renderWeek()">${esc(r)}</button>`).join('')}${b!=='urgent'?`<button class="${addRoutine?'on':''}" onclick="addRoutine=!addRoutine;renderWeek()">루틴</button>`:''}</div>
     <input class="wr" id="rockTitle" placeholder="" value="${esc(addPrefill)}">
-    <div class="line sub" style="display:flex;gap:10px;align-items:center">${addRoutine?`주 <select id="rockN" style="background:transparent;border:none;border-bottom:1px solid var(--rule)"><option>2</option><option selected>3</option><option>4</option><option>5</option></select> 회`:`까지만 <input type="date" id="rockDue" style="background:transparent;border:none;border-bottom:1px solid var(--rule)" value="${b==='important'?due:''}">${b!=='important'?'':''}`}</div>
+    <div class="line sub" style="display:flex;gap:10px;align-items:center">${addRoutine?`주 <select id="rockN" style="background:transparent;border:none;border-bottom:1px solid var(--rule)"><option>2</option><option selected>3</option><option>4</option><option>5</option></select> 회`:`까지만 <input type="date" id="rockDue" style="background:transparent;border:none;border-bottom:1px solid var(--rule)" value="${b==='important'?due:''}"> 약속 <input type="time" id="rockAt" style="background:transparent;border:none;border-bottom:1px solid var(--rule)">`}</div>
     <div class="pbtns" style="padding-left:52px"><button class="cta" style="margin-left:0;width:auto;flex:1" onclick="addRock('${b}')">저장</button><button class="cta ghost" style="margin-left:0;width:auto;flex:1" onclick="addOpen=false;addPrefill='';renderWeek()">취소</button></div></div>`;
 }
 function openAdd(b) { addBucket = b; addOpen = true; addRoutine = false; renderWeek(); setTimeout(()=>{ const e=document.getElementById('rockTitle'); if (e) e.focus(); }, 50); }
@@ -1331,7 +1355,7 @@ function addRock(b) {
   if (!title) { toast('제목이 비어 있어요'); return; }
   const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: addRole || '', title, done: false, carry: 0, checks: {} };
   if (addRoutine) r.routine = Number((document.getElementById('rockN')||{}).value||3);
-  else { const due = (document.getElementById('rockDue')||{}).value || ''; if (b==='important' && !due) { toast('B는 끝 조건이 필요해요'); return; } if (due) r.due = due; }
+  else { const due = (document.getElementById('rockDue')||{}).value || ''; if (b==='important' && !due) { toast('B는 끝 조건이 필요해요'); return; } if (due) r.due = due; const at = (document.getElementById('rockAt')||{}).value || ''; if (at) { r.due = r.due || today(); r.at = r.due + 'T' + at; } }
   r.vol = (curVol()||{}).id; D.rocks.push(r); addOpen = false; addPrefill = ''; save(); renderWeek(); renderCover(); toast('적었어요');
 }
 function finishRock(id) { const r = rock(id); if (!r) return; const td = today(); r.checks = r.checks || {}; if (r.done) { if (r.doneAt) delete r.checks[r.doneAt]; r.done = false; r.doneAt = null; } else { r.done = true; r.doneAt = td; r.checks[td] = true; if (navigator.vibrate) navigator.vibrate(12); } save(); render(); }
