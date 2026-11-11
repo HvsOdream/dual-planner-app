@@ -1137,7 +1137,7 @@ function stickiesHtml(list, gs) {
     const todo = x.kind !== 'note';
     h += `<div class="sticky"><div class="who"><span>${esc(todo ? agentLabel(x.src || (D.agent||{}).name) : '비서 메모')}</span><span>${esc(when)}</span></div>
       <div class="tx">${esc(x.text)}</div>
-      <div class="act">${todo ? `<button onclick="moveToRock('${x.id}')">할 일로</button>` : ''}<button onclick="dropInbox('${x.id}')">떼기</button></div></div>`;
+      <div class="act">${todo ? `<button onclick="moveToRock('${x.id}')">할 일로</button>` : `<button onclick="noteToMemo('${x.id}')">메모로</button>`}<button onclick="dropInbox('${x.id}')">떼기</button></div></div>`;
   });
   return h + `</div>`;
 }
@@ -1464,6 +1464,8 @@ function firstHtml(ds) {
     <div class="act"><button onclick="firstToPick('${ds}')">오늘 할 것으로</button><button onclick="dayOf('${ds}').firstOff=true;save();render()">떼기</button></div></div></div>`;
 }
 function firstToPick(ds) { const d = dayOf(ds); const r = { id: uid(), week: '', bucket: 'light', role: '', title: d.first, done: false, carry: 0, checks: {} }; D.rocks.push(r); d.picks.push(r.id); d.firstOff = true; markStarted(); save(); render(); }
+// 비서 메모를 메모장에 둘지는 내가 정한다: 「메모로」를 누른 것만 메모 탭에 그날 날짜로 남는다
+function noteToMemo(id) { const x = findNote(id); if (!x) return; x.memo = true; x.hid = false; x.moved = true; x.dropped = true; save(); render(); toast('메모에 옮겼어요'); }
 function dropInbox(id) { const x = findNote(id); if (!x) return; x.moved = true; x.dropped = true; save(); render(); }
 function moveToRock(id) {
   const x = findNote(id); if (!x) return;
@@ -1541,10 +1543,10 @@ let memoEdit = null, memoMove = null, memoDraft = '';
 function liveMemos() { return (D.memos || []).filter(m => m && !m._deleted).sort((a, b) => (a.at || '') < (b.at || '') ? 1 : -1); }
 function memoGrow(el) { if (!el) return; el.style.height = 'auto'; const row = 28, h = Math.max(row * (el.dataset.min || 2), Math.ceil(el.scrollHeight / row) * row); el.style.height = h + 'px'; }
 function memoWhen(at) { if (!at) return ''; const d = new Date(at), ds = dstr(d); return ds === today() ? String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') : (ds.slice(0, 4) === today().slice(0, 4) ? md(ds) : ds.slice(2).replace(/-/g, '.')); }
-// 메모장에 보이는 것: 내가 적은 메모 + 비서가 그날그날 붙인 메모(포스트잇을 떼어도 여기엔 남는다). 날짜별로 묶는다
+// 메모장에 보이는 것: 내가 적은 메모 + 비서 메모 중 내가 「메모로」 옮긴 것. 날짜별로 묶는다
 function memoEntries() {
   const out = liveMemos().map(m => { const d = new Date(m.at || Date.now()); return { m, id: m.id, text: m.text, ds: dstr(d), tm: String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), by: !!m.by }; });
-  for (const ds in (D.days || {})) (D.days[ds].inbox || []).forEach(x => { if (x && x.kind === 'note' && !x.hid && x.text) out.push({ note: x, id: x.id, text: x.text, ds, tm: x.at || '', by: true }); });
+  for (const ds in (D.days || {})) (D.days[ds].inbox || []).forEach(x => { if (x && x.kind === 'note' && x.memo && !x.hid && x.text) out.push({ note: x, id: x.id, text: x.text, ds, tm: x.at || '', by: true }); });
   return out.sort((a, b) => a.ds !== b.ds ? (a.ds < b.ds ? 1 : -1) : (a.tm < b.tm ? 1 : -1));
 }
 function memoDay(ds) { const td = today(), w = DOW[(new Date(ds + 'T00:00').getDay() + 6) % 7]; return (ds.slice(0, 4) === td.slice(0, 4) ? md(ds) : ds.slice(2).replace(/-/g, '.')) + ' ' + w + (ds === td ? ' · 오늘' : ''); }
@@ -1574,7 +1576,7 @@ function addMemo() {
   memoDraft = ''; save(); renderMemo(); renderCover(); toast('적었어요');
 }
 function saveMemo(id) { const m = (D.memos || []).find(x => x.id === id), el = document.getElementById('memoEd'); if (!m || !el) return; const t = el.value.trim(); if (!t) { toast('내용이 비어 있어요'); return; } m.text = t; memoEdit = null; save(); renderMemo(); }
-function delMemo(id) { if (!confirm('이 메모를 지울까요?')) return; const m = (D.memos || []).find(x => x.id === id), n = m ? null : findNote(id); if (m) m._deleted = true; else if (n) { n.hid = true; n.moved = true; n.dropped = true; } save(); render(); }
+function delMemo(id) { if (!confirm('이 메모를 지울까요?')) return; const m = (D.memos || []).find(x => x.id === id), n = m ? null : findNote(id); if (m) m._deleted = true; else if (n) { n.hid = true; n.memo = false; n.moved = true; n.dropped = true; } save(); render(); }
 function memoToRock(id, b) {
   const own = (D.memos || []).find(x => x.id === id), m = own || findNote(id); if (!m) return;
   const lines = m.text.split('\n').map(x => x.trim()).filter(Boolean), title = lines[0] || ''; if (!title) return;
