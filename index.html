@@ -1303,14 +1303,14 @@ function apptToast(st, ds, id) {
   const c = ds ? apptClash(ds, st.slice(-5), id) : '';
   if (c) { toast(`${st} 약속으로 적었어요 · ${c}${josa(c, '과', '와')} 겹쳐요`); return; } const lead = apptLead(); toast(isNative() && !notifyCfg().on ? `${st} 약속으로 적었어요 · 알림이 꺼져 있어요(메뉴 › 알림)` : `${st} 약속으로 적었어요 · ${lead ? lead + '분 전에' : '정각에'} 알려요`); }
 function clearAt(id) { const r = rock(id); if (!r) return; delete r.at; r.u = new Date().toISOString(); save(); render(); toast('시각을 뺐어요'); }
-// 저녁 정리: 저녁 알림 시각부터(또는 저녁 알림을 눌러 들어오면) 오늘 맨 위에 붙는다. 남은 일 끝/내일로, 한 줄 일기를 여기서 바로
+// 저녁 정리: 저녁 알림이 온 뒤에만(알림 시각이 지났거나 그 알림을 눌러 들어오면) 오늘 맨 위에 붙는다. 남은 일 끝/내일로, 한 줄 일기를 여기서 바로
 let eveOpen = '';
-function eveTime() { const c = notifyCfg(); return (c.on && !c.off.evening && c.evening) || '21:30'; }
+function eveTime() { const c = notifyCfg(); return c.on && !c.off.evening ? (c.evening || '21:30') : ''; } // 저녁 알림을 꺼 두면 포스트잇도 안 붙는다
 function eveRest(ds) { return (dayOf(ds).picks || []).map(rock).filter(r => r && !r._deleted && !r.done && !(r.checks && r.checks[ds]) && !(r.at && r.at.slice(0, 10) > ds)); }
 function eveHtml(ds) {
   if (ds !== today() || noteOff('eve:' + ds)) return '';
   const now = new Date(), hm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-  if (eveOpen !== ds && hm < eveTime()) return '';
+  const et = eveTime(); if (eveOpen !== ds && (!et || hm < et)) return '';
   const day = dayOf(ds), all = (day.picks || []).map(rock).filter(r => r && !r._deleted), rest = eveRest(ds), done = all.length - rest.length;
   if (!rest.length && day.note) return '';
   let h = `<div class="bev" style="white-space:normal">${all.length ? `오늘 ${all.length}개 중 <b>${done}개</b> 끝${rest.length ? ` · 남은 ${rest.length}개는 끝냈으면 끝, 아니면 내일로` : ''}` : '오늘 칸은 비어 있었어요'}</div>`;
