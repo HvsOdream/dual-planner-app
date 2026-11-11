@@ -180,6 +180,8 @@ a { color: inherit; }
 .memo .t .tx { white-space: pre-wrap; }
 .memo .mg { font-size: 11px; color: var(--muted); }
 .memo .bslot { padding-left: 0; }
+.evein { display: block; width: 100%; height: 34px; margin-top: 4px; padding: 0 2px; font: inherit; font-size: 15px; font-weight: 600; color: inherit; background: transparent; border: none; border-top: 1px dashed rgba(74,42,51,.2); border-bottom: 1px solid rgba(74,42,51,.35); border-radius: 0; outline: none; }
+.evein::placeholder { color: inherit; opacity: .45; font-weight: 400; }
 .bb { flex: none; display: flex; gap: 10px; } .bb button { font-size: 12px; text-decoration: underline; } .bdone { font-size: 12px; opacity: .7; }
 .bslot { display: flex; gap: 8px; align-items: center; padding: 2px 0 8px 46px; font-size: 13px; } .bslot input, .bslot select { font: inherit; font-size: 13px; background: rgba(255,255,255,.5); border: 1px solid rgba(0,0,0,.15); border-radius: 6px; padding: 2px 4px; color: inherit; } .bslot { flex-wrap: wrap; } .bslot button { font-size: 12px; font-weight: 700; text-decoration: underline; white-space: nowrap; } .bslot select { max-width: 92px; }
 .ppl .inp { flex: 1; min-width: 0; font-size: 14px; } .ppl span { flex-wrap: nowrap !important; align-items: center; }
@@ -726,6 +728,7 @@ function renderToday() {
   const sugg = openItems().filter(r => !(day.picks||[]).includes(r.id) && !inBrief.has(r.id) && (r.bucket==='urgent' || (r.bucket==='important' && r.due && r.due <= soon) || (r.routine && checkedCount(r) < r.routine)));
   const cv = curVol(); const full = false; // 속지 닫기 화면은 당분간 숨김
   let h = `${full ? `<button class="banner" onclick="go('close')"><span>${volName(cv)} 속지가 다 찼어요. 1년을 돌아보고 새 속지를 끼울 시간이에요</span><b>속지 닫기 ›</b></button>` : ''}<div class="sp"></div>
+  ${eveHtml(ds)}
   ${firstHtml(ds)}
   ${trialHtml(ds)}
   ${ds === today() && backMode() ? `<div class="stickies">${backHtml()}</div>` : ''}
@@ -1300,6 +1303,30 @@ function apptToast(st, ds, id) {
   const c = ds ? apptClash(ds, st.slice(-5), id) : '';
   if (c) { toast(`${st} 약속으로 적었어요 · ${c}${josa(c, '과', '와')} 겹쳐요`); return; } const lead = apptLead(); toast(isNative() && !notifyCfg().on ? `${st} 약속으로 적었어요 · 알림이 꺼져 있어요(메뉴 › 알림)` : `${st} 약속으로 적었어요 · ${lead ? lead + '분 전에' : '정각에'} 알려요`); }
 function clearAt(id) { const r = rock(id); if (!r) return; delete r.at; r.u = new Date().toISOString(); save(); render(); toast('시각을 뺐어요'); }
+// 저녁 정리: 저녁 알림 시각부터(또는 저녁 알림을 눌러 들어오면) 오늘 맨 위에 붙는다. 남은 일 끝/내일로, 한 줄 일기를 여기서 바로
+let eveOpen = '';
+function eveTime() { const c = notifyCfg(); return (c.on && !c.off.evening && c.evening) || '21:30'; }
+function eveRest(ds) { return (dayOf(ds).picks || []).map(rock).filter(r => r && !r._deleted && !r.done && !(r.checks && r.checks[ds]) && !(r.at && r.at.slice(0, 10) > ds)); }
+function eveHtml(ds) {
+  if (ds !== today() || noteOff('eve:' + ds)) return '';
+  const now = new Date(), hm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  if (eveOpen !== ds && hm < eveTime()) return '';
+  const day = dayOf(ds), all = (day.picks || []).map(rock).filter(r => r && !r._deleted), rest = eveRest(ds), done = all.length - rest.length;
+  if (!rest.length && day.note) return '';
+  let h = `<div class="bev" style="white-space:normal">${all.length ? `오늘 ${all.length}개 중 <b>${done}개</b> 끝${rest.length ? ` · 남은 ${rest.length}개는 끝냈으면 끝, 아니면 내일로` : ''}` : '오늘 칸은 비어 있었어요'}</div>`;
+  h += rest.map(r => bRow(r, '남음', false, `<button onclick="finishRock('${r.id}')">끝</button><button onclick="toTomorrow('${r.id}')">내일로</button>`)).join('');
+  h += `<input class="evein" id="eveNote" placeholder="한 줄 일기: 오늘 어땠나요" value="${esc(day.note)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')this.blur()" onchange="eveNote(this.value)">`;
+  return `<div class="stickies"><div class="sticky wide brief"><div class="who"><span>오늘 닫기</span><span>${md(ds)}</span></div><div class="tx">${h}</div><div class="act"><button onclick="dropNote('eve:${ds}')">떼기</button></div></div></div>`;
+}
+function eveNote(v) { const ds = today(); dayOf(ds).note = v.trim(); save(); render(); if (v.trim() && !eveRest(ds).length) toast('오늘을 닫았어요'); }
+function toTomorrow(id) { const ds = today(), day = dayOf(ds), tm = dayOf(addDays(ds, 1)); day.picks = (day.picks || []).filter(x => x !== id); tm.picks = tm.picks || []; if (!tm.picks.includes(id)) tm.picks.push(id); save(); render(); toast('내일 칸에 옮겨 적었어요'); }
+// 알림을 누르고 들어오면 그 알림이 말한 곳을 맨 위에 보여 준다
+function onNotifTap(id) {
+  id = Number(id); const k = id === 102 || (id >= 2000 && id < 2030 && (id - 2000) % 3 === 1) ? 'evening' : id === 103 || (id >= 2000 && id < 2030 && (id - 2000) % 3 === 2) ? 'sunday' : 'today';
+  if (k === 'evening') eveOpen = today();
+  go(k === 'sunday' ? 'review' : 'today'); window.scrollTo(0, 0); const p = document.getElementById('p-today'); if (p) p.scrollTop = 0;
+}
+function listenNotifs() { const LN = isNative() && capPlugin('LocalNotifications'); if (!LN || listenNotifs._on) return; listenNotifs._on = true; try { LN.addListener('localNotificationActionPerformed', a => { try { onNotifTap(a && a.notification && a.notification.id); } catch(e) {} }); } catch(e) {} }
 function briefHtml(ds) {
   if (ds !== today() || !featOn('brief') || new Date().getHours() >= 12 || noteOff('brief:' + ds)) return '';
   const { b, rows } = briefRows(ds); if (!b.ev.length && !rows.length && !b.picks.length && !apptsOn(ds).length) return '';
@@ -1912,6 +1939,7 @@ function renderAccount() {
 // ── 시작 ──
 ensureVol();
 syncPages();
+listenNotifs();
 render();
 showIntro();
 setTimeout(() => { loadCal(false); takePending(); scheduleNotifs(); }, 400);
