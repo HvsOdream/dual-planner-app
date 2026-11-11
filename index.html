@@ -728,7 +728,7 @@ function renderToday() {
   const sugg = openItems().filter(r => !(day.picks||[]).includes(r.id) && !inBrief.has(r.id) && (r.bucket==='urgent' || (r.bucket==='important' && r.due && r.due <= soon) || (r.routine && checkedCount(r) < r.routine)));
   const cv = curVol(); const full = false; // 속지 닫기 화면은 당분간 숨김
   let h = `${full ? `<button class="banner" onclick="go('close')"><span>${volName(cv)} 속지가 다 찼어요. 1년을 돌아보고 새 속지를 끼울 시간이에요</span><b>속지 닫기 ›</b></button>` : ''}<div class="sp"></div>
-  ${eveHtml(ds)}
+  ${notifStickies(ds)}
   ${firstHtml(ds)}
   ${trialHtml(ds)}
   ${ds === today() && backMode() ? `<div class="stickies">${backHtml()}</div>` : ''}
@@ -1303,20 +1303,37 @@ function apptToast(st, ds, id) {
   const c = ds ? apptClash(ds, st.slice(-5), id) : '';
   if (c) { toast(`${st} 약속으로 적었어요 · ${c}${josa(c, '과', '와')} 겹쳐요`); return; } const lead = apptLead(); toast(isNative() && !notifyCfg().on ? `${st} 약속으로 적었어요 · 알림이 꺼져 있어요(메뉴 › 알림)` : `${st} 약속으로 적었어요 · ${lead ? lead + '분 전에' : '정각에'} 알려요`); }
 function clearAt(id) { const r = rock(id); if (!r) return; delete r.at; r.u = new Date().toISOString(); save(); render(); toast('시각을 뺐어요'); }
-// 저녁 정리: 저녁 알림이 온 뒤에만(알림 시각이 지났거나 그 알림을 눌러 들어오면) 오늘 맨 위에 붙는다. 남은 일 끝/내일로, 한 줄 일기를 여기서 바로
+// 저녁 정리: 저녁 알림 시각이 지나면(알림을 꺼 둬도) 오늘 맨 위에 붙는다. 알림과 같은 문장으로 시작한다. 남은 일 끝/내일로, 한 줄 일기를 여기서 바로
 let eveOpen = '';
-function eveTime() { const c = notifyCfg(); return c.on && !c.off.evening ? (c.evening || '21:30') : ''; } // 저녁 알림을 꺼 두면 포스트잇도 안 붙는다
+function eveTime() { return notifyCfg().evening || '21:30'; }
+function nowHM() { const n = new Date(); return String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0'); }
+function notifLine(k, ds, label) { const t = notifText(k, ds); return `<div class="bev" style="white-space:normal">${t.title && t.title !== label ? `<b>${esc(t.title)}</b> · ` : ''}${esc(t.body)}</div>`; }
+function nSticky(label, meta, html, acts) { return `<div class="sticky wide brief"><div class="who"><span>${esc(label)}</span><span>${esc(meta)}</span></div><div class="tx">${html}</div><div class="act">${acts}</div></div>`; }
+// 일요일 알림과 같은 내용
+function sunHtml(ds) {
+  if (ds !== today() || new Date(ds + 'T00:00').getDay() !== 0 || noteOff('sun:' + ds) || nowHM() < (notifyCfg().sunday || '20:00')) return '';
+  return nSticky('한 주 돌아보기', md(ds), notifLine('sunday', ds, '한 주 돌아보기'), `<button onclick="go('review')">기록 보기</button><button onclick="dropNote('sun:${ds}')">떼기</button>`);
+}
+// 약속 알림과 같은 내용: 알림이 울릴 때부터 약속 시각 한 시간 뒤까지
+function apptHtml(ds) {
+  if (ds !== today()) return ''; const lead = apptLead(), now = Date.now();
+  return apptsOn(ds).filter(r => { const t = new Date(r.at + ':00').getTime(); return now >= t - lead * 60000 && now < t + 3600000 && !noteOff('appt:' + r.id + ':' + r.at); }).map(r => {
+    const left = Math.round((new Date(r.at + ':00').getTime() - now) / 60000);
+    return nSticky('약속', r.at.slice(11, 16), bRow(r, r.at.slice(11, 16), true, `<button onclick="finishRock('${r.id}')">끝</button>`) + `<div class="bev" style="white-space:normal">${left > 0 ? `${left}분 뒤 약속이에요` : '지금 약속이에요'}</div>`, `<button onclick="dropNote('appt:${r.id}:${r.at}')">떼기</button>`);
+  }).join('');
+}
+// 알림으로 가는 내용은 모두 포스트잇으로도 붙는다. 알림을 꺼도 포스트잇은 붙는다
+function notifStickies(ds) { const h = apptHtml(ds) + eveHtml(ds) + sunHtml(ds); return h ? `<div class="stickies">${h}</div>` : ''; }
 function eveRest(ds) { return (dayOf(ds).picks || []).map(rock).filter(r => r && !r._deleted && !r.done && !(r.checks && r.checks[ds]) && !(r.at && r.at.slice(0, 10) > ds)); }
 function eveHtml(ds) {
   if (ds !== today() || noteOff('eve:' + ds)) return '';
-  const now = new Date(), hm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-  const et = eveTime(); if (eveOpen !== ds && (!et || hm < et)) return '';
+  if (eveOpen !== ds && nowHM() < eveTime()) return '';
   const day = dayOf(ds), all = (day.picks || []).map(rock).filter(r => r && !r._deleted), rest = eveRest(ds), done = all.length - rest.length;
   if (!rest.length && day.note) return '';
-  let h = `<div class="bev" style="white-space:normal">${all.length ? `오늘 ${all.length}개 중 <b>${done}개</b> 끝${rest.length ? ` · 남은 ${rest.length}개는 끝냈으면 끝, 아니면 내일로` : ''}` : '오늘 칸은 비어 있었어요'}</div>`;
+  let h = notifLine('evening', ds, '오늘 닫기');
   h += rest.map(r => bRow(r, '남음', false, `<button onclick="finishRock('${r.id}')">끝</button><button onclick="toTomorrow('${r.id}')">내일로</button>`)).join('');
   h += `<input class="evein" id="eveNote" placeholder="한 줄 일기: 오늘 어땠나요" value="${esc(day.note)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')this.blur()" onchange="eveNote(this.value)">`;
-  return `<div class="stickies"><div class="sticky wide brief"><div class="who"><span>오늘 닫기</span><span>${md(ds)}</span></div><div class="tx">${h}</div><div class="act"><button onclick="dropNote('eve:${ds}')">떼기</button></div></div></div>`;
+  return nSticky('오늘 닫기', md(ds), h, `<button onclick="dropNote('eve:${ds}')">떼기</button>`);
 }
 function eveNote(v) { const ds = today(); dayOf(ds).note = v.trim(); save(); render(); if (v.trim() && !eveRest(ds).length) toast('오늘을 닫았어요'); }
 function toTomorrow(id) { const ds = today(), day = dayOf(ds), tm = dayOf(addDays(ds, 1)); day.picks = (day.picks || []).filter(x => x !== id); tm.picks = tm.picks || []; if (!tm.picks.includes(id)) tm.picks.push(id); save(); render(); toast('내일 칸에 옮겨 적었어요'); }
