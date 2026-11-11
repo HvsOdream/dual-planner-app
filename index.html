@@ -230,12 +230,12 @@ a { color: inherit; }
 
 /* 일정: 인쇄된 시간 칸처럼 */
 .ev { display: flex; align-items: baseline; gap: 10px; padding-left: 52px; min-height: 38px; padding-top: 9px; font-size: 15px; }
-.ev .tm { font-family: var(--mono); font-size: 12px; color: var(--ink-2); width: 40px; flex: none; font-variant-numeric: tabular-nums; }
+.ev .tm { font-family: var(--mono); font-size: 12px; color: var(--ink-2); width: 84px; flex: none; font-variant-numeric: tabular-nums; white-space: nowrap; } .ev .tm i { font-style: normal; color: var(--muted); }
 .ev .et { flex: 1; min-width: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ev .te { font-family: var(--mono); font-size: 11px; color: var(--muted); padding-right: 4px; }
 .ev.past .et, .ev.past .tm { color: var(--faint); }
 .ev.appt .te { font-family: inherit; color: var(--check); } .ev .evx { flex: none; color: var(--muted); font-size: 16px; padding: 0 4px; }
-.ev.evadd { align-items: center; gap: 8px; padding-right: 4px; } .ev.evadd input { font: inherit; font-size: 15px; background: transparent; border: none; border-bottom: 1px solid var(--rule); color: var(--ink); } .ev.evadd input[type=time] { width: 116px; flex: none; } .ev.evadd select { font: inherit; font-size: 14px; background: transparent; border: none; border-bottom: 1px solid var(--rule); color: var(--ink); flex: none; } .ev.tmr .et, .ev.tmr .tm { color: var(--ink-2); } .ev.tmr { font-size: 14px; } .ev.evadd #evN { flex: 1; min-width: 0; } .ev.evadd button { flex: none; font-size: 13px; font-weight: 700; text-decoration: underline; }
+.ev.evadd { align-items: center; gap: 8px; padding-right: 4px; } .ev.evadd input { font: inherit; font-size: 15px; background: transparent; border: none; border-bottom: 1px solid var(--rule); color: var(--ink); } .ev.evadd { flex-wrap: wrap; row-gap: 6px; padding-bottom: 6px; } .ev.evadd input[type=time] { width: 104px; flex: none; } .ev.evadd #evNt, .ev.evadd #evNc { flex: 1; min-width: 120px; } .ev.evadd select { font: inherit; font-size: 14px; background: transparent; border: none; border-bottom: 1px solid var(--rule); color: var(--ink); flex: none; } .ev.tmr .et, .ev.tmr .tm { color: var(--ink-2); } .ev.tmr { font-size: 14px; } .ev.evadd #evN { flex: 1; min-width: 0; } .ev.evadd button { flex: none; font-size: 13px; font-weight: 700; text-decoration: underline; }
 
 /* 하루 사진: 클립으로 꽂은 폴라로이드 */
 .snap { margin: 6px 0 0 52px; display: inline-block; position: relative; background: #fff; padding: 8px 8px 26px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 3px 8px 14px -6px rgba(31,42,68,.35); transform: rotate(1.6deg); }
@@ -505,7 +505,7 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
   <button data-tab="today" class="on" onclick="go('today')"><i></i>오늘</button>
   <button data-tab="week" onclick="go('week')"><i></i>할 일</button>
   <button data-tab="memo" onclick="go('memo')"><i></i>메모</button>
-  <button data-tab="review" onclick="go('review')"><i></i>기록</button>
+  <button data-tab="review" onclick="go('review')"><i></i>달력</button>
   <button data-tab="more" onclick="go('more')"><i></i>메뉴</button>
 </nav>
 
@@ -614,7 +614,7 @@ function go(t) {
   render();
 }
 SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
-// 작은 화면에서 좌우로 끌면 오늘 ↔ 할 일 ↔ 메모 ↔ 기록 ↔ 메뉴
+// 작은 화면에서 좌우로 끌면 오늘 ↔ 할 일 ↔ 메모 ↔ 달력 ↔ 메뉴
 const SWIPE_TABS = ['today', 'week', 'memo', 'review', 'more'];
 (function swipeTabs() {
   let x0 = 0, y0 = 0, t0 = 0, dx = 0, mode = '', pg = null;
@@ -676,7 +676,7 @@ function renderCover() {
   const head = c => `<div class="nav">${c.left}<div style="min-width:0"><div class="t1">${c.t1}</div><div class="t2">${c.t2}</div></div></div>`;
   if (spread()) {
     const L = coverParts('today'), R = coverParts(rightTab);
-    const tabs = (rightTab==='week' || rightTab==='memo' || rightTab==='review' || rightTab==='more') ? `<div class="ptabs">${[['week','할 일'],['memo','메모'],['review','기록']].map(([k,n]) => `<button class="${rightTab===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</div>` : '';
+    const tabs = (rightTab==='week' || rightTab==='memo' || rightTab==='review' || rightTab==='more') ? `<div class="ptabs">${[['week','할 일'],['memo','메모'],['review','달력']].map(([k,n]) => `<button class="${rightTab===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</div>` : '';
     document.getElementById('cover').innerHTML = `<div class="half">${head(L)}${streakHtml}</div><div class="half">${head(R)}<div class="right">${tabs}${moreBtn}</div></div>`;
     return;
   }
@@ -698,7 +698,7 @@ function coverParts(tab) {
   else if (tab==='vol') { const v = liveVols().find(x => x.id === volSel) || curVol(); t1 = volName(v) + ' 속지'; t2 = `${v.start.replace('-','.')} ~ ${volEnd(v).replace('-','.')} · 닫음`; left = `<button class="ibtn" aria-label="뒤로" onclick="go('shelf')">‹</button>`; }
   else if (tab==='close') { const v = curVol(); t1 = volName(v) + ' 속지 닫기'; t2 = '1 / 2 · 1년 돌아보기'; left = `<button class="ibtn" aria-label="뒤로" onclick="go('shelf')">‹</button>`; }
   else if (tab==='refill') { t1 = '새 속지 끼우기'; t2 = '2 / 2'; left = `<button class="ibtn" aria-label="뒤로" onclick="go('close')">‹</button>`; }
-  else { t1 = '기록'; const wk = reviewWeek(); const ds = weekDates(new Date(wk)); const doneW = live().filter(r => r.done && ds.includes(r.doneAt||'')).length; t2 = `${now.getFullYear()} · W${weekNo(new Date(wk))} · 끝낸 일 ${doneW}`; }
+  else { t1 = '달력'; const wk = reviewWeek(); const ds = weekDates(new Date(wk)); const doneW = live().filter(r => r.done && ds.includes(r.doneAt||'')).length; t2 = `${now.getFullYear()} · W${weekNo(new Date(wk))} · 끝낸 일 ${doneW}`; }
   return { t1, t2, left };
 }
 
@@ -768,7 +768,7 @@ function findNote(id) { for (const ds in D.days) { const x = (D.days[ds].inbox||
 // 처음부터 붙어 있는 안내: 한 번에 두 장, 해내면 체크되고 떨어진다
 const GUIDES = [
   { id: 'b', tab: 'week', text: '중요하지만 급하지 않은 일은 B에', hint: '언제까지만 할지 날짜도', done: () => D.rocks.some(r => r && !r._deleted && r.bucket === 'important' && (r.due || r.routine)) },
-  { id: 'done', tab: 'week', text: '끝낸 일은 체크', hint: '기록 달력에 쌓여요', done: () => D.rocks.some(r => r && r.done) },
+  { id: 'done', tab: 'week', text: '끝낸 일은 체크', hint: '달력에 쌓여요', done: () => D.rocks.some(r => r && r.done) },
   { id: 'cal', tab: 'review', text: '날짜를 누르면 그날 기록', done: () => !!(D.guide && D.guide.calTap) },
   { id: 'sun', tab: 'review', text: '일요일엔 비서가 한 주 리뷰를 써요', hint: '리뷰와 다음 주 후보가 여기에 붙어요', done: () => Object.values(D.reviews || {}).some(r => r && r.summary) },
   { id: 'write', text: '오늘 할 것 하나 적기', hint: '위의 빈 줄에', done: () => Object.values(D.days).some(d => d && (d.picks||[]).length) },
@@ -943,11 +943,11 @@ const FEATS = [
   ['stale', '멈춘 일', '할 일', '날짜 지난 일, 2주째 그대로인 일 다시 정하기'],
   ['balance', '역할 쏠림', '할 일', '한 역할에 몰리면 알려요'],
   ['group', '역할로 묶기', '할 일', '역할 없는 할 일을 묶어 줘요'],
-  ['weeknum', '이번 주 숫자', '기록', '끝낸 일과 많이 한 역할'],
-  ['time', '시간 쓰임', '기록', '일정이 어느 역할에 쓰였는지'],
-  ['ago', '한 달 전 오늘', '기록', '그날 적은 한 줄 일기'],
-  ['review', '주간 리뷰', '기록', '일요일에 한 주 정리'],
-  ['cands', '다음 주 후보', '기록', '다음 주 B를 골라 줘요'],
+  ['weeknum', '이번 주 숫자', '달력', '끝낸 일과 많이 한 역할'],
+  ['time', '시간 쓰임', '달력', '일정이 어느 역할에 쓰였는지'],
+  ['ago', '한 달 전 오늘', '달력', '그날 적은 한 줄 일기'],
+  ['review', '주간 리뷰', '달력', '일요일에 한 주 정리'],
+  ['cands', '다음 주 후보', '달력', '다음 주 B를 골라 줘요'],
 ];
 function featOn(id) { return !(((D.settings || {}).featOff) || {})[id]; }
 function setFeat(id, on) { const o = Object.assign({}, (D.settings || {}).featOff); if (on) delete o[id]; else o[id] = true; D.settings = Object.assign({}, D.settings, { featOff: o, u: new Date().toISOString() }); D._modified = D.settings.u; _save0(); if (baseUrl()) pushState(); renderSubBox(); render(); }
@@ -1173,29 +1173,30 @@ async function loadCal(force) {
 }
 function eventsOn(ds) { const c = D.calCache, want = (D.settings || {}).calNative && isNative() ? 'native' : (D.settings || {}).calUrl; if (!c || c.url !== want) return []; return (c.events || []).filter(e => e.date === ds); }
 // 오늘의 일정: 캘린더 일정 + 플래너에 적은 약속(시각 있는 일)을 시각 순으로. 여기서 바로 약속을 적는다
-let _evAdd = false;
-function calHtml(ds) {
-  const now = new Date(), hm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'), isToday = ds === today();
+let _evAdd = ''; // 약속 적는 줄이 열린 곳: 't'(오늘 화면) | 'c'(달력) | ''
+function evTm(st, en) { return st + (en && en > st ? `<i>–${en}</i>` : ''); }
+// ctx 't' = 오늘 화면(오늘 일정만), 'c' = 달력에서 고른 날
+function calHtml(ds, ctx) {
+  ctx = ctx || 't';
+  const hm = nowHM(), isToday = ds === today(), canAdd = ds >= today(), open = _evAdd === ctx;
   const rows = eventsOn(ds).map(e => ({ k: e.allDay ? '00:00' : e.start, e })).concat(apptsOn(ds).map(r => ({ k: atOn(r, ds), r })));
   rows.sort((x, y) => x.k < y.k ? -1 : x.k > y.k ? 1 : 0);
-  let h = `<div class="lbl"><span>일정</span>${isToday ? `<button onclick="_evAdd=!_evAdd;render();setTimeout(()=>{const e=document.getElementById('evT');if(e)e.focus()},50)">${_evAdd ? '닫기' : '+ 약속'}</button>` : ''}</div>`;
+  let h = `<div class="lbl"><span>일정</span>${canAdd ? `<button onclick="_evAdd=_evAdd==='${ctx}'?'':'${ctx}';render();setTimeout(()=>{const e=document.getElementById('evT${ctx}');if(e)e.focus()},50)">${open ? '닫기' : '+ 약속'}</button>` : ''}</div>`;
   h += rows.map(({ e, r }) => e
-    ? `<div class="ev ruled ${isToday && !e.allDay && e.end && e.end <= hm ? 'past' : ''}"><span class="tm">${e.allDay ? '종일' : e.start}</span><span class="et">${esc(e.title)}</span>${e.allDay || !e.end ? '' : `<span class="te">~${e.end}</span>`}</div>`
-    : `<div class="ev ruled appt ${isToday && atOn(r, ds) < hm ? 'past' : ''}"><span class="tm">${atOn(r, ds)}</span><span class="et">${esc(r.title)}</span><span class="te">${apptClash(ds, atOn(r, ds), r.id) ? '겹침' : '약속'}</span><button class="evx" aria-label="약속 지우기" onclick="dropAppt('${r.id}')">×</button></div>`).join('');
-  if (isToday && _evAdd) h += `<div class="ev ruled evadd"><select id="evD">${[0, 1, 2].map(i => `<option value="${addDays(ds, i)}">${['오늘', '내일', '모레'][i]}</option>`).join('')}</select><input type="time" id="evT" value="${freeFrom(ds)}"><input id="evN" placeholder="누구와 무엇을" onkeydown="if(event.key==='Enter')addAppt()"><button onclick="addAppt()">적기</button></div>`;
+    ? `<div class="ev ruled ${isToday && !e.allDay && e.end && e.end <= hm ? 'past' : ''}"><span class="tm">${e.allDay ? '종일' : evTm(e.start, e.end)}</span><span class="et">${esc(e.title)}</span></div>`
+    : `<div class="ev ruled appt ${isToday && (r.atEnd || atOn(r, ds)) < hm ? 'past' : ''}"><span class="tm">${evTm(atOn(r, ds), r.atEnd)}</span><span class="et">${esc(r.title)}</span><span class="te">${apptClash(ds, atOn(r, ds), r.id) ? '겹침' : '약속'}</span><button class="evx" aria-label="약속 지우기" onclick="dropAppt('${r.id}')">×</button></div>`).join('');
+  if (canAdd && open) h += `<div class="ev ruled evadd"><input type="hidden" id="evD${ctx}" value="${ds}"><input type="time" id="evT${ctx}" aria-label="시작" value="${isToday ? freeFrom(ds) : '09:00'}"><span style="color:var(--muted)">–</span><input type="time" id="evE${ctx}" aria-label="끝"><input id="evN${ctx}" placeholder="누구와 무엇을" onkeydown="if(event.key==='Enter')addAppt('${ctx}')"><button onclick="addAppt('${ctx}')">적기</button></div>`;
   else if (!rows.length) h += `<div class="ev ruled" style="color:var(--faint)"><span class="tm"></span><span class="et">일정 없음</span></div>`;
-  // 오늘 화면에서 내일 일정도 미리: 약속과 캘린더 일정
-  if (isToday) {
-    const tm = addDays(ds, 1), nx = eventsOn(tm).map(e => ({ k: e.allDay ? '00:00' : e.start, t: e.title, a: false })).concat(apptsOn(tm).map(r => ({ k: atOn(r, tm), t: r.title, a: true, id: r.id }))).sort((x, y) => x.k < y.k ? -1 : 1);
-    if (nx.length) h += `<div class="lbl" style="font-weight:500;color:var(--muted)"><span>내일 ${md(tm)}</span></div>` + nx.map(x => `<div class="ev ruled tmr"><span class="tm">${x.k === '00:00' && !x.a ? '종일' : x.k}</span><span class="et">${esc(x.t)}</span>${x.a ? `<span class="te">${apptClash(tm, x.k, x.id) ? '겹침' : '약속'}</span><button class="evx" aria-label="약속 지우기" onclick="dropAppt('${x.id}')">×</button>` : ''}</div>`).join('');
-  }
   return h;
 }
-function addAppt() {
-  const t = (document.getElementById('evT') || {}).value, n = ((document.getElementById('evN') || {}).value || '').trim(), dd = (document.getElementById('evD') || {}).value || today();
+function addAppt(ctx) {
+  ctx = ctx || 't'; const v = k => (document.getElementById(k + ctx) || {}).value || '';
+  const t = v('evT'), en = v('evE'), n = v('evN').trim(), dd = v('evD') || today();
   if (!t || !n) { toast(!n ? '무엇인지 적어 주세요' : '시각을 정해 주세요'); return; }
+  if (en && en <= t) { toast('끝 시각이 시작보다 늦어야 해요'); return; }
   const ds = dd, r = { id: uid(), week: weekKey(new Date()), bucket: 'light', role: '', title: n, done: false, carry: 0, checks: {}, at: ds + 'T' + t, due: ds, appt: true, vol: (curVol() || {}).id };
-  D.rocks.push(r); _evAdd = false; save(); render(); apptToast((ds === today() ? '' : ds === addDays(today(), 1) ? '내일 ' : md(ds) + ' ') + t, ds, r.id);
+  if (en) r.atEnd = en;
+  D.rocks.push(r); _evAdd = ''; save(); render(); apptToast((ds === today() ? '' : ds === addDays(today(), 1) ? '내일 ' : md(ds) + ' ') + t, ds, r.id);
 }
 function dropAppt(id) { const r = rock(id); if (!r) return; if (r.appt) { r._deleted = true; r.u = new Date().toISOString(); save(); render(); toast('약속을 지웠어요'); } else clearAt(id); }
 function setCalUrl(v) {
@@ -1315,7 +1316,7 @@ function nSticky(label, meta, html, acts) { return `<div class="sticky wide brie
 // 일요일 알림과 같은 내용
 function sunHtml(ds) {
   if (ds !== today() || new Date(ds + 'T00:00').getDay() !== 0 || noteOff('sun:' + ds) || nowHM() < (notifyCfg().sunday || '20:00')) return '';
-  return nSticky('한 주 돌아보기', md(ds), notifLine('sunday', ds, '한 주 돌아보기'), `<button onclick="go('review')">기록 보기</button><button onclick="dropNote('sun:${ds}')">떼기</button>`);
+  return nSticky('한 주 돌아보기', md(ds), notifLine('sunday', ds, '한 주 돌아보기'), `<button onclick="go('review')">달력 보기</button><button onclick="dropNote('sun:${ds}')">떼기</button>`);
 }
 // 약속 알림과 같은 내용: 알림이 울릴 때부터 약속 시각 한 시간 뒤까지
 function apptHtml(ds) {
@@ -1335,6 +1336,8 @@ function eveHtml(ds) {
   if (!rest.length && day.note) return '';
   let h = notifLine('evening', ds, '오늘 닫기');
   h += rest.map(r => bRow(r, '남음', false, `<button onclick="finishRock('${r.id}')">끝</button><button onclick="toTomorrow('${r.id}')">내일로</button>`)).join('');
+  const tm = addDays(ds, 1), nx = eventsOn(tm).filter(e => !e.allDay).map(e => ({ k: e.start, t: e.title })).concat(apptsOn(tm).map(r => ({ k: atOn(r, tm), t: r.title }))).sort((x, y) => x.k < y.k ? -1 : 1), nAll = nx.length + eventsOn(tm).filter(e => e.allDay).length;
+  if (nAll) h += `<div class="bev" style="white-space:normal">내일 일정 ${nAll}개${nx.length ? ` · 첫 일정 ${nx[0].k} ${esc(shortT(nx[0].t))}` : ''}</div>`;
   h += `<input class="evein" id="eveNote" placeholder="한 줄 일기: 오늘 어땠나요" value="${esc(day.note)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')this.blur()" onchange="eveNote(this.value)">`;
   return nSticky('오늘 닫기', md(ds), h, `<button onclick="dropNote('eve:${ds}')">떼기</button>`);
 }
@@ -1662,15 +1665,17 @@ function calendarHtml() {
   let h = `<div class="row" style="padding-left:52px;justify-content:space-between;height:44px"><button class="ibtn" style="color:var(--ink);border-color:var(--border)" aria-label="이전 달" onclick="moveMonth(-1)">‹</button><b style="font-size:16px">${y}년 ${m+1}월</b><button class="ibtn" style="color:var(--ink);border-color:var(--border)" aria-label="다음 달" onclick="moveMonth(1)">›</button></div>
   <div class="cal">${DOW.map(w=>`<div class="cw">${w}</div>`).join('')}`;
   cells.forEach(d => { const ds = dstr(d), n = doneOn(ds).length, day = D.days[ds], wrote = day && (day.intent || day.note);
-    h += `<button class="cd ${d.getMonth()!==m?'out':''} ${ds===td?'td':''} ${ds===calSel?'sel':''} ${photoUrl(ds)?'ph':''}" ${photoUrl(ds)?`style="background-image:url('${photoUrl(ds)}')"`:''} onclick="selDay('${ds}')"><span>${d.getDate()}</span><i>${n ? (n > 3 ? '✓'+n : '✓'.repeat(n)) : (wrote ? '·' : '')}</i></button>`; });
+    h += `<button class="cd ${d.getMonth()!==m?'out':''} ${ds===td?'td':''} ${ds===calSel?'sel':''} ${photoUrl(ds)?'ph':''}" ${photoUrl(ds)?`style="background-image:url('${photoUrl(ds)}')"`:''} onclick="selDay('${ds}')"><span>${d.getDate()}</span><i>${n ? (n > 3 ? '✓'+n : '✓'.repeat(n)) : (ds > td && (eventsOn(ds).length || apptsOn(ds).length) ? '•' : wrote ? '·' : '')}</i></button>`; });
   h += `</div>`;
   // 고른 날 상세
   const day = D.days[calSel] || {}; const done = doneOn(calSel); const notes = (day.inbox||[]).filter(x => x.kind === 'note');
   const dd = new Date(calSel);
   h += `<div class="sp"></div><div class="lbl">${dd.getMonth()+1}월 ${dd.getDate()}일 ${DOW[(dd.getDay()+6)%7]}요일</div>`;
-  h += `<div class="line ruled" style="font-size:15px;${day.intent?'':'color:var(--faint);font-weight:400'}">${esc(day.intent || '의도 없음')}</div>`;
+  h += calHtml(calSel, 'c');
+  const past = calSel <= td; // 앞날은 일정만, 지난 날과 오늘은 한 일까지
+  if (past) h += `<div class="lbl"><span>한 일</span></div><div class="line ruled" style="font-size:15px;${day.intent?'':'color:var(--faint);font-weight:400'}">${esc(day.intent || '의도 없음')}</div>`;
   if (photoUrl(calSel)) h += photoHtml(calSel);
-  if (!done.length) h += `<div class="line faint ruled" style="font-size:14px">체크한 일 없음</div>`;
+  if (past && !done.length) h += `<div class="line faint ruled" style="font-size:14px">체크한 일 없음</div>`;
   done.forEach(r => { h += `<div class="item"><div class="mg">${CHECK.replace('width="22" height="22"','width="18" height="18"')}</div><div class="bd"><div class="t" style="font-size:15px"><span class="tx">${esc(r.title)}</span></div><div class="m"><span>${[esc(r.role), r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'].filter(Boolean).join(' · ')}</span></div></div></div>`; });
   notes.forEach(x => { h += `<div class="line ruled" style="font-size:13px;color:var(--ink-2)">* ${esc(x.text)}</div>`; });
   if (day.note) h += `<div class="line ruled" style="font-size:14px;font-style:italic;color:var(--ink-2)">“${esc(day.note)}”</div>`;
