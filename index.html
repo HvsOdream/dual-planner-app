@@ -174,6 +174,12 @@ a { color: inherit; }
 .bt.hot { background: var(--postit-ink); color: var(--postit); border-color: var(--postit-ink); }
 .bn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; }
 .bn { cursor: pointer; -webkit-tap-highlight-color: transparent; } .bn .bfull { display: none; } .bn.open { white-space: normal; overflow: visible; line-height: 1.45; } .bn.open .bshort { display: none; } .bn.open .bfull { display: inline; }
+/* 메모장 */
+.memoin { display: block; width: 100%; min-height: calc(var(--row) * 2); line-height: var(--row); padding: 0 16px 0 52px; font: inherit; font-size: 16px; font-weight: 500; color: var(--ink); background: transparent; border: none; outline: none; resize: none; overflow: hidden; }
+.memoin::placeholder { color: var(--faint); font-weight: 400; }
+.memo .t .tx { white-space: pre-wrap; }
+.memo .mg { font-size: 11px; color: var(--muted); }
+.memo .bslot { padding-left: 0; }
 .bb { flex: none; display: flex; gap: 10px; } .bb button { font-size: 12px; text-decoration: underline; } .bdone { font-size: 12px; opacity: .7; }
 .bslot { display: flex; gap: 8px; align-items: center; padding: 2px 0 8px 46px; font-size: 13px; } .bslot input, .bslot select { font: inherit; font-size: 13px; background: rgba(255,255,255,.5); border: 1px solid rgba(0,0,0,.15); border-radius: 6px; padding: 2px 4px; color: inherit; } .bslot { flex-wrap: wrap; } .bslot button { font-size: 12px; font-weight: 700; text-decoration: underline; white-space: nowrap; } .bslot select { max-width: 92px; }
 .ppl .inp { flex: 1; min-width: 0; font-size: 14px; } .ppl span { flex-wrap: nowrap !important; align-items: center; }
@@ -249,7 +255,7 @@ a { color: inherit; }
 .days .td b { width: 22px; height: 22px; border-radius: 50%; background: var(--check); color: var(--paper); display: flex; align-items: center; justify-content: center; }
 
 /* 탭바 */
-.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); background: var(--paper-2); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); background: var(--paper-2); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
 .tabbar button { height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 13px; color: var(--muted); }
 .tabbar button i { width: 6px; height: 6px; border-radius: 50%; display: block; }
 .tabbar button.on { color: var(--ink); font-weight: 800; }
@@ -471,6 +477,7 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
 <main>
   <section class="page on" id="p-today"><div class="sheet" id="today"></div></section>
   <section class="page" id="p-week"><div class="sheet" id="week"></div></section>
+  <section class="page" id="p-memo"><div class="sheet" id="memo"></div></section>
   <section class="page" id="p-review"><div class="sheet" id="review"></div></section>
   <section class="page" id="p-shelf"><div class="sheet" id="shelf"></div></section>
   <section class="page" id="p-vol"><div class="sheet" id="vol"></div></section>
@@ -492,6 +499,7 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
 <nav class="tabbar">
   <button data-tab="today" class="on" onclick="go('today')"><i></i>오늘</button>
   <button data-tab="week" onclick="go('week')"><i></i>할 일</button>
+  <button data-tab="memo" onclick="go('memo')"><i></i>메모</button>
   <button data-tab="review" onclick="go('review')"><i></i>기록</button>
   <button data-tab="more" onclick="go('more')"><i></i>메뉴</button>
 </nav>
@@ -521,11 +529,13 @@ function empty() {
     rocks: [],      // {id, week, role, title, due:'YYYY-MM-DD'|null, routine:n|null, done:bool, carry:n, checks:{date:true}, from:'inbox'|null}
     days: {},       // {date: {intent, note, picks:[rockId], inbox:[{id, text, src, at, moved}]}}
     reviews: {},    // {week: {sealed:true, packetAt, candidates:[{id, role, title, due, state:'y'|'edit'|'n'}]}}
-    api: '', token: '', seen: {}, vols: [], streakFreeze: {} };
+    api: '', token: '', seen: {}, vols: [], memos: [], streakFreeze: {} };
+    // memos: [{id, text, at:ISO, u, by:'mcp'|null, toRock:id|null, _deleted}] 날짜·할 일과 상관없는 자유 메모
 }
 let D = load();
 if (!D.token) { D.token = newToken(); save(); }
 (D.rocks||[]).forEach(r => { if (r && !r.bucket) r.bucket = 'important'; });
+if (!Array.isArray(D.memos)) D.memos = [];
 // ── 속지(12개월) ──
 function ym(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
 function addMonths(m, n) { const [y, mo] = m.split('-').map(Number); const d = new Date(y, mo-1+n, 1); return ym(d); }
@@ -599,8 +609,8 @@ function go(t) {
   render();
 }
 SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
-// 작은 화면에서 좌우로 끌면 오늘 ↔ 할 일 ↔ 기록 ↔ 메뉴
-const SWIPE_TABS = ['today', 'week', 'review', 'more'];
+// 작은 화면에서 좌우로 끌면 오늘 ↔ 할 일 ↔ 메모 ↔ 기록 ↔ 메뉴
+const SWIPE_TABS = ['today', 'week', 'memo', 'review', 'more'];
 (function swipeTabs() {
   let x0 = 0, y0 = 0, t0 = 0, dx = 0, mode = '', pg = null;
   const skip = el => el && el.closest && el.closest('input, textarea, select, .bslot, .sel, .ptabs, .cal, [data-noswipe]');
@@ -629,7 +639,7 @@ const SWIPE_TABS = ['today', 'week', 'review', 'more'];
 function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); loadAuthConf().then(renderAccount); go('more'); }
 function renderMore() { setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; }
 function closeMore() { if (tab === 'more') go('today'); }
-function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); else if (t==='roles') renderRoles(); else if (t==='sub') renderSubPage(); else if (t==='priv') renderPrivPage(); }
+function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='memo') renderMemo(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); else if (t==='roles') renderRoles(); else if (t==='sub') renderSubPage(); else if (t==='priv') renderPrivPage(); }
 function markSeen() { const td = today(); if (D.seenDay !== td) { D.seenPrev = D.seenDay || ''; D.seenDay = td; _save0(); } }
 function awayDays() { const p = D.seenPrev; return p ? Math.round((new Date(today()) - new Date(p)) / 86400000) : 0; }
 function backMode() { return awayDays() >= 4 && !noteOff('back:' + today()) && (overdueItems().length + staleItems().length) >= 2; }
@@ -661,7 +671,7 @@ function renderCover() {
   const head = c => `<div class="nav">${c.left}<div style="min-width:0"><div class="t1">${c.t1}</div><div class="t2">${c.t2}</div></div></div>`;
   if (spread()) {
     const L = coverParts('today'), R = coverParts(rightTab);
-    const tabs = (rightTab==='week' || rightTab==='review' || rightTab==='more') ? `<div class="ptabs">${[['week','할 일'],['review','기록']].map(([k,n]) => `<button class="${rightTab===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</div>` : '';
+    const tabs = (rightTab==='week' || rightTab==='memo' || rightTab==='review' || rightTab==='more') ? `<div class="ptabs">${[['week','할 일'],['memo','메모'],['review','기록']].map(([k,n]) => `<button class="${rightTab===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</div>` : '';
     document.getElementById('cover').innerHTML = `<div class="half">${head(L)}${streakHtml}</div><div class="half">${head(R)}<div class="right">${tabs}${moreBtn}</div></div>`;
     return;
   }
@@ -677,6 +687,7 @@ function coverParts(tab) {
   else if (tab==='priv') { t1 = '내 정보가 가는 곳'; t2 = aiOk() ? '비서 AI 켬' : '비서 AI 끔'; left = `<button class="ibtn" aria-label="뒤로" onclick="go(privBack === 'priv' ? 'more' : privBack)">‹</button>`; }
   else if (tab==='roles') { t1 = '내 역할'; t2 = roleItems ? '할 일·일정마다 역할 정하기' : '역할 이름 고치기'; left = `<button class="ibtn" aria-label="뒤로" onclick="closeRoles()">‹</button>`; }
   else if (tab==='more') { t1 = '메뉴'; t2 = yw + ' · ' + (subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'); }
+  else if (tab==='memo') { const n = liveMemos().length; t1 = '메모'; t2 = n ? `${yw} · ${n}장` : yw; }
   else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${yw} · 열린 일 ${o.length}`; }
   else if (tab==='shelf') { t1 = '책장'; t2 = `속지 ${liveVols().length}권`; left = `<button class="ibtn" aria-label="뒤로" onclick="go('review')">‹</button>`; }
   else if (tab==='vol') { const v = liveVols().find(x => x.id === volSel) || curVol(); t1 = volName(v) + ' 속지'; t2 = `${v.start.replace('-','.')} ~ ${volEnd(v).replace('-','.')} · 닫음`; left = `<button class="ibtn" aria-label="뒤로" onclick="go('shelf')">‹</button>`; }
@@ -1525,6 +1536,46 @@ function pushDue(id, n) { const r = rock(id); if (!r) return; r.due = plusDays(t
 function toD(ids) { const t = new Date().toISOString(); [].concat(ids).forEach(id => { const r = rock(id); if (r) { r.bucket = 'nice'; r.due = null; r.parkedAt = today(); r.u = t; } }); save(); render(); toast('D에 넣어 뒀어요. 지우지 않았어요'); }
 function pickMany(ids) { const day = dayOf(today()); ids.forEach(id => { if (!day.picks.includes(id)) day.picks.push(id); }); D.noteOff = D.noteOff || {}; D.noteOff['back:' + today()] = today(); save(); render(); toast(`오늘 칸에 ${ids.length}개 적었어요`); }
 
+// ── 메모장: 날짜·할 일과 상관없이 적어 두는 곳 ──
+let memoEdit = null, memoMove = null, memoDraft = '';
+function liveMemos() { return (D.memos || []).filter(m => m && !m._deleted).sort((a, b) => (a.at || '') < (b.at || '') ? 1 : -1); }
+function memoGrow(el) { if (!el) return; el.style.height = 'auto'; const row = 28, h = Math.max(row * (el.dataset.min || 2), Math.ceil(el.scrollHeight / row) * row); el.style.height = h + 'px'; }
+function memoWhen(at) { if (!at) return ''; const d = new Date(at), ds = dstr(d); return ds === today() ? String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') : (ds.slice(0, 4) === today().slice(0, 4) ? md(ds) : ds.slice(2).replace(/-/g, '.')); }
+function renderMemo() {
+  const list = liveMemos();
+  let h = `<div class="sp"></div><div class="lbl"><span>적어 두기</span><button onclick="addMemo()">적기</button></div>
+  <textarea class="memoin" id="memoIn" rows="2" placeholder="생각나는 것, 나중에 볼 것" oninput="memoDraft=this.value;memoGrow(this)">${esc(memoDraft)}</textarea><div class="line ruled" style="height:0"></div><div class="sp"></div>`;
+  if (list.length) h += `<div class="lbl"><span>메모 <span class="mono" style="letter-spacing:0">${list.length}</span></span></div>`;
+  list.forEach(m => {
+    if (memoEdit === m.id) { h += `<div class="item memo"><div class="mg"></div><div class="bd"><textarea class="memoin" id="memoEd" data-min="1" style="padding:0;min-height:var(--row)" oninput="memoGrow(this)">${esc(m.text)}</textarea><div class="m"><span class="sp1"></span><button onclick="memoEdit=null;renderMemo()">취소</button><button onclick="saveMemo('${m.id}')"><b>저장</b></button></div></div></div>`; return; }
+    const moved = m.toRock && rock(m.toRock) && !rock(m.toRock)._deleted;
+    h += `<div class="item memo"><div class="mg"></div><div class="bd"><div class="t"><span class="tx">${esc(m.text)}</span></div>
+    <div class="m"><span>${[memoWhen(m.at), m.by ? '비서' : '', moved ? '할 일 ✓' : ''].filter(Boolean).join(' · ')}</span><span class="sp1"></span>${moved ? '' : `<button onclick="memoMove=memoMove==='${m.id}'?null:'${m.id}';renderMemo()">할 일로</button>`}<button onclick="memoEdit='${m.id}';memoMove=null;renderMemo();setTimeout(()=>{const e=document.getElementById('memoEd');if(e){memoGrow(e);e.focus();}},30)">고치기</button><button aria-label="지우기" onclick="delMemo('${m.id}')">×</button></div>
+    ${memoMove === m.id ? `<div class="bslot">${BUCKETS.map(([b, n]) => `<button onclick="memoToRock('${m.id}','${b}')">${n}</button>`).join('')}</div>` : ''}</div></div>`;
+  });
+  if (!list.length) h += `<div class="line faint ruled" style="font-size:14px;font-weight:400">아직 적은 메모가 없어요</div>`;
+  h += `<div class="sp"></div>`;
+  const keep = document.activeElement && document.activeElement.id === 'memoIn';
+  document.getElementById('memo').innerHTML = h; memoGrow(document.getElementById('memoIn'));
+  if (keep) { const e = document.getElementById('memoIn'); e.focus(); e.setSelectionRange(e.value.length, e.value.length); }
+}
+function addMemo() {
+  const el = document.getElementById('memoIn'), t = ((el && el.value) || '').trim(); if (!t) { if (el) el.focus(); return; }
+  const now = new Date().toISOString(); D.memos = D.memos || []; D.memos.push({ id: uid('m_'), text: t, at: now, u: now });
+  memoDraft = ''; save(); renderMemo(); renderCover(); toast('적었어요');
+}
+function saveMemo(id) { const m = (D.memos || []).find(x => x.id === id), el = document.getElementById('memoEd'); if (!m || !el) return; const t = el.value.trim(); if (!t) { toast('내용이 비어 있어요'); return; } m.text = t; memoEdit = null; save(); renderMemo(); }
+function delMemo(id) { if (!confirm('이 메모를 지울까요?')) return; const m = (D.memos || []).find(x => x.id === id); if (m) m._deleted = true; save(); renderMemo(); renderCover(); }
+function memoToRock(id, b) {
+  const m = (D.memos || []).find(x => x.id === id); if (!m) return;
+  const lines = m.text.split('\n').map(x => x.trim()).filter(Boolean), title = lines[0] || ''; if (!title) return;
+  const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: '', title, done: false, carry: 0, checks: {}, from: 'memo', vol: (curVol() || {}).id };
+  if (b === 'important') r.due = dstr(new Date(Date.now() + 6 * 86400000)); // B는 끝 날짜가 있어야 한다
+  D.rocks.push(r); memoMove = null;
+  if (lines.length > 1) m.toRock = r.id; else m._deleted = true; // 한 줄짜리는 옮기면 메모장에서 빠지고, 여러 줄이면 남겨 둔다
+  save(); render(); toast(`${bucketName(b)}에 옮겼어요` + (r.due ? ` · ${md(r.due)}까지만` : ''));
+}
+
 // ── 리뷰 ──
 function reviewWeek() { const now = new Date(); return now.getDay()===0 || now.getDay()===6 ? weekKey(now) : weekKey(now); }
 let calMonth = null, calSel = null;
@@ -1724,30 +1775,32 @@ function baseUrl() { return (D.api || '').trim().replace(/\/+$/, ''); }
 function stateUrl() { return baseUrl() + '/u/' + D.token + '/state'; }
 function mcpUrl() { return baseUrl() ? baseUrl() + '/u/' + D.token + '/mcp' : '(API 주소를 먼저 넣어 주세요)'; }
 function mergeState(a, b) {
-  const em = () => ({ roles: [], rocks: [], days: {}, reviews: {}, seen: {}, vols: [], settings: {}, _modified: '' });
+  const em = () => ({ roles: [], rocks: [], days: {}, reviews: {}, seen: {}, vols: [], memos: [], settings: {}, _modified: '' });
   a = Object.assign(em(), a || {}); b = Object.assign(em(), b || {}); const out = em();
   const rm = new Map(); [...a.rocks, ...b.rocks].forEach(r => { if (!r || !r.id) return; const p = rm.get(r.id); if (!p || (r.u || '') >= (p.u || '')) rm.set(r.id, r); }); out.rocks = [...rm.values()];
   for (const k of new Set([...Object.keys(a.days), ...Object.keys(b.days)])) { const x = a.days[k], y = b.days[k]; out.days[k] = !x ? y : !y ? x : ((y.u || '') >= (x.u || '') ? y : x); }
   for (const k of new Set([...Object.keys(a.reviews), ...Object.keys(b.reviews)])) { const x = a.reviews[k], y = b.reviews[k]; out.reviews[k] = !x ? y : !y ? x : ((y.u || '') >= (x.u || '') ? y : x); }
   const vm = new Map(); [...(a.vols||[]), ...(b.vols||[])].forEach(v => { if (!v || !v.id) return; const p = vm.get(v.id); if (!p || (v.u || '') >= (p.u || '')) vm.set(v.id, v); }); out.vols = [...vm.values()];
+  const mm = new Map(); [...(a.memos||[]), ...(b.memos||[])].forEach(v => { if (!v || !v.id) return; const p = mm.get(v.id); if (!p || (v.u || '') >= (p.u || '')) mm.set(v.id, v); }); out.memos = [...mm.values()];
   out.roles = ((b._modified || '') >= (a._modified || '') ? b : a).roles || [];
   out.settings = (((b.settings || {}).u || '') >= ((a.settings || {}).u || '') ? b.settings : a.settings) || {};
   out.seen = Object.assign({}, a.seen, b.seen); out._modified = [a._modified, b._modified].sort().pop() || '';
   return out;
 }
 let _sig = {};
-function sigOf() { const o = { rocks: {}, days: {}, reviews: {}, vols: {} }; (D.vols||[]).forEach(v => { if (v && v.id) { const c = Object.assign({}, v); delete c.u; o.vols[v.id] = JSON.stringify(c); } }); (D.rocks||[]).forEach(r => { if (r && r.id) { const c = Object.assign({}, r); delete c.u; o.rocks[r.id] = JSON.stringify(c); } }); for (const k in D.days) { const c = Object.assign({}, D.days[k]); delete c.u; o.days[k] = JSON.stringify(c); } for (const k in D.reviews) { const c = Object.assign({}, D.reviews[k]); delete c.u; o.reviews[k] = JSON.stringify(c); } return o; }
+function sigOf() { const o = { rocks: {}, days: {}, reviews: {}, vols: {}, memos: {} }; (D.memos||[]).forEach(v => { if (v && v.id) { const c = Object.assign({}, v); delete c.u; o.memos[v.id] = JSON.stringify(c); } }); (D.vols||[]).forEach(v => { if (v && v.id) { const c = Object.assign({}, v); delete c.u; o.vols[v.id] = JSON.stringify(c); } }); (D.rocks||[]).forEach(r => { if (r && r.id) { const c = Object.assign({}, r); delete c.u; o.rocks[r.id] = JSON.stringify(c); } }); for (const k in D.days) { const c = Object.assign({}, D.days[k]); delete c.u; o.days[k] = JSON.stringify(c); } for (const k in D.reviews) { const c = Object.assign({}, D.reviews[k]); delete c.u; o.reviews[k] = JSON.stringify(c); } return o; }
 function stamp() { const now = new Date().toISOString(), n = sigOf(); let changed = false;
   (D.rocks||[]).forEach(r => { if (r && r.id && _sig.rocks && _sig.rocks[r.id] !== n.rocks[r.id]) { r.u = now; changed = true; } });
   (D.vols||[]).forEach(v => { if (v && v.id && _sig.vols && _sig.vols[v.id] !== n.vols[v.id]) { v.u = now; changed = true; } });
+  (D.memos||[]).forEach(v => { if (v && v.id && _sig.memos && _sig.memos[v.id] !== n.memos[v.id]) { v.u = now; changed = true; } });
   for (const k in D.days) if (_sig.days && _sig.days[k] !== n.days[k]) { D.days[k].u = now; changed = true; }
   for (const k in D.reviews) if (_sig.reviews && _sig.reviews[k] !== n.reviews[k]) { D.reviews[k].u = now; changed = true; }
   if (changed || !_sig.rocks) D._modified = now; _sig = n; return changed; }
 _sig = sigOf();
 const _save0 = save;
 save = function() { const ch = stamp(); _save0(); if (ch && baseUrl()) { clearTimeout(save._t); save._t = setTimeout(pushState, 1500); } };
-function pickState() { return { v: 1, settings: D.settings || {}, roles: D.roles, rocks: D.rocks, days: D.days, reviews: D.reviews, seen: D.seen, vols: D.vols, _modified: D._modified }; }
-function applyState(S) { if (S && S.agent) D.agent = S.agent; const m = mergeState(pickState(), S); D.roles = m.roles.length ? m.roles : D.roles; const calBefore = (D.settings || {}).calUrl; D.settings = m.settings || {}; if ((D.settings.calUrl || '') !== (calBefore || '')) setTimeout(() => loadCal(true), 0); D.rocks = m.rocks; D.days = m.days; D.reviews = m.reviews; D.seen = m.seen; D.vols = m.vols.length ? m.vols : (D.vols||[]); D._modified = m._modified; _sig = sigOf(); _save0(); }
+function pickState() { return { v: 1, settings: D.settings || {}, roles: D.roles, rocks: D.rocks, days: D.days, reviews: D.reviews, seen: D.seen, vols: D.vols, memos: D.memos || [], _modified: D._modified }; }
+function applyState(S) { if (S && S.agent) D.agent = S.agent; const m = mergeState(pickState(), S); D.roles = m.roles.length ? m.roles : D.roles; const calBefore = (D.settings || {}).calUrl; D.settings = m.settings || {}; if ((D.settings.calUrl || '') !== (calBefore || '')) setTimeout(() => loadCal(true), 0); D.rocks = m.rocks; D.days = m.days; D.reviews = m.reviews; D.seen = m.seen; D.vols = m.vols.length ? m.vols : (D.vols||[]); D.memos = m.memos; D._modified = m._modified; _sig = sigOf(); _save0(); }
 async function pushState() { if (!baseUrl()) return; try { const r = await fetch(stateUrl(), { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pickState()) }); if (r.ok) { applyState(await r.json()); render(); setConn(''); } } catch(e) { setConn(''); } }
 async function pullState(manual) { if (!baseUrl()) { if (manual) toast('서버 주소를 먼저 넣어 주세요'); return; } try { const r = await fetch(stateUrl() + '?_=' + Date.now()); if (!r.ok) throw 0; const before = JSON.stringify(pickState()); applyState(await r.json()); if (JSON.stringify(pickState()) !== before) { render(); if (manual) toast('비서가 적은 게 들어왔어요'); } else if (manual) toast('새 항목 없음'); setConn(''); } catch(e) { if (manual) toast('연결 실패'); setConn(''); } }
 function agentAgo() { const a = D.agent; if (!a || !a.at) return ''; const m = Math.round((Date.now() - new Date(a.at)) / 60000); return m < 1 ? '방금' : m < 60 ? m + '분 전' : m < 1440 ? Math.round(m/60) + '시간 전' : Math.round(m/1440) + '일 전'; }
