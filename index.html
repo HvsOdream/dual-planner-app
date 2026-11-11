@@ -75,6 +75,7 @@ a { color: inherit; }
 .lbl { height: var(--row); line-height: var(--row); padding-left: 52px; font-size: 12px; font-weight: 700; color: var(--ink-2); letter-spacing: 0; display: flex; align-items: center; justify-content: space-between; }
 .lbl a, .lbl button { font-size: 12px; color: var(--muted); text-decoration: underline; letter-spacing: 0; }
 .line { height: var(--row); line-height: var(--row); padding-left: 52px; font-size: 16px; font-weight: 500; }
+.line.wrap { height: auto; min-height: var(--row); line-height: 1.55; padding: 5px 16px 5px 52px; word-break: break-word; } /* 긴 글은 줄을 넘겨 적는다(고정 높이면 아래와 겹친다) */
 .line.sub { font-size: 12px; color: var(--muted); font-weight: 400; }
 .line.faint { color: var(--faint); font-weight: 400; }
 .ruled { border-bottom: 1px solid var(--rule); }
@@ -696,7 +697,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.21'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.22'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1797,12 +1798,12 @@ function calendarHtml() {
   h += `<div class="sp"></div><div class="lbl">${dd.getMonth()+1}월 ${dd.getDate()}일 ${DOW[(dd.getDay()+6)%7]}요일</div>`;
   h += calHtml(calSel, 'c');
   const past = calSel <= td; // 앞날은 일정만, 지난 날과 오늘은 한 일까지
-  if (past) h += `<div class="lbl"><span>한 일</span></div><div class="line ruled" style="font-size:15px;${day.intent?'':'color:var(--faint);font-weight:400'}">${esc(day.intent || '의도 없음')}</div>`;
+  if (past) h += `<div class="lbl"><span>한 일</span></div><div class="line wrap ruled" style="font-size:15px;${day.intent?'':'color:var(--faint);font-weight:400'}">${esc(day.intent || '의도 없음')}</div>`;
   if (photoUrl(calSel)) h += photoHtml(calSel);
   if (past && !done.length) h += `<div class="line faint ruled" style="font-size:14px">체크한 일 없음</div>`;
   done.forEach(r => { h += `<div class="item"><div class="mg">${CHECK.replace('width="22" height="22"','width="18" height="18"')}</div><div class="bd"><div class="t" style="font-size:15px"><span class="tx">${esc(r.title)}</span></div><div class="m"><span>${[esc(r.role), r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'].filter(Boolean).join(' · ')}</span></div></div></div>`; });
-  notes.forEach(x => { h += `<div class="line ruled" style="font-size:13px;color:var(--ink-2)">* ${esc(x.text)}</div>`; });
-  if (day.note) h += `<div class="line ruled" style="font-size:14px;font-style:italic;color:var(--ink-2)">“${esc(day.note)}”</div>`;
+  notes.forEach(x => { h += `<div class="line wrap ruled" style="font-size:13px;color:var(--ink-2)">* ${esc(x.text)}</div>`; });
+  if (day.note) h += `<div class="line wrap ruled" style="font-size:14px;font-style:italic;color:var(--ink-2)">“${esc(day.note)}”</div>`;
   return h;
 }
 function renderReview() {
@@ -1930,7 +1931,7 @@ function renderVol() {
   let h = `<div class="sp"></div><div class="lbl">1년 한눈에</div>` + heatHtml(v) + `<div class="sp"></div>` + volStats(v) + `<div class="sp"></div>`;
   if (v.summary && !paid()) h += `<div class="stickies">${backSticky('1년 리뷰', v.summary.split(/\n|(?<=다\.)\s/).filter(Boolean).length + '줄', v.summary, 'wide')}</div>`;
   else if (v.summary) h += `<div class="postit"><div class="ph"><span>비서의 1년 리뷰</span></div><div style="line-height:var(--row);white-space:pre-wrap;padding-bottom:6px">${esc(v.summary)}</div></div><div class="sp"></div>`;
-  if ((v.goals||[]).length) { h += `<div class="lbl">이 속지에서 이루고 싶었던 것</div>`; v.goals.forEach(g => { h += `<div class="line ruled" style="font-size:15px">${esc(g)}</div>`; }); h += `<div class="sp"></div>`; }
+  if ((v.goals||[]).length) { h += `<div class="lbl">이 속지에서 이루고 싶었던 것</div>`; v.goals.forEach(g => { h += `<div class="line wrap ruled" style="font-size:15px">${esc(g)}</div>`; }); h += `<div class="sp"></div>`; }
   h += `<div class="cta ghost" style="margin-left:52px" onclick="calMonth='${volFirst(v)}';calSel='${volFirst(v)}';go('review')">이 속지 달력 펼치기 ›</div><div class="sp"></div>`;
   document.getElementById('vol').innerHTML = h;
 }
