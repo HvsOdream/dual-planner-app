@@ -2,7 +2,7 @@ name: web-check
 # index.html 안의 스크립트에 문법 오류가 있으면 바로 빨간불(0.7.2에서 앱이 통째로 안 뜬 사고 재발 방지)
 on:
   push:
-    paths: ['index.html', 'worker/**', '.github/workflows/web-check.yml']
+    paths: ['index.html', 'worker/**', 'tests/**', 'VERSION', '.github/workflows/web-check.yml']
 jobs:
   syntax:
     runs-on: ubuntu-latest
@@ -21,3 +21,17 @@ jobs:
           for f in /tmp/s*.js; do node --check "$f"; done
       - name: worker syntax
         run: node --check worker/src/index.js
+  smoke:
+    # 탭마다 열어 보고 자주 쓰는 동작을 한 번씩 해 본다(겹치는 줄, 깨진 버튼, 서버 병합)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: install playwright
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk >/dev/null
+          npm i --no-save --prefix /tmp/pw playwright@1.63.0 >/dev/null
+          /tmp/pw/node_modules/.bin/playwright install --with-deps chromium
+      - name: smoke
+        run: NODE_PATH=/tmp/pw/node_modules node tests/smoke.js
