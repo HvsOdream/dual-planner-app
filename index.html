@@ -183,6 +183,9 @@ a { color: inherit; }
 .evein { display: block; width: 100%; height: 34px; margin-top: 4px; padding: 0 2px; font: inherit; font-size: 15px; font-weight: 600; color: inherit; background: transparent; border: none; border-top: 1px dashed rgba(74,42,51,.2); border-bottom: 1px solid rgba(74,42,51,.35); border-radius: 0; outline: none; }
 .evein::placeholder { color: inherit; opacity: .45; font-weight: 400; }
 .bb { flex: none; display: flex; gap: 10px; } .bb button { font-size: 12px; text-decoration: underline; } .bdone { font-size: 12px; opacity: .7; }
+.rowed { display: block; width: 100%; height: 30px; margin: 2px 0 4px; padding: 0 2px; font: inherit; font-size: 15px; font-weight: 600; color: var(--ink); background: transparent; border: none; border-bottom: 1px solid var(--rule, rgba(0,0,0,.2)); border-radius: 0; outline: none; }
+.item .bslot { padding-left: 0; } .item .bslot button.on { text-decoration: none; background: var(--ink); color: var(--paper, #fff); border-radius: 999px; padding: 1px 9px; }
+.item .t .tx[data-ed] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .bslot { display: flex; gap: 8px; align-items: center; padding: 2px 0 8px 46px; font-size: 13px; } .bslot input, .bslot select { font: inherit; font-size: 13px; background: rgba(255,255,255,.5); border: 1px solid rgba(0,0,0,.15); border-radius: 6px; padding: 2px 4px; color: inherit; } .bslot { flex-wrap: wrap; } .bslot button { font-size: 12px; font-weight: 700; text-decoration: underline; white-space: nowrap; } .bslot select { max-width: 92px; }
 .ppl .inp { flex: 1; min-width: 0; font-size: 14px; } .ppl span { flex-wrap: nowrap !important; align-items: center; }
 .ppl button { font-size: 12px; padding: 4px 9px; border: 1px solid rgba(0,0,0,.18); border-radius: 12px; background: rgba(255,255,255,.45); } .ppl button.g { border-color: currentColor; font-weight: 700; }
@@ -1522,6 +1525,21 @@ function moveToRock(id) {
 
 // ── 할 일 (상시 목록: 급한 일 · 중요한 일 · 하면 좋은 일) ──
 let addPrefill = '', addBucket = 'important', showD = false;
+// 할 일 줄을 누르면 그 아래에서 제목·칸·마감을 고친다
+let rowOpen = null;
+function rowEdit(r) {
+  return `<input class="rowed" value="${esc(r.title)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')this.blur()" onchange="rowTitle('${r.id}',this.value)">
+  <div class="bslot">${BUCKETS.map(([b, n]) => `<button class="${r.bucket === b ? 'on' : ''}" onclick="rowBucket('${r.id}','${b}')">${n.split(' ')[0]}</button>`).join('')}${r.routine ? '' : `<span style="margin-left:6px">${r.bucket === 'important' ? '언제까지' : '마감'}</span><input type="date" value="${r.due || ''}" onchange="rowDue('${r.id}',this.value)">`}<span style="flex:1"></span><button onclick="rowOpen=null;renderWeek()">닫기</button></div>`;
+}
+function rowTitle(id, v) { const r = rock(id); v = (v || '').trim(); if (!r || !v || v === r.title) return; r.title = v; save(); render(); }
+function rowBucket(id, b) {
+  const r = rock(id); if (!r || r.bucket === b) return;
+  r.bucket = b; let msg = `${bucketName(b)}(으)로 옮겼어요`;
+  if (b === 'important' && !r.due && !r.routine) { r.due = dstr(new Date(Date.now() + 6 * 86400000)); msg += ` · ${md(r.due)}까지만`; } // B는 끝 날짜가 있어야 한다
+  if (b === 'nice') r.parkedAt = today();
+  save(); render(); toast(msg);
+}
+function rowDue(id, v) { const r = rock(id); if (!r) return; if (!v && r.bucket === 'important') { toast('B는 끝 날짜가 있어야 해요'); renderWeek(); return; } r.due = v || null; save(); render(); }
 function itemRow(r, n) {
   const td = today(), picked = (dayOf(td).picks||[]).includes(r.id);
   const dl = (!r.done && r.due && !r.routine) ? dleft(r.due) : null;
@@ -1529,10 +1547,10 @@ function itemRow(r, n) {
   const prog = r.routine ? `<span class="dots">${Array.from({length:r.routine},(_,i)=>`<i class="${i<checkedCount(r)?'on':''}"></i>`).join('')}</span>` : '';
   return `<div class="item ${r.done?'done':''}">
     <div class="mg">${r.routine?`<span class="num">${n}</span>`:`<button class="chk ${r.done?'on':''}" aria-label="완료" onclick="finishRock('${r.id}')">${CHECK}</button>`}</div>
-    <div class="bd"><div class="t"><span class="tx">${esc(r.title)}</span>${r.carry?`<span class="mono" style="color:var(--check);font-size:12px">⟳${r.carry}</span>`:''}</div>
+    <div class="bd"><div class="t"><span class="tx" data-ed onclick="rowOpen=rowOpen==='${r.id}'?null:'${r.id}';renderWeek()">${esc(r.title)}</span>${r.carry?`<span class="mono" style="color:var(--check);font-size:12px">⟳${r.carry}</span>`:''}</div>
     <div class="m"><span>${meta}</span>${prog}<span class="sp1"></span>
       ${r.done?`<span style="color:var(--check)">완료</span>`:(r.routine && r.checks && r.checks[td])?`<span style="color:var(--check)">오늘 했음 ✓</span>`:(picked?`<span style="color:var(--check)">오늘 칸 ✓</span>`:`<button onclick="pick('${r.id}')">오늘로</button>`)}
-      <button onclick="delRock('${r.id}')">✕</button></div></div></div>`;
+      <button onclick="delRock('${r.id}')">✕</button></div>${rowOpen === r.id && !r.done ? rowEdit(r) : ''}</div></div>`;
 }
 function renderWeek() {
   const items = openItems();
