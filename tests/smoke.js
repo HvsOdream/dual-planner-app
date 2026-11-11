@@ -38,6 +38,8 @@ function seed(LONG) {
 async function ui(browser, label, ctxOpts) {
   const ctx = await browser.newContext(Object.assign({ timezoneId: 'Asia/Seoul' }, ctxOpts)), pg = await ctx.newPage();
   const errs = []; pg.on('pageerror', e => errs.push(e.message)); pg.on('dialog', d => d.accept());
+  // 점검은 바깥으로 아무것도 보내지 않는다(실제 서버에 시험 데이터가 쌓이면 안 된다)
+  await ctx.route('**/*', r => (r.request().url().startsWith('file:') ? r.continue() : r.abort()));
   await pg.addInitScript(seed, LONG);
   await pg.goto(PAGE); await pg.waitForTimeout(1200);
   const ev = (fn, arg) => pg.evaluate(fn, arg);
