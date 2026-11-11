@@ -199,6 +199,9 @@ a { color: inherit; }
 /* 메뉴도 노트 한 장: 마진선 안쪽에 같은 소제목·같은 줄 */
 .plan { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 0; border-bottom: 1px solid var(--rule); }
 .plan .pk { flex: none; width: 16px; color: var(--ink-2); } .plan .pn { flex: 1; display: flex; flex-direction: column; gap: 2px; } .plan .pn b { font-size: 15px; font-weight: 600; color: var(--ink); } .plan .pn i { font-style: normal; font-size: 12px; color: var(--muted); } .plan .pn em { font-style: normal; font-size: 11px; font-weight: 700; color: var(--accent); margin-left: 4px; } .plan .pp { flex: none; font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; } .plan:not(.on) .pn b, .plan:not(.on) .pp { color: var(--ink-2); font-weight: 500; }
+.mrow { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; border-bottom: 1px solid var(--rule); text-align: left; color: var(--ink); text-decoration: none; }
+.mrow b { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; } .mrow .v { flex: 0 1 auto; max-width: 58%; font-size: 14px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .mrow .ch { flex: none; font-size: 18px; color: var(--muted); }
+.mpage .lbl.mg { margin-top: 14px; } #moreSecs .msec:not([data-sec="notify"]) > div > .lbl:first-child { display: none; } #moreSecs .msec { padding-top: 8px; }
 .mpage { padding: 8px 16px 40px 52px; } .mpage .lbl { padding-left: 0; } .mpage .cta { margin-left: 0; width: 100%; } .mpage .legal { margin-top: 16px; }
 .dev-on { position: fixed; left: 8px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; font-size: 11px; background: var(--check); color: #fff; padding: 2px 8px; border-radius: 10px; }
 @keyframes peel { 0%, 55% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px) rotate(-5deg); } }
@@ -491,14 +494,24 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
   <section class="page" id="p-roles"><div class="sheet"><div class="mpage" id="rolesBox"></div></div></section>
   <section class="page" id="p-sub"><div class="sheet"><div class="mpage" id="subP"></div></div></section>
   <section class="page" id="p-priv"><div class="sheet"><div class="mpage" id="privP"></div></div></section>
-  <section class="page" id="p-more"><div class="sheet" id="moreP"><div class="mpage">
-    <div id="acctBox"></div><div id="subBox"></div><div id="roleBox"></div><div id="calBox"></div><div id="notifyBox"></div><div id="coverBox"></div><div id="devBox"></div>
-    <div class="lbl" style="padding-left:0">비서 연결</div>
-    <div id="connBox" style="font-size:13px;line-height:1.8;margin:2px 0 4px"></div>
-    <button class="cta" style="margin-left:0;width:100%;height:40px" onclick="copyText(mcpUrl(),'MCP 주소 복사됨')">MCP 주소 복사</button>
-    <div style="height:10px"></div>
-    <div class="legal"><a href="legal/terms.html" target="_blank">이용약관</a><a href="legal/privacy.html" target="_blank">개인정보처리방침</a><a href="mailto:withsky0@gmail.com">문의</a></div>
-  </div></div></section>
+  <section class="page" id="p-more"><div class="sheet" id="moreP">
+    <div class="mpage" id="moreIdx"></div>
+    <div class="mpage" id="moreSecs" style="display:none">
+      <div class="msec" data-sec="acct"><div id="acctBox"></div></div>
+      <div class="msec" data-sec="feats"><div id="subBox"></div></div>
+      <div class="msec" data-sec="roles"><div id="roleBox"></div></div>
+      <div class="msec" data-sec="cal"><div id="calBox"></div></div>
+      <div class="msec" data-sec="notify"><div id="notifyBox"></div></div>
+      <div class="msec" data-sec="cover"><div id="coverBox"></div></div>
+      <div class="msec" data-sec="conn">
+        <div class="lbl" style="padding-left:0">상태</div>
+        <div id="connBox" style="font-size:14px;line-height:1.8;margin:2px 0 4px"></div>
+        <div class="lbl" style="padding-left:0;margin-top:10px">연결하기</div>
+        <div class="subst" style="font-size:13px;line-height:1.7;margin:2px 0 10px">1. 아래 주소를 복사해요<br>2. 쓰는 비서(Claude 등)의 커넥터 설정에 붙여 넣어요<br>3. 비서에게 플래너를 읽어 달라고 하면 연결돼요</div>
+        <button class="cta" style="margin-left:0;width:100%;height:40px" onclick="copyText(mcpUrl(),'연결 주소 복사됨')">연결 주소 복사</button>
+      </div>
+    </div>
+  </div></section>
 </main>
 
 <nav class="tabbar">
@@ -506,7 +519,7 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
   <button data-tab="week" onclick="go('week')"><i></i>할 일</button>
   <button data-tab="memo" onclick="go('memo')"><i></i>메모</button>
   <button data-tab="review" onclick="go('review')"><i></i>달력</button>
-  <button data-tab="more" onclick="go('more')"><i></i>메뉴</button>
+  <button data-tab="more" onclick="moreSec='';go('more')"><i></i>메뉴</button>
 </nav>
 
 <div class="login" id="login" aria-modal="true" role="dialog" aria-label="로그인">
@@ -642,7 +655,33 @@ const SWIPE_TABS = ['today', 'week', 'memo', 'review', 'more'];
   }, { passive: true });
 })();
 function openMore() { if (baseUrl()) pullState(false).then(()=>setConn('')); loadAuthConf().then(renderAccount); go('more'); }
-function renderMore() { setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; }
+// 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
+const APP_VER = '0.7.20'; // VERSION 파일과 같이 올린다
+let moreSec = '';
+const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
+function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
+function renderMoreIdx() {
+  const idx = document.getElementById('moreIdx'), secs = document.getElementById('moreSecs'); if (!idx || !secs) return;
+  const row = (label, val, on) => `<button class="mrow" onclick="${on}"><b>${label}</b><span class="v">${esc(val || '')}</span><span class="ch">›</span></button>`;
+  const lbl = (t, first) => `<div class="lbl ${first ? '' : 'mg'}">${t}</div>`;
+  const a = D.account, c = notifyCfg(), st = D.settings || {};
+  let h = lbl('계정·구독', true);
+  if (a || hasProviders()) h += row('계정', a ? (a.provider === 'apple' ? 'Apple' : 'Google') + '로 로그인됨' : '로그인 안 함', "openSec('acct')");
+  h += row('구독', subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝', 'openSub()');
+  h += lbl('비서') + row('비서 연결', agentOn() ? '연결됨' : '연결 안 됨', "openSec('conn')") + row('내 역할', D.roles.length ? D.roles.length + '개' : '정하지 않음', "openSec('roles')") + row('비서 포스트잇', FEATS.filter(f => featOn(f[0])).length + '종 켜짐', "openSec('feats')");
+  h += lbl(isNative() ? '알림·일정' : '일정');
+  if (isNative()) h += row('알림', c.on ? '켜짐' + (c.off && c.off.evening ? '' : ' · 저녁 ' + (c.evening || '21:30')) : '꺼짐', "openSec('notify')");
+  h += row('캘린더', nat() ? (st.calNative ? '아이폰 캘린더' : '꺼짐') : (st.calUrl ? '연결됨' : '연결 안 함'), "openSec('cal')");
+  h += lbl('모양') + row('표지', (COVERS.find(x => x[0] === curTheme()) || [, ''])[1], "openSec('cover')");
+  h += lbl('정보') + row('내 정보가 가는 곳', aiOk() ? '비서 AI 켬' : '비서 AI 끔', 'openPrivacy()');
+  h += `<a class="mrow" href="legal/terms.html" target="_blank"><b>이용약관</b><span class="ch">›</span></a><a class="mrow" href="legal/privacy.html" target="_blank"><b>개인정보처리방침</b><span class="ch">›</span></a><a class="mrow" href="mailto:withsky0@gmail.com"><b>문의</b><span class="ch">›</span></a>`;
+  h += `<div class="mrow"><b>버전</b><span class="v">${APP_VER}</span></div><div style="height:10px"></div><div id="devBox"></div>`;
+  idx.innerHTML = h;
+  if (moreSec && !MORE_SECS[moreSec]) moreSec = '';
+  idx.style.display = moreSec ? 'none' : ''; secs.style.display = moreSec ? '' : 'none';
+  secs.querySelectorAll('.msec').forEach(e => { e.style.display = e.dataset.sec === moreSec ? '' : 'none'; });
+}
+function renderMore() { renderMoreIdx(); setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; }
 function closeMore() { if (tab === 'more') go('today'); }
 function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='memo') renderMemo(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); else if (t==='roles') renderRoles(); else if (t==='sub') renderSubPage(); else if (t==='priv') renderPrivPage(); }
 function markSeen() { const td = today(); if (D.seenDay !== td) { D.seenPrev = D.seenDay || ''; D.seenDay = td; _save0(); } }
@@ -691,6 +730,7 @@ function coverParts(tab) {
   else if (tab==='sub') { t1 = '구독'; t2 = subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'; left = `<button class="ibtn" aria-label="뒤로" onclick="go(subBack === 'sub' ? 'more' : subBack)">‹</button>`; }
   else if (tab==='priv') { t1 = '내 정보가 가는 곳'; t2 = aiOk() ? '비서 AI 켬' : '비서 AI 끔'; left = `<button class="ibtn" aria-label="뒤로" onclick="go(privBack === 'priv' ? 'more' : privBack)">‹</button>`; }
   else if (tab==='roles') { t1 = '내 역할'; t2 = roleItems ? '할 일·일정마다 역할 정하기' : '역할 이름 고치기'; left = `<button class="ibtn" aria-label="뒤로" onclick="closeRoles()">‹</button>`; }
+  else if (tab==='more' && moreSec && MORE_SECS[moreSec]) { t1 = MORE_SECS[moreSec]; t2 = '메뉴'; left = `<button class="ibtn" aria-label="메뉴로" onclick="moreSec='';render()">‹</button>`; }
   else if (tab==='more') { t1 = '메뉴'; t2 = yw + ' · ' + (subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'); }
   else if (tab==='memo') { const n = memoEntries().length; t1 = '메모'; t2 = n ? `${yw} · ${n}장` : yw; }
   else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${yw} · 열린 일 ${o.length}`; }
@@ -721,6 +761,7 @@ function addToday(blur) {
   D.rocks.push(r); dayOf(today()).picks.push(r.id); markStarted(); save(); render(); if (!blur) setTimeout(()=>{ const e=document.getElementById('quickIn'); if (e) e.focus(); }, 30);
 }
 function renderToday() {
+  markAOpen();
   const ds = today(), day = dayOf(ds);
   const picks = (day.picks||[]).map(rock).filter(r => r && !r._deleted && !(r.at && r.at.slice(0, 10) > ds));
   const inbox = stuckNotes();
@@ -736,6 +777,7 @@ function renderToday() {
   ${trialHtml(ds)}
   ${ds === today() && backMode() ? `<div class="stickies">${backHtml()}</div>` : ''}
   ${ds === today() && backMode() ? '' : briefHtml(ds)}
+  ${ds === today() && backMode() ? '' : niceHtml(ds)}
   ${calHtml(ds)}
   <div class="lbl">의도</div>
   <input class="wr" style="font-size:18px;font-weight:600" placeholder="" value="${esc(day.intent)}" onchange="dayOf('${ds}').intent=this.value;save()">
@@ -932,13 +974,14 @@ function roleFinder() {
 function acceptGroups() { const g = sugGroups(); if (g) sendFeedback(g, null); applyGroups(); }
 function renderRoleBox() {
   const el = document.getElementById('roleBox'); if (!el) return;
-  el.innerHTML = `<div class="lbl" style="padding-left:0">내 역할</div><div class="subst">${D.roles.length ? D.roles.map(esc).join(' · ') : '아직 정하지 않았어요'}</div><div class="acts" style="padding:0 0 4px;gap:20px"><button class="cta" style="width:auto;margin:0" onclick="openRoles()">${D.roles.length ? '이름 고치기' : '정하기'}</button>${D.roles.length ? `<button class="cta" style="width:auto;margin:0" onclick="openAllRoles()">할 일·일정마다 정하기</button>` : ''}</div><div class="ppl" style="margin:2px 0 10px"><b style="font-size:13px;color:var(--ink-2)">하는 일 한 줄</b><span><input class="inp" id="meMenu" maxlength="40" style="border:0;border-bottom:1px solid var(--rule);background:transparent;padding:6px 0;font-size:15px" value="${esc(meLine())}" placeholder="예: 영업 과장, 프리랜서 디자이너" onblur="setMe(this.value)" onkeydown="if(event.key==='Enter')this.blur()"></span></div><button class="feat on" onclick="openPrivacy()"><span class="nm"><b>내 정보가 가는 곳</b><i>${aiOk() ? '비서 AI 켬 · 무엇이 어디로 가는지' : '비서 AI 끔 · 할 일 제목이 AI 회사로 가지 않아요'}</i></span><span class="st">›</span></button><button class="feat ${learnOk() ? 'on' : ''}" style="margin-bottom:12px" onclick="setLearn(${!learnOk()});renderRoleBox()"><span class="nm"><b>고친 내용을 비서 학습에 쓰기</b><i>할 일 제목과 고친 역할이 이름 없이 저장돼요</i></span><span class="st">${learnOk() ? '켬' : '끔'}</span></button>`;
+  el.innerHTML = `<div class="lbl" style="padding-left:0">내 역할</div><div class="subst">${D.roles.length ? D.roles.map(esc).join(' · ') : '아직 정하지 않았어요'}</div><div class="acts" style="padding:0 0 4px;gap:20px"><button class="cta" style="width:auto;margin:0" onclick="openRoles()">${D.roles.length ? '이름 고치기' : '정하기'}</button>${D.roles.length ? `<button class="cta" style="width:auto;margin:0" onclick="openAllRoles()">할 일·일정마다 정하기</button>` : ''}</div><div class="ppl" style="margin:2px 0 10px"><b style="font-size:13px;color:var(--ink-2)">하는 일 한 줄</b><span><input class="inp" id="meMenu" maxlength="40" style="border:0;border-bottom:1px solid var(--rule);background:transparent;padding:6px 0;font-size:15px" value="${esc(meLine())}" placeholder="예: 영업 과장, 프리랜서 디자이너" onblur="setMe(this.value)" onkeydown="if(event.key==='Enter')this.blur()"></span></div><button class="feat ${learnOk() ? 'on' : ''}" style="margin-bottom:12px" onclick="setLearn(${!learnOk()});renderRoleBox()"><span class="nm"><b>고친 내용을 비서 학습에 쓰기</b><i>할 일 제목과 고친 역할이 이름 없이 저장돼요</i></span><span class="st">${learnOk() ? '켬' : '끔'}</span></button>`;
 }
 
 // ── 비서 포스트잇: 무엇을 붙이는지(메뉴에서 켜고 끈다) ──
 const FEATS = [
   ['notify', '비서가 쓰는 알림', '알림', '그날 마감·남은 일로 문구를 써요'],
   ['brief', '아침 브리핑', '오늘', '일정·마감·빈 시간을 아침에 한 장으로'],
+  ['nice', '하면 좋은 일', '오늘', '급한 일이 거의 없는 날, 미뤄 둔 일을 하나 꺼내 줘요'],
   ['due', '마감 임박', '할 일', '사흘 안에 끝나야 할 일'],
   ['stale', '멈춘 일', '할 일', '날짜 지난 일, 2주째 그대로인 일 다시 정하기'],
   ['balance', '역할 쏠림', '할 일', '한 역할에 몰리면 알려요'],
@@ -1073,7 +1116,7 @@ function renderSubPage() {
 function renderSubBox() {
   const el = document.getElementById('subBox'); if (!el) return;
   const t = trialLeft(), on = subActive();
-  el.innerHTML = `<div class="lbl" style="padding-left:0">구독</div><button class="feat on" onclick="openSub()"><span class="nm"><b>${on ? '구독 중' : '비서 포스트잇 구독'}</b><i>${subStatus()}</i></span><span class="st">›</span></button><div class="lbl" style="padding-left:0;margin-top:8px">비서 포스트잇</div>` +
+  el.innerHTML = `<div class="lbl" style="padding-left:0">비서 포스트잇</div>` +
     `<div class="feats">${FEATS.map(([id, n, w, d]) => { const f = featOn(id); return `<button class="feat ${f ? 'on' : ''}" onclick="setFeat('${id}', ${!f})" aria-pressed="${f}"><span class="nm"><b>${n}</b><i>${w} · ${d}</i></span><span class="st">${f ? '켬' : '끔'}</span></button>`; }).join('')}</div>` +
     (paid() ? '' : `<div class="subst" style="font-size:12px;margin-top:6px">구독하면 켜 둔 포스트잇이 또렷해져요</div>`) + '<div style="height:8px"></div>';
 }
@@ -1350,6 +1393,28 @@ function onNotifTap(id) {
   go(k === 'sunday' ? 'review' : 'today'); window.scrollTo(0, 0); const p = document.getElementById('p-today'); if (p) p.scrollTop = 0;
 }
 function listenNotifs() { const LN = isNative() && capPlugin('LocalNotifications'); if (!LN || listenNotifs._on) return; listenNotifs._on = true; try { LN.addListener('localNotificationActionPerformed', a => { try { onNotifTap(a && a.notification && a.notification.id); } catch(e) {} }); } catch(e) {} }
+// 하면 좋은 일: 전날 밤 열린 A가 한 개 이내였으면 다음 날 오늘 맨 위에 한 번. D에 있으면 하나 권하고, 없으면 묻는다
+function aOpenNow() { return openItems().filter(r => r.bucket === 'urgent' && !r.routine).length; }
+function markAOpen() { const ds = today(), n = aOpenNow(), d = D.days[ds]; if (!d || d.aOpen !== n) { dayOf(ds).aOpen = n; _save0(); } } // 그날 마지막 값이 '전날 밤' 값이 된다
+function niceHtml(ds) {
+  if (ds !== today() || !featOn('nice') || noteOff('nice:' + ds) || (D.niceNext || '') > ds) return '';
+  const y = D.days[addDays(ds, -1)], base = y && typeof y.aOpen === 'number' ? y.aOpen : aOpenNow();
+  if (base > 1) return '';
+  const picks = dayOf(ds).picks || [];
+  const cands = openItems().filter(r => r.bucket === 'nice' && !r.routine && !picks.includes(r.id) && !(r.niceSkip && r.niceSkip > addDays(ds, -7))).sort((a, b) => (a.parkedAt || a.week || '') < (b.parkedAt || b.week || '') ? -1 : 1);
+  const drop = `<button onclick="niceDrop()">떼기</button>`;
+  if (cands.length) {
+    const r = cands[0], since = r.parkedAt || r.week || '', wk = since ? Math.floor(-dleft(since) / 7) : 0;
+    return `<div class="stickies">${aNote({ label: '하면 좋은 일', cls: 'wide brief', text: r.title, html: `<div class="bev" style="white-space:normal">나중에 칸에 ${wk >= 1 ? wk + '주째 ' : ''}있는 일이에요. 오늘 30분만 해 볼까요</div>` + bRow(r, 'D', false, `<button onclick="niceToday('${r.id}')">오늘로</button><button onclick="niceLater('${r.id}')">다음에</button>`), acts: drop })}</div>`;
+  }
+  return `<div class="stickies">${aNote({ label: '하면 좋은 일', cls: 'wide brief', text: '미뤄 둔 것 중 하고 싶은 일 하나 있나요', html: `<div class="bev" style="white-space:normal">급한 일이 거의 없는 날이에요. 미뤄 둔 것 중 하고 싶은 일 하나 있나요</div><input class="evein" id="niceIn" placeholder="적으면 나중에 칸에 들어가요" enterkeyhint="done" onkeydown="if(event.key==='Enter')this.blur()" onchange="niceAdd(this.value)">`, acts: drop })}</div>`;
+}
+// 받아들이면 내일 다시, 안 받으면 간격을 벌린다(1일 → 3일 → 7일)
+function niceAct(hit) { const ds = today(); D.niceMiss = hit ? 0 : (D.niceMiss || 0) + 1; D.niceNext = addDays(ds, hit ? 1 : D.niceMiss >= 3 ? 7 : D.niceMiss >= 2 ? 3 : 1); D.noteOff = D.noteOff || {}; D.noteOff['nice:' + ds] = ds; }
+function niceToday(id) { niceAct(true); const day = dayOf(today()); if (!day.picks.includes(id)) day.picks.push(id); save(); render(); toast('오늘 칸에 옮겨 적었어요'); }
+function niceLater(id) { const r = rock(id); if (r) r.niceSkip = today(); niceAct(false); save(); render(); toast('일주일 뒤에 다시 물어볼게요'); }
+function niceDrop() { niceAct(false); _save0(); render(); }
+function niceAdd(v) { v = (v || '').trim(); if (!v) return; D.rocks.push({ id: uid(), week: weekKey(new Date()), bucket: 'nice', role: '', title: v, done: false, carry: 0, checks: {}, parkedAt: today(), vol: (curVol() || {}).id }); niceAct(true); save(); render(); toast('D 나중에 칸에 적어 뒀어요'); }
 function briefHtml(ds) {
   if (ds !== today() || !featOn('brief') || new Date().getHours() >= 12 || noteOff('brief:' + ds)) return '';
   const { b, rows } = briefRows(ds); if (!b.ev.length && !rows.length && !b.picks.length && !apptsOn(ds).length) return '';
@@ -1450,7 +1515,14 @@ function setNotify(patch) { const c = notifyCfg(); Object.assign(c, patch); D.se
 function renderNotifyBox() {
   const el = document.getElementById('notifyBox'); if (!el) return; if (!isNative()) { el.innerHTML = ''; return; }
   const c = notifyCfg();
-  el.innerHTML = `<div class="lbl" style="padding-left:0">알림 <button style="font-size:12px;color:var(--ink-2);text-decoration:underline;font-weight:500" onclick="${c.on ? 'setNotify({on:false})' : 'enableNotifs()'}">${c.on ? '끄기' : '켜기'}</button></div>` + (c.on ? NOTIFY.map(n => `<div class="acts" style="padding:2px 0;align-items:center"><button onclick="setNotify({off:Object.assign({},notifyCfg().off,{${n.k}:!notifyCfg().off.${n.k}})})">${c.off[n.k] ? '○' : '●'} ${n.name}</button><input type="time" value="${esc(c[n.k])}" style="background:transparent;border:none;border-bottom:1px solid var(--rule);font:inherit;font-size:13px;color:var(--ink)" onchange="setNotify({${n.k}:this.value})"></div>`).join('') : '') + (c.on ? `<div class="acts" style="padding:2px 0;align-items:center"><button onclick="setNotify({off:Object.assign({},notifyCfg().off,{appt:!notifyCfg().off.appt})})">${c.off.appt ? '○' : '●'} 약속</button><select style="background:transparent;border:none;border-bottom:1px solid var(--rule);font:inherit;font-size:13px;color:var(--ink)" onchange="setNotify({appt:Number(this.value)})">${[0, 5, 10, 15, 30, 60].map(m => `<option value="${m}" ${apptLead() === m ? 'selected' : ''}>${m ? m + '분 전' : '정각'}</option>`).join('')}</select></div>` : '') + (c.on ? notifyNext() + notifyPreview() : '') + '<div style="height:10px"></div>';
+  const sw = (on, act, label) => `<button class="feat ${on ? 'on' : ''}" style="width:auto;border:0;padding:11px 0 11px 6px" aria-pressed="${on}" aria-label="${label} ${on ? '켜짐' : '꺼짐'}" onclick="${act}"><span class="sw"></span></button>`;
+  const inp = 'background:transparent;border:none;border-bottom:1px solid var(--rule);font:inherit;font-size:15px;color:var(--ink)';
+  const kOff = k => `setNotify({off:Object.assign({},notifyCfg().off,{${k}:!notifyCfg().off.${k}})})`;
+  // 시각은 알림을 꺼도 고칠 수 있다(포스트잇이 그 시각에 붙으니까). 종류별 스위치는 알림을 켰을 때만
+  el.innerHTML = `<div class="mrow"><b>알림 받기</b>${sw(c.on, c.on ? 'setNotify({on:false})' : 'enableNotifs()', '알림 받기')}</div><div class="subst" style="font-size:12px;margin:6px 0 0">알림을 꺼도 포스트잇은 그 시각에 붙어요</div><div class="lbl mg">언제</div>` +
+    NOTIFY.map(n => `<div class="mrow"><b>${n.name}</b><input type="time" aria-label="${n.name} 시각" value="${esc(c[n.k])}" style="${inp}" onchange="setNotify({${n.k}:this.value})">${c.on ? sw(!c.off[n.k], kOff(n.k), n.name) : ''}</div>`).join('') +
+    `<div class="mrow"><b>약속</b><select aria-label="약속 알림 시점" style="${inp}" onchange="setNotify({appt:Number(this.value)})">${[0, 5, 10, 15, 30, 60].map(m => `<option value="${m}" ${apptLead() === m ? 'selected' : ''}>${m ? m + '분 전' : '정각'}</option>`).join('')}</select>${c.on ? sw(!c.off.appt, kOff('appt'), '약속') : ''}</div>` +
+    (c.on ? `<div class="lbl mg">지금 잡힌 알림</div>` + notifyNext() + notifyPreview() : '') + '<div style="height:10px"></div>';
 }
 function notifyNext() {
   const p = D._pend; if (!p) return '';
