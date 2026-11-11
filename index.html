@@ -687,7 +687,7 @@ function coverParts(tab) {
   else if (tab==='priv') { t1 = '내 정보가 가는 곳'; t2 = aiOk() ? '비서 AI 켬' : '비서 AI 끔'; left = `<button class="ibtn" aria-label="뒤로" onclick="go(privBack === 'priv' ? 'more' : privBack)">‹</button>`; }
   else if (tab==='roles') { t1 = '내 역할'; t2 = roleItems ? '할 일·일정마다 역할 정하기' : '역할 이름 고치기'; left = `<button class="ibtn" aria-label="뒤로" onclick="closeRoles()">‹</button>`; }
   else if (tab==='more') { t1 = '메뉴'; t2 = yw + ' · ' + (subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'); }
-  else if (tab==='memo') { const n = liveMemos().length; t1 = '메모'; t2 = n ? `${yw} · ${n}장` : yw; }
+  else if (tab==='memo') { const n = memoEntries().length; t1 = '메모'; t2 = n ? `${yw} · ${n}장` : yw; }
   else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${yw} · 열린 일 ${o.length}`; }
   else if (tab==='shelf') { t1 = '책장'; t2 = `속지 ${liveVols().length}권`; left = `<button class="ibtn" aria-label="뒤로" onclick="go('review')">‹</button>`; }
   else if (tab==='vol') { const v = liveVols().find(x => x.id === volSel) || curVol(); t1 = volName(v) + ' 속지'; t2 = `${v.start.replace('-','.')} ~ ${volEnd(v).replace('-','.')} · 닫음`; left = `<button class="ibtn" aria-label="뒤로" onclick="go('shelf')">‹</button>`; }
@@ -1135,7 +1135,7 @@ function stickiesHtml(list, gs) {
   list.forEach(x => {
     const when = (x.ds === td ? '' : md(x.ds) + ' ') + (x.at || '');
     const todo = x.kind !== 'note';
-    h += `<div class="sticky"><div class="who"><span>${esc(agentLabel(x.src || (D.agent||{}).name))}</span><span>${esc(when)}</span></div>
+    h += `<div class="sticky"><div class="who"><span>${esc(todo ? agentLabel(x.src || (D.agent||{}).name) : '비서 메모')}</span><span>${esc(when)}</span></div>
       <div class="tx">${esc(x.text)}</div>
       <div class="act">${todo ? `<button onclick="moveToRock('${x.id}')">할 일로</button>` : ''}<button onclick="dropInbox('${x.id}')">떼기</button></div></div>`;
   });
@@ -1541,17 +1541,26 @@ let memoEdit = null, memoMove = null, memoDraft = '';
 function liveMemos() { return (D.memos || []).filter(m => m && !m._deleted).sort((a, b) => (a.at || '') < (b.at || '') ? 1 : -1); }
 function memoGrow(el) { if (!el) return; el.style.height = 'auto'; const row = 28, h = Math.max(row * (el.dataset.min || 2), Math.ceil(el.scrollHeight / row) * row); el.style.height = h + 'px'; }
 function memoWhen(at) { if (!at) return ''; const d = new Date(at), ds = dstr(d); return ds === today() ? String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') : (ds.slice(0, 4) === today().slice(0, 4) ? md(ds) : ds.slice(2).replace(/-/g, '.')); }
+// 메모장에 보이는 것: 내가 적은 메모 + 비서가 그날그날 붙인 메모(포스트잇을 떼어도 여기엔 남는다). 날짜별로 묶는다
+function memoEntries() {
+  const out = liveMemos().map(m => { const d = new Date(m.at || Date.now()); return { m, id: m.id, text: m.text, ds: dstr(d), tm: String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), by: !!m.by }; });
+  for (const ds in (D.days || {})) (D.days[ds].inbox || []).forEach(x => { if (x && x.kind === 'note' && !x.hid && x.text) out.push({ note: x, id: x.id, text: x.text, ds, tm: x.at || '', by: true }); });
+  return out.sort((a, b) => a.ds !== b.ds ? (a.ds < b.ds ? 1 : -1) : (a.tm < b.tm ? 1 : -1));
+}
+function memoDay(ds) { const td = today(), w = DOW[(new Date(ds + 'T00:00').getDay() + 6) % 7]; return (ds.slice(0, 4) === td.slice(0, 4) ? md(ds) : ds.slice(2).replace(/-/g, '.')) + ' ' + w + (ds === td ? ' · 오늘' : ''); }
 function renderMemo() {
-  const list = liveMemos();
+  const list = memoEntries();
   let h = `<div class="sp"></div><div class="lbl"><span>적어 두기</span><button onclick="addMemo()">적기</button></div>
   <textarea class="memoin" id="memoIn" rows="2" placeholder="생각나는 것, 나중에 볼 것" oninput="memoDraft=this.value;memoGrow(this)">${esc(memoDraft)}</textarea><div class="line ruled" style="height:0"></div><div class="sp"></div>`;
-  if (list.length) h += `<div class="lbl"><span>메모 <span class="mono" style="letter-spacing:0">${list.length}</span></span></div>`;
-  list.forEach(m => {
-    if (memoEdit === m.id) { h += `<div class="item memo"><div class="mg"></div><div class="bd"><textarea class="memoin" id="memoEd" data-min="1" style="padding:0;min-height:var(--row)" oninput="memoGrow(this)">${esc(m.text)}</textarea><div class="m"><span class="sp1"></span><button onclick="memoEdit=null;renderMemo()">취소</button><button onclick="saveMemo('${m.id}')"><b>저장</b></button></div></div></div>`; return; }
-    const moved = m.toRock && rock(m.toRock) && !rock(m.toRock)._deleted;
-    h += `<div class="item memo"><div class="mg"></div><div class="bd"><div class="t"><span class="tx">${esc(m.text)}</span></div>
-    <div class="m"><span>${[memoWhen(m.at), m.by ? '비서' : '', moved ? '할 일 ✓' : ''].filter(Boolean).join(' · ')}</span><span class="sp1"></span>${moved ? '' : `<button onclick="memoMove=memoMove==='${m.id}'?null:'${m.id}';renderMemo()">할 일로</button>`}<button onclick="memoEdit='${m.id}';memoMove=null;renderMemo();setTimeout(()=>{const e=document.getElementById('memoEd');if(e){memoGrow(e);e.focus();}},30)">고치기</button><button aria-label="지우기" onclick="delMemo('${m.id}')">×</button></div>
-    ${memoMove === m.id ? `<div class="bslot">${BUCKETS.map(([b, n]) => `<button onclick="memoToRock('${m.id}','${b}')">${n}</button>`).join('')}</div>` : ''}</div></div>`;
+  let cur = '';
+  list.forEach(e => {
+    if (e.ds !== cur) { cur = e.ds; h += `<div class="lbl"><span>${memoDay(e.ds)}</span></div>`; }
+    const src = e.m || e.note;
+    if (e.m && memoEdit === e.id) { h += `<div class="item memo"><div class="mg"></div><div class="bd"><textarea class="memoin" id="memoEd" data-min="1" style="padding:0;min-height:var(--row)" oninput="memoGrow(this)">${esc(e.text)}</textarea><div class="m"><span class="sp1"></span><button onclick="memoEdit=null;renderMemo()">취소</button><button onclick="saveMemo('${e.id}')"><b>저장</b></button></div></div></div>`; return; }
+    const moved = src.toRock && rock(src.toRock) && !rock(src.toRock)._deleted;
+    h += `<div class="item memo"><div class="mg"></div><div class="bd"><div class="t"><span class="tx">${esc(e.text)}</span></div>
+    <div class="m"><span>${[e.tm, e.by ? '비서' : '', moved ? '할 일 ✓' : ''].filter(Boolean).join(' · ')}</span><span class="sp1"></span>${moved ? '' : `<button onclick="memoMove=memoMove==='${e.id}'?null:'${e.id}';renderMemo()">할 일로</button>`}${e.m ? `<button onclick="memoEdit='${e.id}';memoMove=null;renderMemo();setTimeout(()=>{const e=document.getElementById('memoEd');if(e){memoGrow(e);e.focus();}},30)">고치기</button>` : ''}<button aria-label="지우기" onclick="delMemo('${e.id}')">×</button></div>
+    ${memoMove === e.id ? `<div class="bslot">${BUCKETS.map(([b, n]) => `<button onclick="memoToRock('${e.id}','${b}')">${n}</button>`).join('')}</div>` : ''}</div></div>`;
   });
   if (!list.length) h += `<div class="line faint ruled" style="font-size:14px;font-weight:400">아직 적은 메모가 없어요</div>`;
   h += `<div class="sp"></div>`;
@@ -1565,14 +1574,14 @@ function addMemo() {
   memoDraft = ''; save(); renderMemo(); renderCover(); toast('적었어요');
 }
 function saveMemo(id) { const m = (D.memos || []).find(x => x.id === id), el = document.getElementById('memoEd'); if (!m || !el) return; const t = el.value.trim(); if (!t) { toast('내용이 비어 있어요'); return; } m.text = t; memoEdit = null; save(); renderMemo(); }
-function delMemo(id) { if (!confirm('이 메모를 지울까요?')) return; const m = (D.memos || []).find(x => x.id === id); if (m) m._deleted = true; save(); renderMemo(); renderCover(); }
+function delMemo(id) { if (!confirm('이 메모를 지울까요?')) return; const m = (D.memos || []).find(x => x.id === id), n = m ? null : findNote(id); if (m) m._deleted = true; else if (n) { n.hid = true; n.moved = true; n.dropped = true; } save(); render(); }
 function memoToRock(id, b) {
-  const m = (D.memos || []).find(x => x.id === id); if (!m) return;
+  const own = (D.memos || []).find(x => x.id === id), m = own || findNote(id); if (!m) return;
   const lines = m.text.split('\n').map(x => x.trim()).filter(Boolean), title = lines[0] || ''; if (!title) return;
   const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: '', title, done: false, carry: 0, checks: {}, from: 'memo', vol: (curVol() || {}).id };
   if (b === 'important') r.due = dstr(new Date(Date.now() + 6 * 86400000)); // B는 끝 날짜가 있어야 한다
   D.rocks.push(r); memoMove = null;
-  if (lines.length > 1) m.toRock = r.id; else m._deleted = true; // 한 줄짜리는 옮기면 메모장에서 빠지고, 여러 줄이면 남겨 둔다
+  if (lines.length > 1 || !own) m.toRock = r.id; else m._deleted = true; // 비서 메모는 늘 남긴다. 한 줄짜리는 옮기면 메모장에서 빠지고, 여러 줄이면 남겨 둔다
   save(); render(); toast(`${bucketName(b)}에 옮겼어요` + (r.due ? ` · ${md(r.due)}까지만` : ''));
 }
 
@@ -1805,7 +1814,7 @@ async function pushState() { if (!baseUrl()) return; try { const r = await fetch
 async function pullState(manual) { if (!baseUrl()) { if (manual) toast('서버 주소를 먼저 넣어 주세요'); return; } try { const r = await fetch(stateUrl() + '?_=' + Date.now()); if (!r.ok) throw 0; const before = JSON.stringify(pickState()); applyState(await r.json()); if (JSON.stringify(pickState()) !== before) { render(); if (manual) toast('비서가 적은 게 들어왔어요'); } else if (manual) toast('새 항목 없음'); setConn(''); } catch(e) { if (manual) toast('연결 실패'); setConn(''); } }
 function agentAgo() { const a = D.agent; if (!a || !a.at) return ''; const m = Math.round((Date.now() - new Date(a.at)) / 60000); return m < 1 ? '방금' : m < 60 ? m + '분 전' : m < 1440 ? Math.round(m/60) + '시간 전' : Math.round(m/1440) + '일 전'; }
 function agentOn() { return !!(baseUrl() && D.agent && D.agent.at); }
-function agentLabel(n) { n = String(n||'agent'); return /claude/i.test(n) ? 'Claude' : /chatgpt|openai/i.test(n) ? 'ChatGPT' : /gemini/i.test(n) ? 'Gemini' : n; }
+function agentLabel(n) { n = String(n||'agent'); return /^(mcp|api|agent)$/i.test(n) ? '비서' : /claude/i.test(n) ? 'Claude' : /chatgpt|openai/i.test(n) ? 'ChatGPT' : /gemini/i.test(n) ? 'Gemini' : n; }
 function setConn(t) { const el = document.getElementById('connBox'); if (!el) return;
   const srv = baseUrl() ? '● 서버 연결됨' : '○ 서버 미연결';
   const ag = agentOn() ? `● ${agentLabel(D.agent.name)} · ${agentAgo()}` : '○ 비서 미연결';
