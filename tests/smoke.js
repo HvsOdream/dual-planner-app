@@ -83,11 +83,21 @@ async function ui(browser, label, ctxOpts) {
   await ev(() => { rowBucket('a1', 'important'); rowTitle('a1', '고친 제목'); });
   C('B로 옮기면 마감이 잡힌다 · 제목 고침', await ev(() => { const r = rock('a1'); return r.bucket === 'important' && !!r.due && r.title === '고친 제목'; }));
   await ev(() => rowDue('a1', '')); C('B는 마감을 비울 수 없다', await ev(() => !!rock('a1').due));
+  // 날짜 고르기: 취소하면 그대로, 누르면 바뀐다
+  const due0 = await ev(() => rock('a1').due);
+  await pg.locator('#week .item .bslot .dbtn').first().click(); C('날짜 고르기가 열린다', await ev(() => !!document.querySelector('#dpick .dpbox')));
+  await pg.locator('#dpick .dpf .go').click(); C('취소하면 날짜가 그대로다', await ev(d => !document.getElementById('dpick') && rock('a1').due === d, due0));
+  await pg.locator('#week .item .bslot .dbtn').first().click(); await pg.locator('#dpick .dpq button', { hasText: '내일' }).click();
+  C('고르면 바로 바뀐다', await ev(() => rock('a1').due === addDays(today(), 1)));
+  await ev(() => openAdd('urgent')); await pg.waitForTimeout(400);
+  C('글 칸에 들어가면 아래 탭이 치워진다', await ev(() => document.body.classList.contains('kb') && (!document.querySelector('.tabbar') || getComputedStyle(document.querySelector('.tabbar')).display === 'none')));
+  await pg.locator('#addrock .dbtn').click(); await pg.locator('#dpick .dpf .go').click(); C('새 할 일: 마감을 눌렀다 취소해도 날짜가 안 잡힌다', await ev(() => document.getElementById('rockDue').value === ''));
+  await ev(() => { addOpen = false; renderWeek(); document.body.classList.remove('kb'); });
 
   // 5. 메모: 적기, 고치기, 할 일로, 지우기, 비서 메모는 메모로 누른 것만
   await ev(() => go('memo'));
   const n0 = await ev(() => memoEntries().length);
-  await pg.fill('#memoIn', '점검 메모\n둘째 줄'); await pg.locator('#memo .lbl button').first().click();
+  await pg.fill('#memoIn', '점검 메모\n둘째 줄'); await pg.locator('#memoGo').click();
   C('메모 적기', await ev(() => memoEntries().length) === n0 + 1);
   C('비서 메모는 자동으로 들어오지 않는다', await ev(() => !memoEntries().some(e => e.note)));
   await ev(() => noteToMemo('i_note')); C('메모로: 누른 비서 메모만 들어온다', await ev(() => memoEntries().filter(e => e.note).length === 1));

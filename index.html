@@ -208,6 +208,19 @@ a { color: inherit; }
 .nrow .nb b i { font-style: normal; font-weight: 500; font-size: 11px; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 8px; padding: 0 5px; margin-left: 4px; }
 .nrow .nb b u { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--check); margin-left: 6px; vertical-align: middle; }
 .nrow .nb > span { font-size: 15px; line-height: 1.45; color: var(--ink); word-break: break-word; }
+/* 글자판이 올라와 있는 동안은 아래 탭을 치운다(적는 칸이 가려지지 않게) */
+body.kb .tabbar { display: none; }
+/* 날짜 고르기 */
+.dpick { position: fixed; inset: 0; z-index: 130; background: rgba(31,24,16,.38); display: flex; align-items: flex-end; justify-content: center; }
+.dpbox { width: 100%; max-width: 460px; background: var(--paper); border-radius: 18px 18px 0 0; padding: 16px 18px calc(14px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 30px rgba(0,0,0,.18); }
+.dph { display: flex; align-items: baseline; justify-content: space-between; padding: 0 2px 10px; } .dph b { font-size: 16px; } .dph span { font-size: 13px; color: var(--ink-2); }
+.dpq { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; padding-bottom: 12px; }
+.dpq button { height: 48px; border: 1px solid var(--rule); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--ink); } .dpq button i { font-style: normal; font-weight: 400; font-size: 11px; color: var(--ink-2); }
+.dpm { display: flex; align-items: center; justify-content: space-between; padding: 2px 0 6px; } .dpm b { font-size: 14px; } .dpm button { width: 44px; height: 40px; font-size: 20px; color: var(--ink); }
+.cal.dpc { padding-left: 0; } .cal.dpc .cd { height: 42px; justify-content: center; padding-top: 0; } .cal.dpc .cd.td span { margin-top: 0; }
+.dpf { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; } .dpf button { height: 44px; padding: 0 6px; font-size: 15px; text-decoration: underline; text-underline-offset: 3px; color: var(--ink-2); } .dpf .go { font-weight: 700; color: var(--ink); }
+.dbtn { text-align: left; min-width: 84px; } .dbtn.none { color: var(--muted); }
+.memogo { display: flex; justify-content: flex-end; padding: 4px 16px 0 52px; } .memogo button { height: 40px; font-size: 14px; font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .mrow { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; border-bottom: 1px solid var(--rule); text-align: left; color: var(--ink); text-decoration: none; }
 .mrow b { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; } .mrow .v { flex: 0 1 auto; max-width: 58%; font-size: 14px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .mrow .ch { flex: none; font-size: 18px; color: var(--muted); }
 .mpage .lbl.mg { margin-top: 14px; } #moreSecs .msec:not([data-sec="notify"]) > div > .lbl:first-child { display: none; } #moreSecs .msec { padding-top: 8px; }
@@ -697,7 +710,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.22'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.23'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1653,11 +1666,38 @@ function moveToRock(id) {
 
 // ── 할 일 (상시 목록: 급한 일 · 중요한 일 · 하면 좋은 일) ──
 let addPrefill = '', addBucket = 'important', showD = false;
+// 날짜 고르기: 아이폰 기본 달력에는 취소가 없어서 앱 것을 쓴다. 날짜를 누르면 바로 정해지고, 취소·바깥 누르기는 아무것도 안 바꾼다
+let dp = null;
+function dLabel(v) { return v ? md(v) + ' ' + DOW[(new Date(v + 'T00:00').getDay() + 6) % 7] : '날짜 없음'; }
+function dBtn(v, call, extra) { return `<button type="button" class="dbtn ${v ? '' : 'none'} ${extra || ''}" onclick="${call}">${dLabel(v)}</button>`; }
+function openDate(val, opts, cb) { opts = opts || {}; dp = { val: val || '', month: (val || today()).slice(0, 7) + '-01', allowNone: !!opts.allowNone, title: opts.title || '날짜', cb }; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); renderDate(); }
+function closeDate() { dp = null; const el = document.getElementById('dpick'); if (el) el.remove(); }
+function pickDate(v) { const cb = dp && dp.cb; closeDate(); if (cb) cb(v); }
+function dpMonth(n) { const d = new Date(dp.month + 'T00:00'); d.setMonth(d.getMonth() + n); dp.month = dstr(d).slice(0, 7) + '-01'; renderDate(); }
+function renderDate() {
+  let el = document.getElementById('dpick'); if (!el) { el = document.createElement('div'); el.id = 'dpick'; el.className = 'dpick'; el.onclick = e => { if (e.target === el) closeDate(); }; document.body.appendChild(el); }
+  const td = today(), wd = new Date(td + 'T00:00').getDay(), first = new Date(dp.month + 'T00:00'), y = first.getFullYear(), m = first.getMonth(), lead = (first.getDay() + 6) % 7, n = new Date(y, m + 1, 0).getDate(), p2 = x => String(x).padStart(2, '0');
+  const quick = [['오늘', td], ['내일', addDays(td, 1)], ['이번 주 금', addDays(td, (5 - wd + 7) % 7)], ['다음 주 월', addDays(td, ((8 - wd) % 7) || 7)]].filter((q, i, a) => a.findIndex(z => z[1] === q[1]) === i);
+  let cells = DOW.map(w => `<span class="cw">${w}</span>`).join('') + '<span></span>'.repeat(lead);
+  for (let d = 1; d <= n; d++) { const ds = `${y}-${p2(m + 1)}-${p2(d)}`; cells += `<button class="cd ${ds === td ? 'td' : ''} ${ds === dp.val ? 'sel' : ''} ${ds < td ? 'out' : ''}" aria-label="${m + 1}월 ${d}일" onclick="pickDate('${ds}')"><span>${d}</span></button>`; }
+  el.innerHTML = `<div class="dpbox" role="dialog" aria-label="${dp.title} 고르기"><div class="dph"><b>${dp.title}</b><span>${dp.val ? '지금 ' + dLabel(dp.val) : '아직 정하지 않음'}</span></div>
+    <div class="dpq" style="grid-template-columns:repeat(${quick.length},minmax(0,1fr))">${quick.map(([l, v]) => `<button onclick="pickDate('${v}')">${l}<i>${md(v)}</i></button>`).join('')}</div>
+    <div class="dpm"><button aria-label="이전 달" onclick="dpMonth(-1)">‹</button><b>${y}년 ${m + 1}월</b><button aria-label="다음 달" onclick="dpMonth(1)">›</button></div>
+    <div class="cal dpc">${cells}</div>
+    <div class="dpf">${dp.allowNone && dp.val ? `<button onclick="pickDate('')">날짜 없애기</button>` : '<span></span>'}<button class="go" onclick="closeDate()">취소</button></div></div>`;
+}
+// 글자판: 글 칸에 들어가면 아래 탭을 치우고, 적는 묶음(제목·역할·마감·적기)이 통째로 보이게 올린다
+document.addEventListener('focusin', e => {
+  const t = e.target; if (!(t && t.matches && t.matches('textarea, input:not([type=checkbox]):not([type=radio]):not([type=date]):not([type=time]):not([type=hidden])'))) return;
+  document.body.classList.add('kb');
+  const box = t.closest('#addrock, .evadd') || t; setTimeout(() => { try { box.scrollIntoView({ block: box === t ? 'center' : 'end', behavior: 'smooth' }); } catch (e) {} }, 280);
+});
+document.addEventListener('focusout', () => setTimeout(() => { const a = document.activeElement; if (!(a && a.matches && a.matches('textarea, input, select'))) document.body.classList.remove('kb'); }, 120));
 // 할 일 줄을 누르면 그 아래에서 제목·칸·마감을 고친다
 let rowOpen = null;
 function rowEdit(r) {
   return `<input class="rowed" value="${esc(r.title)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')this.blur()" onchange="rowTitle('${r.id}',this.value)">
-  <div class="bslot">${BUCKETS.map(([b, n]) => `<button class="${r.bucket === b ? 'on' : ''}" onclick="rowBucket('${r.id}','${b}')">${n.split(' ')[0]}</button>`).join('')}${r.routine ? '' : `<span style="margin-left:6px">${r.bucket === 'important' ? '언제까지' : '마감'}</span><input type="date" value="${r.due || ''}" onchange="rowDue('${r.id}',this.value)">`}<span style="flex:1"></span><button onclick="rowOpen=null;renderWeek()">닫기</button></div>`;
+  <div class="bslot">${BUCKETS.map(([b, n]) => `<button class="${r.bucket === b ? 'on' : ''}" onclick="rowBucket('${r.id}','${b}')">${n.split(' ')[0]}</button>`).join('')}${r.routine ? '' : `<span style="margin-left:6px">${r.bucket === 'important' ? '언제까지' : '마감'}</span>${dBtn(r.due, `openDate('${r.due || ''}',{allowNone:${r.bucket !== 'important'},title:'${r.bucket === 'important' ? '언제까지' : '마감'}'},v=>rowDue('${r.id}',v))`)}`}<span style="flex:1"></span><button onclick="rowOpen=null;renderWeek()">닫기</button></div>`;
 }
 function rowTitle(id, v) { const r = rock(id); v = (v || '').trim(); if (!r || !v || v === r.title) return; r.title = v; save(); render(); }
 function rowBucket(id, b) {
@@ -1705,7 +1745,7 @@ function addFormHtml(b) {
   return `<div class="addrock on" id="addrock">
     <div class="item"><div class="mg"><span class="chk" style="border-style:dashed"></span></div><div class="bd"><input class="wr arin" id="rockTitle" placeholder="${b === 'nice' ? '언젠가 하고 싶은 일' : b === 'important' ? '오래 걸리는 중요한 일' : '할 일'}" value="${esc(addPrefill)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')addRock('${b}')"></div></div>
     ${D.roles.length || b !== 'urgent' ? `<div class="arrow"><span class="arl">역할</span><div class="sel" id="roleSel">${D.roles.map(r=>`<button class="${addRole===r?'on':''}" onclick="addKeep();addRole=addRole==='${esc(r)}'?'':'${esc(r)}';renderWeek()">${esc(r)}</button>`).join('')}${b!=='urgent'?`<button class="${addRoutine?'on':''}" onclick="addKeep();addRoutine=!addRoutine;renderWeek()">루틴</button>`:''}</div></div>` : ''}
-    <div class="arrow">${addRoutine ? `<span class="arl">주</span><select id="rockN" class="arf"><option>2</option><option selected>3</option><option>4</option><option>5</option></select><span class="arl">회</span>` : `<span class="arl">${needDue ? '언제까지' : '마감'}</span><input type="date" id="rockDue" class="arf" value="${addKeepV.due !== undefined ? addKeepV.due : needDue ? due : ''}"><span class="arl">약속</span><input type="time" id="rockAt" class="arf" value="${addKeepV.at || ''}">`}</div>
+    <div class="arrow">${addRoutine ? `<span class="arl">주</span><select id="rockN" class="arf"><option>2</option><option selected>3</option><option>4</option><option>5</option></select><span class="arl">회</span>` : `<span class="arl">${needDue ? '언제까지' : '마감'}</span><input type="hidden" id="rockDue" value="${addKeepV.due !== undefined ? addKeepV.due : needDue ? due : ''}">${dBtn(addKeepV.due !== undefined ? addKeepV.due : needDue ? due : '', `addKeep();openDate(addKeepV.due,{allowNone:${!needDue},title:'${needDue ? '언제까지' : '마감'}'},v=>{addKeepV.due=v;renderWeek()})`, 'arf')}<span class="arl">약속</span><input type="time" id="rockAt" class="arf" value="${addKeepV.at || ''}">`}</div>
     ${needDue ? '<div class="arh">B는 언제까지만 할지 날짜가 필요해요</div>' : ''}
     <div class="arbtn"><button class="ghost" onclick="addOpen=false;addPrefill='';addKeepV={};renderWeek()">취소</button><button class="go" onclick="addRock('${b}')">적기</button></div></div>`;
 }
@@ -1742,8 +1782,9 @@ function memoEntries() {
 function memoDay(ds) { const td = today(), w = DOW[(new Date(ds + 'T00:00').getDay() + 6) % 7]; return (ds.slice(0, 4) === td.slice(0, 4) ? md(ds) : ds.slice(2).replace(/-/g, '.')) + ' ' + w + (ds === td ? ' · 오늘' : ''); }
 function renderMemo() {
   const list = memoEntries();
-  let h = `<div class="sp"></div><div class="lbl"><span>적어 두기</span><button onclick="addMemo()">적기</button></div>
-  <textarea class="memoin" id="memoIn" rows="2" placeholder="생각나는 것, 나중에 볼 것" oninput="memoDraft=this.value;memoGrow(this)">${esc(memoDraft)}</textarea><div class="line ruled" style="height:0"></div><div class="sp"></div>`;
+  let h = `<div class="sp"></div><div class="lbl"><span>적어 두기</span></div>
+  <textarea class="memoin" id="memoIn" rows="2" placeholder="생각나는 것, 나중에 볼 것" oninput="memoDraft=this.value;memoGrow(this);document.getElementById('memoGo').style.visibility=this.value.trim()?'visible':'hidden'">${esc(memoDraft)}</textarea><div class="line ruled" style="height:0"></div>
+  <div class="memogo"><button id="memoGo" style="visibility:${memoDraft.trim() ? 'visible' : 'hidden'}" onclick="addMemo()">적기</button></div>`;
   let cur = '';
   list.forEach(e => {
     if (e.ds !== cur) { cur = e.ds; h += `<div class="lbl"><span>${memoDay(e.ds)}</span></div>`; }
