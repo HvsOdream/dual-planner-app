@@ -45,6 +45,8 @@ async function ui(browser, label, ctxOpts) {
   const ev = (fn, arg) => pg.evaluate(fn, arg);
   const C = (name, ok, detail) => check(`[${label}] ${name}`, ok, detail);
   await ev(() => { document.querySelectorAll('.intro,.login').forEach(e => e.remove()); go('today'); });
+  // 실패했을 때 원인을 보려고, 화면을 다시 그린 최근 호출을 적어 둔다
+  await ev(() => { window.__r = []; for (const nm of ['render', 'renderReview', 'renderWeek']) { const r0 = window[nm]; window[nm] = function () { window.__r.push(Math.round(performance.now()) + ' ' + nm + ' ← ' + new Error().stack.split('\n').slice(2, 4).map(x => x.trim().replace(/\(?file:\S+index\.html/, '(')).join(' ← ')); if (window.__r.length > 8) window.__r.shift(); return r0.apply(this, arguments); }; } });
   // 글이 칸 밖으로 넘쳐 아래와 겹치는지(달력 날짜 상세에서 났던 사고)
   const overflow = () => ev(() => [...document.querySelectorAll('.page.on .line, .page.on .lbl, .page.on .mrow, .page.on .ev, .page.on .nrow, .page.on .item')].filter(e => e.offsetParent && getComputedStyle(e).overflowY === 'visible' && e.scrollHeight - e.clientHeight > 3).map(e => (e.className || e.tagName) + ': ' + e.textContent.trim().slice(0, 24)));
 
@@ -72,12 +74,21 @@ async function ui(browser, label, ctxOpts) {
 
   // 2-1. 알림을 누르고 들어오면 그 포스트잇이 맨 위에, 알림 문장 그대로
   await ev(() => { const ds = today(); dropNote('brief:' + ds); D.nlog = (D.nlog || []).filter(x => x.k !== 'brief:' + ds); D._sched = [{ k: 'brief:' + ds, label: '오늘 브리핑', text: '오늘 브리핑 · 점검용 알림 문장', tab: 'today', at: Date.now() - 60000 }]; go('week'); onNotifTap(2000); });
-  const top = await ev(() => { const s = document.querySelector('#today .sticky'); return s ? { who: s.querySelector('.who').textContent, flash: s.classList.contains('flash'), first: (s.querySelector('.bev') || { textContent: '' }).textContent } : null; });
-  C('아침 알림을 누르면 오늘 브리핑이 맨 위에 강조돼 붙는다(뗀 것도)', (await ev(() => tab === 'today' || spread())) && !!top && /오늘 브리핑/.test(top.who) && top.flash, top);
-  C('포스트잇 첫 줄이 알림으로 나간 문장이다', !!top && top.first === '점검용 알림 문장', top);
+  const pop = await ev(() => { const s = document.querySelector('#npop .sticky'); return s ? { who: s.querySelector('.who').textContent, first: (s.querySelector('.bev') || { textContent: '' }).textContent, dup: [...document.querySelectorAll('#today .sticky .who')].some(e => /오늘 브리핑/.test(e.textContent)) } : null; });
+  C('아침 알림을 누르면 오늘 브리핑이 팝업으로 뜬다(뗀 것도)', !!pop && /오늘 브리핑/.test(pop.who) && !pop.dup, pop);
+  C('팝업 첫 줄이 알림으로 나간 문장이다', !!pop && pop.first === '점검용 알림 문장', pop);
+  await pg.locator('#npop .npf button').click();
+  const top = await ev(() => { const s = document.querySelector('#today .sticky'); return s ? { who: s.querySelector('.who').textContent, flash: s.classList.contains('flash'), pop: !!document.getElementById('npop') } : null; });
+  C('붙여 두기: 팝업이 닫히고 오늘 맨 위에 강조돼 붙는다', !!top && /오늘 브리핑/.test(top.who) && top.flash && !top.pop, top);
+  await ev(() => { nTap = null; onNotifTap(2000); }); await pg.locator('#npop .sticky .act button', { hasText: '떼기' }).click();
+  C('팝업에서 떼기: 닫히고 떼어진다', await ev(() => !document.getElementById('npop') && !!noteOff('brief:' + today())));
+  await ev(() => { nTap = null; dayOf(today()).note = ''; D.rocks.push({ id: 'ev1', week: today(), bucket: 'urgent', role: '', title: '저녁 점검용', done: false, carry: 0, checks: {} }); dayOf(today()).picks.push('ev1'); onNotifTap(2001); });
+  C('저녁 알림: 오늘 닫기가 팝업으로 뜬다', await ev(() => !!document.querySelector('#npop #eveNote') && document.querySelectorAll('#eveNote').length === 1));
+  await pg.locator('#npop .bb button', { hasText: '내일로' }).first().click(); await pg.fill('#npop #eveNote', '팝업에서 쓴 일기'); await ev(() => document.querySelector('#npop #eveNote').blur()); await pg.waitForTimeout(150);
+  C('팝업 안에서 내일로·일기까지 하면 팝업이 닫힌다', await ev(() => !document.getElementById('npop') && dayOf(today()).note === '팝업에서 쓴 일기' && dayOf(addDays(today(), 1)).picks.includes('ev1')));
   await ev(() => { nTap = null; dropNote('brief:' + today()); });
   await ev(() => { isNative = () => true; const ds = today(); D.nLast = ''; dayOf(ds).note = ''; D.noteOff['eve:' + ds] = ds; D._sched = [{ k: 'eve:' + ds, label: '오늘 닫기', text: '오늘 닫기 · 놓친 알림', tab: 'today', at: Date.now() - 120000 }]; D.nlog = (D.nlog || []).filter(x => x.via !== 'n' && x.k !== 'eve:' + ds); go('memo'); notifCatchUp(); isNative = () => false; });
-  C('알림 뒤 10분 안에 열면 그 알림에서 온 것으로 본다', await ev(() => !!nTap && nTap.k === 'evening' && !!document.getElementById('eveNote')), await ev(() => ({ nTap, last: D.nLast, log: (D.nlog || []).filter(x => /^eve/.test(x.k)), sched: D._sched, tab, eve: !!document.getElementById('eveNote') })));
+  C('알림 뒤 10분 안에 열면 팝업 없이 맨 위에 붙는다', await ev(() => !!nTap && nTap.k === 'evening' && !!document.querySelector('#today #eveNote') && !document.getElementById('npop')), await ev(() => ({ nTap, last: D.nLast, log: (D.nlog || []).filter(x => /^eve/.test(x.k)), sched: D._sched, tab, eve: !!document.getElementById('eveNote') })));
   await ev(() => { nTap = null; });
   // 3. 하면 좋은 일
   C('하면 좋은 일 포스트잇이 붙는다(어제 A 1개)', await ev(() => [...document.querySelectorAll('#today .sticky')].some(e => /하면 좋은 일/.test(e.textContent) && /HvsO/.test(e.textContent))));
@@ -116,9 +127,9 @@ async function ui(browser, label, ctxOpts) {
   // 6. 달력: 내일 일정, 약속 적기(끝 시각)
   await ev(() => { go('review'); selDay(addDays(today(), 1)); });
   C('달력에서 내일 일정이 보인다', await ev(() => [...document.querySelectorAll('#review .ev')].some(e => /산학협력단/.test(e.textContent))));
-  await pg.locator('#review .lbl button', { hasText: '+ 약속' }).click();
+  await pg.locator('#review .lbl button', { hasText: '+ 약속' }).click(); await pg.waitForTimeout(120); // 앱이 50ms 뒤 시각 칸에 초점을 주므로, 그 뒤에 적는다
   await pg.fill('#evTc', '13:00'); await pg.fill('#evEc', '14:00'); await pg.fill('#evNc', '점검 약속'); await pg.locator('#review .evadd button').click();
-  C('달력에서 약속 적기(플래너에만, 끝 시각 포함)', await ev(() => { const r = D.rocks.find(x => x.title === '점검 약속'); return !!r && r.appt && r.at === addDays(today(), 1) + 'T13:00' && r.atEnd === '14:00'; }));
+  C('달력에서 약속 적기(플래너에만, 끝 시각 포함)', await ev(() => { const r = D.rocks.find(x => x.title === '점검 약속'); return !!r && r.appt && r.at === addDays(today(), 1) + 'T13:00' && r.atEnd === '14:00'; }), await ev(() => ({ r: D.rocks.find(x => x.title === '점검 약속') || null, evAdd: _evAdd, form: !!document.getElementById('evNc'), val: (document.getElementById('evNc') || {}).value, toast: (document.querySelector('.toast') || {}).textContent, sel: calSel, now: Math.round(performance.now()), last: window.__r })));
   C('적은 약속이 시작–끝으로 보인다', await ev(() => [...document.querySelectorAll('#review .ev .tm')].some(e => /13:00–14:00/.test(e.textContent))));
 
   // 7. 메뉴: 첫 화면 줄, 쪽마다 들어갔다 나오기
