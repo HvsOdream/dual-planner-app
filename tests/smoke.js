@@ -70,6 +70,15 @@ async function ui(browser, label, ctxOpts) {
   C('내일로: 내일 칸으로 옮겨 적는다', await ev(() => (D.days[addDays(today(), 1)].picks || []).includes('a1') && !D.days[today()].picks.includes('a1')));
   await ev(() => eveNote('점검용 한 줄')); C('남은 일 없고 일기를 적으면 오늘 닫기가 떨어진다', await ev(() => !document.getElementById('eveNote') && dayOf(today()).note === '점검용 한 줄'));
 
+  // 2-1. 알림을 누르고 들어오면 그 포스트잇이 맨 위에, 알림 문장 그대로
+  await ev(() => { const ds = today(); dropNote('brief:' + ds); D.nlog = (D.nlog || []).filter(x => x.k !== 'brief:' + ds); D._sched = [{ k: 'brief:' + ds, label: '오늘 브리핑', text: '오늘 브리핑 · 점검용 알림 문장', tab: 'today', at: Date.now() - 60000 }]; go('week'); onNotifTap(2000); });
+  const top = await ev(() => { const s = document.querySelector('#today .sticky'); return s ? { who: s.querySelector('.who').textContent, flash: s.classList.contains('flash'), first: (s.querySelector('.bev') || { textContent: '' }).textContent } : null; });
+  C('아침 알림을 누르면 오늘 브리핑이 맨 위에 강조돼 붙는다(뗀 것도)', (await ev(() => tab === 'today' || spread())) && !!top && /오늘 브리핑/.test(top.who) && top.flash, top);
+  C('포스트잇 첫 줄이 알림으로 나간 문장이다', !!top && top.first === '점검용 알림 문장', top);
+  await ev(() => { nTap = null; dropNote('brief:' + today()); });
+  await ev(() => { isNative = () => true; const ds = today(); D.nLast = ''; dayOf(ds).note = ''; D.noteOff['eve:' + ds] = ds; D._sched = [{ k: 'eve:' + ds, label: '오늘 닫기', text: '오늘 닫기 · 놓친 알림', tab: 'today', at: Date.now() - 120000 }]; D.nlog = (D.nlog || []).filter(x => x.via !== 'n' && x.k !== 'eve:' + ds); go('memo'); notifCatchUp(); isNative = () => false; });
+  C('알림 뒤 10분 안에 열면 그 알림에서 온 것으로 본다', await ev(() => !!nTap && nTap.k === 'evening' && !!document.getElementById('eveNote')), await ev(() => ({ nTap, last: D.nLast, log: (D.nlog || []).filter(x => /^eve/.test(x.k)), sched: D._sched, tab, eve: !!document.getElementById('eveNote') })));
+  await ev(() => { nTap = null; });
   // 3. 하면 좋은 일
   C('하면 좋은 일 포스트잇이 붙는다(어제 A 1개)', await ev(() => [...document.querySelectorAll('#today .sticky')].some(e => /하면 좋은 일/.test(e.textContent) && /HvsO/.test(e.textContent))));
   await ev(() => niceToday('d1')); C('오늘로: 오늘 칸에 올리고 포스트잇은 떨어진다', await ev(() => D.days[today()].picks.includes('d1') && ![...document.querySelectorAll('#today .sticky')].some(e => /하면 좋은 일/.test(e.textContent))));
