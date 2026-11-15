@@ -154,6 +154,10 @@ a { color: inherit; }
 .sticky .inp { width: 100%; border: none; background: transparent; font: inherit; font-size: 15px; font-weight: 600; color: inherit; outline: none; padding: 4px 0; border-bottom: 1px dashed rgba(74,42,51,.3); }
 .sticky .inp::placeholder { color: rgba(74,42,51,.35); font-weight: 500; }
 /* 뒤집힌 포스트잇: 뒷면만 보이고 글씨가 비친다. 누르면 귀퉁이가 들린다 */
+.sticky.ro button:not(.unlock):not([onclick^="dropNote"]) { display: none; }
+.sticky.ro .unlock, .sticky.fold .unlock { display: block; text-align: left; margin-top: 8px; font-size: 12px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; opacity: .8; color: inherit; }
+.sticky.fold { display: block; width: 100%; text-align: left; padding-bottom: 10px; cursor: pointer; color: var(--postit-ink); } .sticky.fold .who { display: flex; justify-content: space-between; } .sticky.fold .unlock { margin-top: 6px; }
+.sticky.fold.orange { background: #F1CDA6; }
 .sticky.blur { cursor: pointer; }
 .sticky.blur.orange { background: #F1CDA6; }
 .sticky.blur .tx { filter: blur(4.5px); opacity: .75; user-select: none; pointer-events: none; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
@@ -732,7 +736,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.27'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.28'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1081,7 +1085,12 @@ function dropNote(k) { D.noteOff = D.noteOff || {}; D.noteOff[k] = today(); if (
 // 비서 포스트잇 한 장: 구독(또는 체험) 중이면 또렷하게, 아니면 흐리게
 function aNote(o) {
   if (!/\bwide\b/.test(o.cls || '') && String(o.text || '').length > 44) o = Object.assign({}, o, { cls: ((o.cls || '') + ' wide').trim() });
-  if (!paid()) return backSticky(o.label, o.meta || '', o.text, o.cls);
+  if (!paid()) { // 구독 전: 하루 한 장만 펴 보인다(읽기만, 옮기기 버튼 없음). 나머지는 접힌 채 붙어 있다
+    const td = today(); if (!D.freeNote || D.freeNote.d !== td) { D.freeNote = { d: td, k: o.label }; _save0(); }
+    if (D.freeNote.k !== o.label) return `<button class="sticky fold ${/\borange\b/.test(o.cls || '') ? 'orange' : ''}" onclick="openSub()"><span class="who"><span>비서</span><span>${esc(o.label)}${o.meta ? ' · ' + esc(o.meta) : ''}</span></span><span class="unlock">접혀 있어요 · 구독하면 다 펴져요 ›</span></button>`;
+    { const tb = featTab(o.label); logN(o.key || 'a:' + o.label + ':' + (tb === 'review' ? weekKey(new Date()) : td), o.label, o.text, tb); }
+    return `<div class="sticky ro ${o.cls || ''}"><div class="who"><span>비서</span><span>${esc(o.label)}${o.meta ? ' · ' + esc(o.meta) : ''}</span></div><div class="tx">${o.html || esc(o.text)}</div>${o.acts ? `<div class="act">${o.acts}</div>` : ''}<button class="unlock" onclick="openSub()">오늘의 한 장 · 여기서 바로 옮기기는 구독하면 열려요</button></div>`;
+  }
   { const tb = featTab(o.label); logN(o.key || 'a:' + o.label + ':' + (tb === 'review' ? weekKey(new Date()) : today()), o.label, o.text, tb); }
   useMark();
   return `<div class="sticky ${o.cls || ''}"><div class="who"><span>비서</span><span>${esc(o.label)}${o.meta ? ' · ' + esc(o.meta) : ''}</span></div><div class="tx">${o.html || esc(o.text)}</div>${o.acts ? `<div class="act">${o.acts}</div>` : ''}</div>`;
@@ -1177,7 +1186,7 @@ function togglePaidPreview() { D.preview = D.preview === 'free' ? 'paid' : D.pre
 function subscribe(plan) { plan = plan || subPlan; toast(isNative() ? `${plan === 'year' ? '연' : '월'} 구독 결제는 다음 업데이트에서 열려요` : '구독은 앱에서 할 수 있어요'); }
 function openSub() { if (tab !== 'sub') subBack = tab === 'more' ? 'more' : tab; go('sub'); }
 let subBack = 'more';
-function subStatus() { const t = trialLeft(); return subActive() ? `구독 중 · ${D.sub.until.replace(/-/g, '.')}까지` : t > 0 ? `무료 ${useDays().length}일 받았어요 · ${trialShown()}일 남음` : '무료가 끝났어요 · 비서 포스트잇이 흐리게 보여요'; }
+function subStatus() { const t = trialLeft(); return subActive() ? `구독 중 · ${D.sub.until.replace(/-/g, '.')}까지` : t > 0 ? `무료 ${useDays().length}일 받았어요 · ${trialShown()}일 남음` : '무료가 끝났어요 · 비서 포스트잇은 하루 한 장만 펴 보여요'; }
 // 구독 페이지: 메뉴 안의 노트 한 장
 function renderSubPage() {
   const el = document.getElementById('subP'); if (!el) return;
@@ -1190,9 +1199,11 @@ function renderSubPage() {
     ${plan('month', '월 구독', won(SUB_MONTH) + ' / 월', '언제든 해지')}
     <button class="cta" style="margin-top:8px" onclick="subscribe()">${subPlan === 'year' ? '연 구독 시작하기' : '월 구독 시작하기'}</button>
     <div class="subst" style="font-size:12px">무료 ${TRIAL_DAYS}일은 비서 포스트잇을 받은 날만 세요. 구독은 앱스토어에서 언제든 해지할 수 있어요</div>`}
-    <div class="lbl" style="margin-top:8px">구독하면 또렷해지는 것</div>
+    <div class="lbl" style="margin-top:8px">구독하면 달라지는 것</div>
+    <div class="subst" style="font-size:13px;line-height:1.8">비서 포스트잇이 전부 펴져요(구독 전에는 하루 한 장) · 포스트잇에서 바로 오늘로·내일로 옮기고 시간을 잡아요 · 알림을 비서가 그날 내용으로 써요 · 계획을 여러 개 둬요(구독 전에는 한 개)</div>
+    <div class="lbl" style="margin-top:8px">비서 포스트잇</div>
     <div class="subst" style="font-size:13px;line-height:1.8">${FEATS.map(f => f[1]).join(' · ')}</div>
-    <div class="subst" style="font-size:12px;color:var(--muted)">할 일·오늘·기록·약속과 알림은 구독과 상관없이 그대로 써요</div>
+    <div class="subst" style="font-size:12px;color:var(--muted)">할 일·오늘·달력·약속과 알림, 내 비서(Claude 등) 연결은 구독과 상관없이 그대로 써요</div>
     <div class="acts" style="padding:12px 0;gap:20px"><button class="cta ghost" style="width:auto;margin:0" onclick="toast('구매 복원은 결제 연결 뒤에 열려요')">구매 복원</button><button class="cta ghost" style="width:auto;margin:0" onclick="toast('구독 관리는 아이폰 설정 › Apple ID › 구독에서 해요')">구독 관리</button></div>
     <div class="legal"><a href="legal/terms.html" target="_blank">이용약관</a><a href="legal/privacy.html" target="_blank">개인정보처리방침</a></div>`;
 }
@@ -1201,7 +1212,7 @@ function renderSubBox() {
   const t = trialLeft(), on = subActive();
   el.innerHTML = `<div class="lbl" style="padding-left:0">비서 포스트잇</div>` +
     `<div class="feats">${FEATS.map(([id, n, w, d]) => { const f = featOn(id); return `<button class="feat ${f ? 'on' : ''}" onclick="setFeat('${id}', ${!f})" aria-pressed="${f}"><span class="nm"><b>${n}</b><i>${w} · ${d}</i></span><span class="st">${f ? '켬' : '끔'}</span></button>`; }).join('')}</div>` +
-    (paid() ? '' : `<div class="subst" style="font-size:12px;margin-top:6px">구독하면 켜 둔 포스트잇이 또렷해져요</div>`) + '<div style="height:8px"></div>';
+    (paid() ? '' : `<div class="subst" style="font-size:12px;margin-top:6px">구독 전에는 켜 둔 포스트잇 중 하루 한 장만 펴 보여요</div>`) + '<div style="height:8px"></div>';
 }
 // 뒤집힌 포스트잇: 내용은 숫자만 비치고, 누르면 귀퉁이가 들린다
 // 구독 전: 비서 포스트잇은 붙어 있되 글씨가 흐리다. 누르면 구독 안내
@@ -1754,7 +1765,7 @@ function plansHtml() {
   if (closed.length) h += `<div class="lbl"><span></span><button onclick="showClosed=!showClosed;renderWeek()">닫은 계획 ${closed.length} ${showClosed ? '접기' : '보기'}</button></div>` + (showClosed ? closed.map(row).join('') : '');
   return h ? h + `<div class="sp"></div>` : '';
 }
-function openPlan(v) { planView = v; plRoutine = false; if (v === 'new') planDraft = { name: '', goal: '', due: '', how: '' }; go('plan'); if (v === 'new') setTimeout(() => { const e = document.getElementById('plName'); if (e) e.focus(); }, 60); }
+function openPlan(v) { if (v === 'new' && !paid() && openPlans().length >= 1) { toast('구독 전에는 계획을 한 개까지 둘 수 있어요'); openSub(); return; } planView = v; plRoutine = false; if (v === 'new') planDraft = { name: '', goal: '', due: '', how: '' }; go('plan'); if (v === 'new') setTimeout(() => { const e = document.getElementById('plName'); if (e) e.focus(); }, 60); }
 function planKeep() { const g = id => (document.getElementById(id) || {}).value; if (document.getElementById('plName')) { planDraft.name = g('plName') || ''; planDraft.goal = g('plGoal') || ''; planDraft.how = g('plHow') || ''; } }
 function editPlan(id) { const p = planOf(id); if (!p) return; planDraft = { name: p.name, goal: p.goal || '', due: p.due || '', how: p.how || '' }; planView = 'edit:' + id; render(); }
 function savePlan() {
