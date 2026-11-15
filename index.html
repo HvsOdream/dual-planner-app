@@ -217,7 +217,7 @@ body.kb .tabbar { display: none; }
 /* 날짜 고르기 */
 .dpick { position: fixed; inset: 0; z-index: 130; background: rgba(31,24,16,.38); display: flex; align-items: flex-end; justify-content: center; }
 .dpbox { width: 100%; max-width: 460px; background: var(--paper); border-radius: 18px 18px 0 0; padding: 16px 18px calc(14px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 30px rgba(0,0,0,.18); }
-.dph { display: flex; align-items: baseline; justify-content: space-between; padding: 0 2px 10px; } .dph b { font-size: 16px; } .dph span { font-size: 13px; color: var(--ink-2); }
+.dph { display: flex; align-items: baseline; gap: 10px; padding: 0 2px 10px; } .dph i { flex: 1; } .dph b { font-size: 16px; } .dph span { font-size: 13px; color: var(--ink-2); }
 .dpq { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; padding-bottom: 12px; }
 .dpq button { height: 48px; border: 1px solid var(--rule); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--ink); } .dpq button i { font-style: normal; font-weight: 400; font-size: 11px; color: var(--ink-2); }
 .dpm { display: flex; align-items: center; justify-content: space-between; padding: 2px 0 6px; } .dpm b { font-size: 14px; } .dpm button { width: 44px; height: 40px; font-size: 20px; color: var(--ink); }
@@ -327,6 +327,9 @@ body:not(.spread) .cover .ibtn[aria-label="더보기"] { display: none; }
 html.native body:not(.spread) .cover .streak { display: none; }
 html.native body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 html.native .tabbar { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+/* 화면 가장자리에 폰이 띄워 둔 것(시계·손잡이)이 있으면 그 자리는 비운다: 아래에서 올라오는 판과 팝업도 본문과 같은 폭 안에 */
+html.native .dpick, html.native .more, html.native .login, html.native .intro { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+html.native .npop { padding-left: calc(18px + env(safe-area-inset-left)); padding-right: calc(18px + env(safe-area-inset-right)); }
 #saProbe { position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 .more h3 { font-size: 11px; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; }
 .more .mi { display: flex; align-items: center; justify-content: space-between; height: 48px; border-bottom: 1px solid var(--rule); font-size: 15px; width: 100%; text-align: left; }
@@ -736,7 +739,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.28'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.29'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1821,7 +1824,7 @@ function renderDate() {
   const quick = [['오늘', td], ['내일', addDays(td, 1)], ['이번 주 금', addDays(td, (5 - wd + 7) % 7)], ['다음 주 월', addDays(td, ((8 - wd) % 7) || 7)]].filter((q, i, a) => a.findIndex(z => z[1] === q[1]) === i);
   let cells = DOW.map(w => `<span class="cw">${w}</span>`).join('') + '<span></span>'.repeat(lead);
   for (let d = 1; d <= n; d++) { const ds = `${y}-${p2(m + 1)}-${p2(d)}`; cells += `<button class="cd ${ds === td ? 'td' : ''} ${ds === dp.val ? 'sel' : ''} ${ds < td ? 'out' : ''}" aria-label="${m + 1}월 ${d}일" onclick="pickDate('${ds}')"><span>${d}</span></button>`; }
-  el.innerHTML = `<div class="dpbox" role="dialog" aria-label="${dp.title} 고르기"><div class="dph"><b>${dp.title}</b><span>${dp.val ? '지금 ' + dLabel(dp.val) : '아직 정하지 않음'}</span></div>
+  el.innerHTML = `<div class="dpbox" role="dialog" aria-label="${dp.title} 고르기"><div class="dph"><b>${dp.title}</b><span>${dp.val ? '지금 ' + dLabel(dp.val) : '아직 정하지 않음'}</span><i></i></div>
     <div class="dpq" style="grid-template-columns:repeat(${quick.length},minmax(0,1fr))">${quick.map(([l, v]) => `<button onclick="pickDate('${v}')">${l}<i>${md(v)}</i></button>`).join('')}</div>
     <div class="dpm"><button aria-label="이전 달" onclick="dpMonth(-1)">‹</button><b>${y}년 ${m + 1}월</b><button aria-label="다음 달" onclick="dpMonth(1)">›</button></div>
     <div class="cal dpc">${cells}</div>
