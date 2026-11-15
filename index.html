@@ -719,7 +719,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.25'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.26'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -852,7 +852,7 @@ function renderToday() {
   <div class="sp"></div>
   <div class="lbl"><span>오늘 할 것 <span style="font-weight:400;color:var(--muted)">${picks.length ? doneN+'/'+picks.length : ''}</span></span><button onclick="const e=document.getElementById('quickIn');if(e){e.scrollIntoView({block:'center'});e.focus()}">+ 추가</button></div>`;
   picks.sort((x, y) => (atOn(x, ds) || '99') < (atOn(y, ds) || '99') ? -1 : 1).forEach(r => { const tm = atOn(r, ds); h += itemHtml(r, ds, { meta: `<button onclick="${tm ? `clearAt('${r.id}')` : `unpick('${r.id}')`}">${tm ? '시각 빼기' : '빼기'}</button>`, big: true }); });
-  h += `<div class="item"><div class="mg"><span class="chk" style="border-style:dashed"></span></div><div class="bd"><input class="wr" id="quickIn" style="padding-left:12px;font-size:17px" placeholder="급한 일 바로 적기" aria-label="오늘 할 것" enterkeyhint="done" onkeydown="if(event.key==='Enter')addToday()" onblur="if(this.value.trim())addToday(true)"></div></div>`;
+  h += `<div class="item"><div class="mg"><span class="chk" style="border-style:dashed"></span></div><div class="bd"><input class="wr" id="quickIn" style="padding-left:12px;font-size:17px" placeholder="급한 일 바로 적기" aria-label="오늘 할 것" enterkeyhint="done" onkeydown="if(event.key==='Enter'){if(this.value.trim())addToday();else this.blur()}" onblur="if(this.value.trim())addToday(true)"></div></div>`;
   if (sugg.length) {
     h += `<div class="sp"></div><div class="lbl"><span>가져올 것</span><button onclick="go('week')">할 일 ›</button></div>`;
     sugg.slice(0,5).forEach(r => { h += `<div class="row ruled" style="padding-left:52px;gap:8px;font-size:14px;color:var(--ink-2)"><span class="tag" style="font-size:10px;height:18px;line-height:16px">${r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</span><button style="font-size:12px;color:var(--muted);text-decoration:underline" onclick="pick('${r.id}')">오늘로</button></div>`; });
@@ -1745,6 +1745,19 @@ document.addEventListener('focusin', e => {
   const box = t.closest('#addrock, .evadd') || t; setTimeout(() => { try { box.scrollIntoView({ block: box === t ? 'center' : 'end', behavior: 'smooth' }); } catch (e) {} }, 280);
 });
 document.addEventListener('focusout', () => setTimeout(() => { const a = document.activeElement; if (!(a && a.matches && a.matches('textarea, input, select'))) document.body.classList.remove('kb'); }, 120));
+// 글자판 내리기: 글 칸 바깥의 빈 곳(누를 것이 아닌 자리)을 톡 누르면 글자판이 내려간다. 끌어서 넘기는 건 그대로 둔다
+(function () {
+  let sx = 0, sy = 0, ok = false;
+  const typing = () => { const a = document.activeElement; return a && a.matches && a.matches('textarea, input, select') ? a : null; };
+  document.addEventListener('touchstart', e => { ok = !!typing() && e.touches.length === 1; if (ok) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; } }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!ok) return; ok = false;
+    const a = typing(), t = e.changedTouches[0]; if (!a || !t) return;
+    if (Math.abs(t.clientX - sx) > 10 || Math.abs(t.clientY - sy) > 10) return;
+    if (e.target && e.target.closest && e.target.closest('input, textarea, select, button, a, label, [onclick], [role=button]')) return;
+    a.blur();
+  }, { passive: true });
+})();
 // 할 일 줄을 누르면 그 아래에서 제목·칸·마감을 고친다
 let rowOpen = null;
 function rowEdit(r) {
