@@ -114,6 +114,28 @@ async function ui(browser, label, ctxOpts) {
   await pg.locator('#addrock .dbtn').click(); await pg.locator('#dpick .dpf .go').click(); C('새 할 일: 마감을 눌렀다 취소해도 날짜가 안 잡힌다', await ev(() => document.getElementById('rockDue').value === ''));
   await ev(() => { addOpen = false; renderWeek(); document.body.classList.remove('kb'); });
 
+  // 4-1. 계획: 배너 → 적기 → 한 장 → 딸린 할 일·루틴 → 할 일 탭에 계획 이름
+  await ev(() => go('week'));
+  C('할 일 맨 위에 계획 배너가 있다', await ev(() => { const b = document.querySelector('#week .pbanner'); return !!b && /새로운 계획이 있으신가요/.test(b.textContent); }));
+  await pg.locator('#week .pbanner').click(); await pg.waitForTimeout(150);
+  await pg.fill('#plName', '영어 회화'); await pg.fill('#plGoal', '국제 학회에서 질의응답을 영어로 받아낸다'); await pg.fill('#plHow', '평일 아침 리얼클래스 20분\n주 2회 영어 채팅');
+  await pg.locator('#plan .dbtn').click(); await pg.locator('#dpick .dpq button', { hasText: '내일' }).click();
+  C('날짜를 골라도 적던 글이 남는다', await ev(() => document.getElementById('plName').value === '영어 회화' && /리얼클래스/.test(document.getElementById('plHow').value)));
+  await pg.locator('#plan .pbtns .go').click();
+  const pid = await ev(() => (D.plans.find(p => p.name === '영어 회화') || {}).id || '');
+  C('계획을 적으면 계획 한 장이 열린다', !!pid && await ev(id => planView === id && /국제 학회/.test(document.querySelector('#plan .plt').textContent) && [...document.querySelectorAll('#cover .t1')].some(e => e.textContent.includes('영어 회화')), pid));
+  await pg.fill('#plAdd', '모의 질의응답 한 번'); await pg.locator('#plan .pladd .go').click();
+  await pg.locator('#plan .pladd button', { hasText: '루틴' }).click(); await pg.fill('#plAdd', '리얼클래스 20분'); await pg.selectOption('#plN', '5'); await pg.locator('#plan .pladd .go').click();
+  C('계획 안에서 할 일과 루틴을 적는다', await ev(id => { const a = D.rocks.find(r => r.title === '모의 질의응답 한 번'), b = D.rocks.find(r => r.title === '리얼클래스 20분'); return !!a && a.plan === id && a.bucket === 'important' && !!a.due && !!b && b.plan === id && b.routine === 5; }, pid));
+  { const o = await overflow(); C('계획 한 장에 넘치는 줄이 없다', !o.length, o.slice(0, 4)); }
+  await ev(() => go('week'));
+  C('할 일 탭에 계획 줄과 진행이 보인다', await ev(() => { const r = document.querySelector('#week .prow'); return !!r && /영어 회화/.test(r.textContent) && /이번 주 루틴 0\/5/.test(r.textContent) && /할 일 1/.test(r.textContent); }));
+  C('할 일 아래에 계획 이름이 붙는다', await ev(() => [...document.querySelectorAll('#week .item')].some(e => /모의 질의응답/.test(e.textContent) && /영어 회화/.test(e.querySelector('.m').textContent))));
+  await ev(id => rowPlan('a1', id), pid); C('있던 할 일을 계획에 묶으면 계획과 역할이 같이 나온다', await ev(() => { const e = [...document.querySelectorAll('#week .item')].find(x => /고친 제목/.test(x.textContent)); return !!e && /영어 회화 · 연구자/.test(e.querySelector('.m').textContent); }));
+  await ev(id => { rowPlan('a1', id); closePlan(id); }, pid);
+  C('닫은 계획은 목록에서 빠지고 따로 모인다', await ev(() => !document.querySelector('#week .prow') && [...document.querySelectorAll('#week .lbl button')].some(b => /닫은 계획 1/.test(b.textContent))));
+  await ev(id => closePlan(id), pid);
+  C('병합: 서버 계획과 내 계획이 다 남는다', await ev(() => { const m = mergeState(pickState(), { plans: [{ id: 'p_srv', name: '서버', at: '2026-01-01T00:00:00Z', u: '2026-01-01T00:00:00Z' }] }).plans; return m.length === 2 && m.some(x => x.id === 'p_srv'); }));
   // 5. 메모: 적기, 고치기, 할 일로, 지우기, 비서 메모는 메모로 누른 것만
   await ev(() => go('memo'));
   const n0 = await ev(() => memoEntries().length);
@@ -180,6 +202,14 @@ async function server() {
   await call('items', 'POST', { items: [{ id: ap.id, op: 'update', at: '' }] }); S = await call('state', 'GET');
   C('약속 시각을 빼면 끝 시각도 빠진다', !S.rocks.find(r => r.id === ap.id).at && !S.rocks.find(r => r.id === ap.id).atEnd);
   const mcp = async (method, params) => (await (await w.fetch(new Request(`https://x/u/${T}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) }), env)).text());
+  await call('items', 'POST', { src: 'mcp', items: [{ text: '영어 회화', kind: 'plan', goal: '질의응답을 영어로', how: '리얼클래스', due: '2026-12-31' }] });
+  S = await call('state', 'GET'); const sp = (S.plans || [])[0];
+  C('비서가 계획을 적는다(kind=plan)', !!sp && sp.name === '영어 회화' && sp.goal === '질의응답을 영어로' && sp.due === '2026-12-31', S.plans);
+  await call('items', 'POST', { items: [{ text: '리얼클래스 20분', kind: 'item', bucket: 'B', routine: 5, plan: '영어 회화' }, { text: '모의 질의응답', kind: 'item', bucket: 'B', due: '2026-12-06', plan: sp.id }, { id: sp.id, op: 'update', goal: '고친 목표' }] });
+  S = await call('state', 'GET');
+  C('비서가 루틴·할 일을 계획에 묶는다(이름·id)', S.rocks.filter(r => r.plan === sp.id).length === 2 && S.plans[0].goal === '고친 목표', S.rocks.map(r => [r.title, r.plan]));
+  const rd0 = await mcp('tools/call', { name: 'planner_read', arguments: {} });
+  C('planner_read에 계획과 묶인 일이 나온다', /## 계획/.test(rd0) && /고친 목표/.test(rd0) && /\[계획: 영어 회화\] 모의 질의응답/.test(rd0), rd0.slice(0, 300));
   const tl = await mcp('tools/list', {});
   C('비서 도구 설명에 memo와 end가 있다', /memo/.test(tl) && /end/.test(tl));
   const rd = await mcp('tools/call', { name: 'planner_read', arguments: {} });

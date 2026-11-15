@@ -12,7 +12,7 @@ const dstr = d => d.toISOString().slice(0, 10);
 const today = () => dstr(nowKST());
 function weekKey(d) { const x = new Date(d); x.setUTCDate(x.getUTCDate() - (x.getUTCDay() + 6) % 7); return dstr(x); }
 const uid = p => (p || 'r_') + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-const empty = () => ({ v: 1, roles: [], rocks: [], days: {}, reviews: {}, seen: {}, vols: [], memos: [], agent: null, _modified: '' });
+const empty = () => ({ v: 1, roles: [], rocks: [], days: {}, reviews: {}, seen: {}, vols: [], memos: [], plans: [], agent: null, _modified: '' });
 
 // ── 병합: rocks는 id별 u(수정시각) 최신, days/reviews는 키별 u 최신, roles는 최신 쪽, seen은 합집합 ──
 function merge(a, b) {
@@ -24,6 +24,7 @@ function merge(a, b) {
   for (const k of new Set([...Object.keys(a.reviews), ...Object.keys(b.reviews)])) { const x = a.reviews[k], y = b.reviews[k]; out.reviews[k] = !x ? y : !y ? x : ((y.u || '') >= (x.u || '') ? y : x); }
   const vm = new Map(); [...(a.vols || []), ...(b.vols || [])].forEach(v => { if (!v || !v.id) return; const p = vm.get(v.id); if (!p || (v.u || '') >= (p.u || '')) vm.set(v.id, v); }); out.vols = [...vm.values()];
   const mm = new Map(); [...(a.memos || []), ...(b.memos || [])].forEach(v => { if (!v || !v.id) return; const p = mm.get(v.id); if (!p || (v.u || '') >= (p.u || '')) mm.set(v.id, v); }); out.memos = [...mm.values()];
+  const pm = new Map(); [...(a.plans || []), ...(b.plans || [])].forEach(v => { if (!v || !v.id) return; const q = pm.get(v.id); if (!q || (v.u || '') >= (q.u || '')) pm.set(v.id, v); }); out.plans = [...pm.values()];
   out.roles = ((b._modified || '') >= (a._modified || '') ? b : a).roles || [];
   out.seen = Object.assign({}, a.seen, b.seen);
   out.settings = (((b.settings || {}).u || '') >= ((a.settings || {}).u || '') ? b.settings : a.settings) || {};
@@ -33,13 +34,18 @@ function merge(a, b) {
 }
 
 // ── 비서가 쓰는 항목 추가/수정 ──
+// 계획을 id나 이름으로 찾는다
+function planRef(S, v) { v = String(v || '').trim(); if (!v) return ''; const ps = (S.plans || []).filter(p => p && !p._deleted); const p = ps.find(x => x.id === v) || ps.find(x => String(x.name).trim().toLowerCase() === v.toLowerCase()); return p ? p.id : ''; }
 function applyItems(S, items, src) {
   const now = new Date().toISOString(), td = today(), wk = weekKey(nowKST());
   const added = [], updated = [];
   (items || []).forEach(it => {
     if (!it || typeof it !== 'object') return;
     if (it.id && it.op === 'update') {
+      const pl = (S.plans || []).find(x => x.id === it.id);
+      if (pl) { if ('title' in it && String(it.title || '').trim()) pl.name = String(it.title).trim(); ['goal', 'how', 'due'].forEach(k => { if (k in it) pl[k] = String(it[k] || ''); }); if ('done' in it) { if (it.done) pl.closedAt = pl.closedAt || td; else delete pl.closedAt; } pl.u = now; updated.push(pl.id); return; }
       const r = S.rocks.find(x => x.id === it.id); if (!r) return;
+      if ('plan' in it) { const q = planRef(S, it.plan); if (q) r.plan = q; else delete r.plan; }
       ['title', 'role', 'due', 'routine', 'done', 'tomb'].forEach(k => { if (k in it) r[k] = it[k]; });
       if ('at' in it) { const a = String(it.at || '').replace(' ', 'T').slice(0, 16); if (/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(a)) { r.at = a; r.due = r.due || a.slice(0, 10); } else { delete r.at; delete r.atEnd; } }
       if ('end' in it) { const e = String(it.end || '').slice(-5); if (/^\d\d:\d\d$/.test(e) && r.at && e > r.at.slice(11, 16)) r.atEnd = e; else delete r.atEnd; }
@@ -54,6 +60,8 @@ function applyItems(S, items, src) {
       const day = S.days[td] || (S.days[td] = { intent: '', note: '', picks: [], inbox: [] });
       day.inbox = day.inbox || []; const id = it.id || uid('i_');
       day.inbox.unshift({ id, text, kind, src, at: nowKST().toISOString().slice(11, 16), role: it.role || '' }); day.u = now; added.push(id);
+    } else if (kind === 'plan') { // 계획 한 장: text=이름, goal, how, due
+      S.plans = S.plans || []; const id = it.id || uid('p_'); S.plans.push({ id, name: text, goal: String(it.goal || ''), how: String(it.how || ''), due: String(it.due || ''), at: now, u: now, by: src }); added.push(id);
     } else if (kind === 'memo') { // 메모장: 날짜·할 일과 상관없는 메모
       S.memos = S.memos || []; const id = it.id || uid('m_'); S.memos.push({ id, text, at: now, u: now, by: src }); added.push(id);
     } else if (kind === 'yearreview') {
@@ -71,6 +79,7 @@ function applyItems(S, items, src) {
       const id = it.id || uid();
       const r = { id, week: wk, bucket, role: it.role || '', title: text, done: false, carry: 0, checks: {}, src, u: now };
       if (it.routine) r.routine = Number(it.routine); if (it.due) r.due = it.due;
+      { const q = planRef(S, it.plan); if (q) r.plan = q; }
       const at = String(it.at || '').replace(' ', 'T').slice(0, 16); if (/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(at)) { r.at = at; r.due = r.due || at.slice(0, 10); const e = String(it.end || '').slice(-5); if (/^\d\d:\d\d$/.test(e) && e > at.slice(11, 16)) r.atEnd = e; }
       S.rocks.push(r); added.push(id);
     }
@@ -87,7 +96,9 @@ function summary(S) {
   const names = { urgent: 'A 급함·중요', important: 'B 중요(장기)', light: 'C 급함', nice: 'D 나중에' };
   const cv = (S.vols || []).filter(x => x && !x.closedAt && !x._deleted).sort((x, y) => x.start < y.start ? -1 : 1).pop();
   const lines = [`# DUAL Planner · ${td} · W${wk}`, `역할: ${(S.roles || []).join(' / ')}`, cv ? `지금 속지: ${cv.start}부터 12개월 · 목표: ${(cv.goals || []).join(' / ') || '-'}` : '', ''];
-  ['urgent', 'important', 'light', 'nice'].forEach(b => { lines.push(`## ${names[b]}`); openI.filter(r => (r.bucket || 'nice') === b).forEach(r => lines.push(`- id=${r.id} (${r.role}) ${r.title}${r.at ? ' — 약속 ' + r.at.replace('T', ' ') + (r.atEnd ? '~' + r.atEnd : '') : ''}${r.due ? ' — ' + r.due + '까지만' : ''}${r.routine ? ' — 주 ' + r.routine + '회, 이번 주 ' + Object.keys(r.checks || {}).filter(k => ds.includes(k)).length : ''}`)); lines.push(''); });
+  const plans = (S.plans || []).filter(p => p && !p._deleted && !p.closedAt), pname = id => { const p = id && plans.find(x => x.id === id); return p ? p.name : ''; };
+  if (plans.length) { lines.push('## 계획 (사용자가 세운 목표와 방법. 여기서 나온 루틴·할 일은 plan=계획 id로 묶는다)'); plans.forEach(p => { const n = openI.filter(r => r.plan === p.id); lines.push(`- id=${p.id} ${p.name}${p.due ? ' — ' + p.due + '까지' : ''} · 목표: ${p.goal || '-'} · 어떻게: ${String(p.how || '-').replace(/\n+/g, ' / ').slice(0, 300)} · 딸린 루틴 ${n.filter(r => r.routine).length}, 할 일 ${n.filter(r => !r.routine).length}`); }); lines.push(''); }
+  ['urgent', 'important', 'light', 'nice'].forEach(b => { lines.push(`## ${names[b]}`); openI.filter(r => (r.bucket || 'nice') === b).forEach(r => lines.push(`- id=${r.id} (${r.role}) ${pname(r.plan) ? '[계획: ' + pname(r.plan) + '] ' : ''}${r.title}${r.at ? ' — 약속 ' + r.at.replace('T', ' ') + (r.atEnd ? '~' + r.atEnd : '') : ''}${r.due ? ' — ' + r.due + '까지만' : ''}${r.routine ? ' — 주 ' + r.routine + '회, 이번 주 ' + Object.keys(r.checks || {}).filter(k => ds.includes(k)).length : ''}`)); lines.push(''); });
   const day = S.days[td]; if (day) { lines.push('## 오늘', `의도: ${day.intent || '-'}`, `오늘 고른 것: ${(day.picks || []).map(id => (live.find(r => r.id === id) || {}).title).filter(Boolean).join(', ') || '-'}`, `저녁 한 줄: ${day.note || '-'}`, ''); const inbox = (day.inbox || []).filter(x => !x.moved); if (inbox.length) { lines.push('## 인박스(아직 안 옮긴 것)'); inbox.forEach(x => lines.push(`- ${x.kind}: ${x.text}`)); lines.push(''); } }
   const memos = (S.memos || []).filter(m => m && !m._deleted).sort((x, y) => (x.at || '') < (y.at || '') ? 1 : -1);
   if (memos.length) { lines.push(`## 메모장 (${memos.length}장, 최근 10장)`); memos.slice(0, 10).forEach(m => lines.push(`- ${dstr(new Date(new Date(m.at).getTime() + 9 * 3600000)).slice(5)} ${String(m.text).replace(/\n+/g, ' / ').slice(0, 200)}`)); lines.push(''); }
@@ -103,15 +114,15 @@ function summary(S) {
 // ── MCP ──
 const INSTRUCTIONS = `DUAL Planner — 사용자의 노트형 플래너. 앱은 사용자의 정리 양식이고, 정리는 비서(너)가 한다.
 1) 플래너 관련 대화나 일을 시작하면 planner_read로 먼저 읽는다(역할, A/B/C/D 할 일, 오늘, 이번 주 일별 기록, 방치 항목).
-2) 대화 중 생긴 할 일·결정은 대화 끝에 한 번에 planner_add로 적는다. 분류해서 적어라: kind=item + bucket A(급함·중요) | B(중요한 장기 일, due 필수) | C(급함, 가벼운 일) | D(나중에). role은 사용자 역할 중 하나, 루틴은 routine=주당 횟수. 시각이 정해진 업무 약속(통화·미팅 등)은 at=YYYY-MM-DDTHH:MM을 넣는다(끝 시각을 알면 end=HH:MM도) — 앱이 그 시각 전에 알림을 보낸다. 그날의 결정·메모는 kind=note(오늘 포스트잇). 날짜와 상관없이 두고 볼 생각·자료·아이디어는 kind=memo(메모장).
+2) 대화 중 생긴 할 일·결정은 대화 끝에 한 번에 planner_add로 적는다. 분류해서 적어라: kind=item + bucket A(급함·중요) | B(중요한 장기 일, due 필수) | C(급함, 가벼운 일) | D(나중에). role은 사용자 역할 중 하나, 루틴은 routine=주당 횟수. 시각이 정해진 업무 약속(통화·미팅 등)은 at=YYYY-MM-DDTHH:MM을 넣는다(끝 시각을 알면 end=HH:MM도) — 앱이 그 시각 전에 알림을 보낸다. 그날의 결정·메모는 kind=note(오늘 포스트잇). 날짜와 상관없이 두고 볼 생각·자료·아이디어는 kind=memo(메모장). 사용자가 새 목표나 장기 계획을 말하면 kind=plan(text=이름, goal, how, due)으로 계획 한 장을 적고, 거기서 나온 루틴·할 일은 plan=그 계획 id로 묶어 적는다. 계획 자체는 planner_update에 계획 id로 title·goal·how·due를 고친다.
 3) 끝난 일은 planner_update로 done=true. 2주 넘게 방치된 것은 분할·묘비를 제안만 하고, 사용자 허락 없이 tomb 하지 않는다.
 4) "속지 1년 리뷰" 요청: 속지 기간의 기록을 읽고(필요하면 사용자에게 달력 요약을 물어) 5~8문장 1년 리뷰를 kind=yearreview로 적는다.
 5) "주간 리뷰" 요청이나 일요일: planner_read의 일별 기록을 근거로 3~5문장 리뷰를 kind=review로 적고, 다음 주 B 후보를 kind=candidate(due 필수)로 최대 4개 적는다. 채택은 사용자가 앱에서 한다.
 6) 적은 뒤엔 무엇을 어느 칸에 적었는지 한 줄로 알려 준다.`;
 const TOOLS = [
-  { name: 'planner_read', description: '(플래너 일을 시작할 때 먼저 호출) 플래너 현재 상태 요약(역할, A/B/C/D 할 일 목록과 id, 오늘 의도·고른 것·한 줄, 인박스, 메모장, 이번 주 완료, 2주 방치 항목). 정리·제안 전에 먼저 읽는다.', inputSchema: { type: 'object', properties: {} } },
-  { name: 'planner_add', description: '비서가 플래너에 적는다. items 배열. 각 항목: text(필수), kind = item(할 일 목록에 바로 적음, bucket 필수: A|B|C|D) | todo(오늘 인박스 할 일) | note(오늘 인박스 메모) | memo(메모장에 적어 둠, 날짜 무관) | candidate(일요일 리뷰용 다음 주 B 후보) | review(이번 주 리뷰 3~5문장, text에) | yearreview(지금 속지 1년 리뷰, text에). role(역할명), due(YYYY-MM-DD, B는 필수), routine(주 N회 숫자), at(YYYY-MM-DDTHH:MM 약속 시각), end(HH:MM 약속 끝 시각, 선택, 있으면 앱이 알림).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, kind: { type: 'string', enum: ['item', 'todo', 'note', 'memo', 'candidate', 'review', 'yearreview'] }, bucket: { type: 'string', description: 'A|B|C|D' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' }, at: { type: 'string' }, end: { type: 'string' } }, required: ['text'] } } }, required: ['items'] } },
-  { name: 'planner_update', description: '기존 할 일 항목 수정. items 배열, 각 항목 id 필수. 바꿀 필드만: title, bucket(A|B|C|D), role, due, routine, at(YYYY-MM-DDTHH:MM 약속 시각), end(HH:MM 약속 끝 시각, 선택, 빈 문자열이면 뺌), today(true=오늘 칸에 올림, false=오늘 칸에서 뺌 — 다른 날 약속은 오늘 칸에 두지 않는다), done(true/false), tomb(true=묘비·목록에서 치움).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, bucket: { type: 'string' }, role: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' }, at: { type: 'string' }, end: { type: 'string' }, today: { type: 'boolean' }, done: { type: 'boolean' }, tomb: { type: 'boolean' } }, required: ['id'] } } }, required: ['items'] } },
+  { name: 'planner_read', description: '(플래너 일을 시작할 때 먼저 호출) 플래너 현재 상태 요약(역할, A/B/C/D 할 일 목록과 id, 오늘 의도·고른 것·한 줄, 인박스, 계획, 메모장, 이번 주 완료, 2주 방치 항목). 정리·제안 전에 먼저 읽는다.', inputSchema: { type: 'object', properties: {} } },
+  { name: 'planner_add', description: '비서가 플래너에 적는다. items 배열. 각 항목: text(필수), kind = item(할 일 목록에 바로 적음, bucket 필수: A|B|C|D) | todo(오늘 인박스 할 일) | note(오늘 인박스 메모) | memo(메모장에 적어 둠, 날짜 무관) | plan(계획 한 장: text=이름, goal=목표 한 줄, how=방법, due=언제까지) | candidate(일요일 리뷰용 다음 주 B 후보) | review(이번 주 리뷰 3~5문장, text에) | yearreview(지금 속지 1년 리뷰, text에). role(역할명), plan(이 일이 딸린 계획의 id 또는 이름), due(YYYY-MM-DD, B는 필수), routine(주 N회 숫자), at(YYYY-MM-DDTHH:MM 약속 시각), end(HH:MM 약속 끝 시각, 선택, 있으면 앱이 알림).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, kind: { type: 'string', enum: ['item', 'todo', 'note', 'memo', 'plan', 'candidate', 'review', 'yearreview'] }, bucket: { type: 'string', description: 'A|B|C|D' }, role: { type: 'string' }, plan: { type: 'string' }, goal: { type: 'string' }, how: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' }, at: { type: 'string' }, end: { type: 'string' } }, required: ['text'] } } }, required: ['items'] } },
+  { name: 'planner_update', description: '기존 할 일 항목 수정. items 배열, 각 항목 id 필수. 바꿀 필드만: title, bucket(A|B|C|D), role, plan(계획 id·이름, 빈 문자열이면 뺌), due, routine, at(YYYY-MM-DDTHH:MM 약속 시각), end(HH:MM 약속 끝 시각, 선택, 빈 문자열이면 뺌), today(true=오늘 칸에 올림, false=오늘 칸에서 뺌 — 다른 날 약속은 오늘 칸에 두지 않는다), done(true/false), tomb(true=묘비·목록에서 치움).', inputSchema: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, bucket: { type: 'string' }, role: { type: 'string' }, plan: { type: 'string' }, goal: { type: 'string' }, how: { type: 'string' }, due: { type: 'string' }, routine: { type: 'number' }, at: { type: 'string' }, end: { type: 'string' }, today: { type: 'boolean' }, done: { type: 'boolean' }, tomb: { type: 'boolean' } }, required: ['id'] } } }, required: ['items'] } },
 ];
 async function mcp(req, env, token) {
   if (req.method === 'GET') return new Response('Method Not Allowed', { status: 405, headers: CORS });

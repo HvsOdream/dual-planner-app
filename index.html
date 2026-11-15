@@ -230,6 +230,16 @@ body.kb .tabbar { display: none; }
 .sticky.flash { animation: nflash 2.2s ease-out 1; }
 @keyframes nflash { 0%, 55% { box-shadow: 0 0 0 3px var(--check), 0 10px 24px rgba(0,0,0,.22); transform: scale(1.012); } 100% { box-shadow: 0 0 0 0 transparent; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .sticky.flash { animation: none; outline: 3px solid var(--check); } }
+.pbanner { display: flex; align-items: center; gap: 12px; width: calc(100% - 72px); margin: 14px 21px 2px 51px; padding: 14px; min-height: 64px; text-align: left; background: var(--postit); color: var(--postit-ink); box-shadow: 0 6px 14px rgba(0,0,0,.12); transform: rotate(-.4deg); }
+.pbanner > span:first-child { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; } .pbanner b { font-size: 17px; font-weight: 800; } .pbanner i { font-style: normal; font-size: 13px; color: var(--postit-muted); } .pbanner .ch { font-size: 22px; }
+.prow { display: flex; align-items: center; gap: 8px; width: calc(100% - 68px); margin: 0 16px 0 52px; padding: 8px 0; min-height: 52px; text-align: left; border-bottom: 1px solid var(--rule); color: var(--ink); }
+.prow .pn { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; } .prow b { font-size: 16px; font-weight: 700; } .prow i { font-style: normal; font-size: 13px; color: var(--ink-2); } .prow .ch { font-size: 18px; color: var(--muted); } .prow.closed b { color: var(--ink-2); font-weight: 600; }
+.plt { font-size: 16px; font-weight: 600; line-height: 1.55; padding: 6px 0 10px; border-bottom: 1px solid var(--rule); white-space: pre-wrap; word-break: break-word; } .plt.how { font-size: 15px; font-weight: 500; } .plt.none { color: var(--faint); font-weight: 400; font-size: 14px; }
+.plf { display: block; width: 100%; min-height: 44px; padding: 0; font: inherit; font-size: 16px; color: var(--ink); background: transparent; border: none; border-bottom: 1px solid var(--rule); border-radius: 0; outline: none; } .plf.nm { font-size: 17px; font-weight: 700; } textarea.plf { line-height: 1.6; padding: 8px 0; resize: none; overflow: hidden; }
+.plf::placeholder { color: var(--faint); font-weight: 400; }
+.pbtns { display: flex; align-items: center; gap: 18px; padding-top: 16px; } .pbtns button { height: 44px; font-size: 15px; text-decoration: underline; text-underline-offset: 3px; color: var(--ink-2); } .pbtns .go { font-weight: 700; color: var(--ink); } .pbtns .sp1 { flex: 1; }
+.pladd { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--rule); min-height: 48px; } .pladd input[type=text], .pladd input:not([type]) { flex: 1; min-width: 0; height: 44px; font: inherit; font-size: 15px; background: transparent; border: none; outline: none; color: var(--ink); } .pladd button { font-size: 14px; text-decoration: underline; color: var(--ink-2); height: 44px; } .pladd button.on { font-weight: 800; color: var(--ink); } .pladd .go { font-weight: 700; color: var(--ink); } .pladd select { font: inherit; font-size: 14px; background: transparent; border: none; color: var(--ink); }
+.mrow.tap { cursor: pointer; }
 .mrow { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; border-bottom: 1px solid var(--rule); text-align: left; color: var(--ink); text-decoration: none; }
 .mrow b { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; } .mrow .v { flex: 0 1 auto; max-width: 58%; font-size: 14px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .mrow .ch { flex: none; font-size: 18px; color: var(--muted); }
 .mpage .lbl.mg { margin-top: 14px; } #moreSecs .msec:not([data-sec="notify"]) > div > .lbl:first-child { display: none; } #moreSecs .msec { padding-top: 8px; }
@@ -523,6 +533,7 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
   <section class="page" id="p-close"><div class="sheet" id="close"></div></section>
   <section class="page" id="p-refill"><div class="sheet" id="refill"></div></section>
   <section class="page" id="p-roles"><div class="sheet"><div class="mpage" id="rolesBox"></div></div></section>
+  <section class="page" id="p-plan"><div class="sheet" id="plan"></div></section>
   <section class="page" id="p-notis"><div class="sheet" id="notis"></div></section>
   <section class="page" id="p-sub"><div class="sheet"><div class="mpage" id="subP"></div></div></section>
   <section class="page" id="p-priv"><div class="sheet"><div class="mpage" id="privP"></div></div></section>
@@ -579,13 +590,15 @@ function empty() {
     rocks: [],      // {id, week, role, title, due:'YYYY-MM-DD'|null, routine:n|null, done:bool, carry:n, checks:{date:true}, from:'inbox'|null}
     days: {},       // {date: {intent, note, picks:[rockId], inbox:[{id, text, src, at, moved}]}}
     reviews: {},    // {week: {sealed:true, packetAt, candidates:[{id, role, title, due, state:'y'|'edit'|'n'}]}}
-    api: '', token: '', seen: {}, vols: [], memos: [], streakFreeze: {} };
+    api: '', token: '', seen: {}, vols: [], memos: [], plans: [], streakFreeze: {} };
+    // plans: [{id, name, goal, due, how, at:ISO, u, closedAt, _deleted}] 계획 한 장. 딸린 루틴·할 일은 rock.plan = id
     // memos: [{id, text, at:ISO, u, by:'mcp'|null, toRock:id|null, _deleted}] 날짜·할 일과 상관없는 자유 메모
 }
 let D = load();
 if (!D.token) { D.token = newToken(); save(); }
 (D.rocks||[]).forEach(r => { if (r && !r.bucket) r.bucket = 'important'; });
 if (!Array.isArray(D.memos)) D.memos = [];
+if (!Array.isArray(D.plans)) D.plans = [];
 // ── 속지(12개월) ──
 function ym(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
 function addMonths(m, n) { const [y, mo] = m.split('-').map(Number); const d = new Date(y, mo-1+n, 1); return ym(d); }
@@ -650,7 +663,7 @@ function syncPages() {
   const sp = spread(); document.body.classList.toggle('spread', sp);
   const on = sp ? ['today', rightTab] : [tab];
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', on.includes(p.id.slice(2))));
-  const tb = ['sub', 'roles', 'priv'].includes(tab) ? 'more' : tab === 'notis' ? notisBack : tab; document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === tb));
+  const tb = ['sub', 'roles', 'priv'].includes(tab) ? 'more' : tab === 'notis' ? notisBack : tab === 'plan' ? 'week' : tab; document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === tb));
 }
 function go(t) {
   tab = t; if (t !== 'today') rightTab = t;
@@ -719,7 +732,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.26'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.27'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -746,7 +759,7 @@ function renderMoreIdx() {
 }
 function renderMore() { renderMoreIdx(); setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; }
 function closeMore() { if (tab === 'more') go('today'); }
-function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='memo') renderMemo(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); else if (t==='roles') renderRoles(); else if (t==='sub') renderSubPage(); else if (t==='priv') renderPrivPage(); else if (t==='notis') renderNotis(); }
+function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='memo') renderMemo(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); else if (t==='roles') renderRoles(); else if (t==='sub') renderSubPage(); else if (t==='priv') renderPrivPage(); else if (t==='notis') renderNotis(); else if (t==='plan') renderPlan(); }
 function markSeen() { const td = today(); if (D.seenDay !== td) { D.seenPrev = D.seenDay || ''; D.seenDay = td; _save0(); } }
 function awayDays() { const p = D.seenPrev; return p ? Math.round((new Date(today()) - new Date(p)) / 86400000) : 0; }
 function backMode() { return awayDays() >= 4 && !noteOff('back:' + today()) && (overdueItems().length + staleItems().length) >= 2; }
@@ -796,6 +809,7 @@ function coverParts(tab) {
   else if (tab==='sub') { t1 = '구독'; t2 = subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'; left = `<button class="ibtn" aria-label="뒤로" onclick="go(subBack === 'sub' ? 'more' : subBack)">‹</button>`; }
   else if (tab==='priv') { t1 = '내 정보가 가는 곳'; t2 = aiOk() ? '비서 AI 켬' : '비서 AI 끔'; left = `<button class="ibtn" aria-label="뒤로" onclick="go(privBack === 'priv' ? 'more' : privBack)">‹</button>`; }
   else if (tab==='roles') { t1 = '내 역할'; t2 = roleItems ? '할 일·일정마다 역할 정하기' : '역할 이름 고치기'; left = `<button class="ibtn" aria-label="뒤로" onclick="closeRoles()">‹</button>`; }
+  else if (tab==='plan') { const pl = planOf(planView.replace('edit:', '')); t1 = planView === 'new' ? '새 계획' : pl ? esc(pl.name) : '계획'; t2 = planView === 'new' ? '할 일' : '계획' + (pl && pl.due ? ` · ${md(pl.due)}까지` : '') + (pl && pl.closedAt ? ' · 닫음' : ''); left = `<button class="ibtn" aria-label="할 일로" onclick="go('week')">‹</button>`; }
   else if (tab==='notis') { t1 = '지난 알림'; t2 = '최근 2주 · 알림과 비서 포스트잇'; left = `<button class="ibtn" aria-label="뒤로" onclick="go(notisBack === 'notis' ? 'today' : notisBack)">‹</button>`; }
   else if (tab==='more' && moreSec && MORE_SECS[moreSec]) { t1 = MORE_SECS[moreSec]; t2 = '메뉴'; left = `<button class="ibtn" aria-label="메뉴로" onclick="moreSec='';render()">‹</button>`; }
   else if (tab==='more') { t1 = '메뉴'; t2 = yw + ' · ' + (subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'); }
@@ -1718,6 +1732,70 @@ function moveToRock(id) {
 // ── 할 일 (상시 목록: 급한 일 · 중요한 일 · 하면 좋은 일) ──
 let addPrefill = '', addBucket = 'important', showD = false;
 const _bnOpen = {}; // 포스트잇에서 펼쳐 둔 제목(화면을 다시 그려도 펼친 채로)
+// ── 계획: 목표와 방법을 적어 두는 한 장. 딸린 루틴·할 일을 묶고, 비서가 플래너를 읽을 때 같이 읽는다 ──
+let planView = '', planDraft = {}, addPlan = '', showClosed = false, plRoutine = false;
+function livePlans() { return (D.plans || []).filter(p => p && !p._deleted); }
+function openPlans() { return livePlans().filter(p => !p.closedAt).sort((a, b) => (a.at || '') < (b.at || '') ? -1 : 1); }
+function planOf(id) { return id ? livePlans().find(p => p.id === id) || null : null; }
+function planItems(pid) { return openItems().filter(r => r.plan === pid); }
+function planSub(p) {
+  const it = planItems(p.id), ro = it.filter(r => r.routine), todo = it.filter(r => !r.routine), parts = [];
+  if (ro.length) parts.push(`이번 주 루틴 ${ro.reduce((a, r) => a + Math.min(checkedCount(r), r.routine), 0)}/${ro.reduce((a, r) => a + r.routine, 0)}`);
+  if (todo.length) { parts.push(`할 일 ${todo.length}`); const nd = todo.map(r => r.due).filter(Boolean).sort()[0]; if (nd) parts.push(`다음 마감 ${md(nd)}`); }
+  if (p.due) parts.push(`${md(p.due)}까지`);
+  return parts.join(' · ') || '아직 딸린 일이 없어요';
+}
+function planBanner() { return `<button class="pbanner" onclick="openPlan('new')"><span><b>새로운 계획이 있으신가요?</b><i>목표와 방법을 적어 두면 비서도 읽어요</i></span><span class="ch">›</span></button>`; }
+function plansHtml() {
+  const ps = openPlans(), closed = livePlans().filter(p => p.closedAt);
+  const row = p => `<button class="prow ${p.closedAt ? 'closed' : ''}" onclick="openPlan('${p.id}')"><span class="pn"><b>${esc(p.name)}</b><i>${esc(p.closedAt ? md(p.closedAt) + ' 닫음' : planSub(p))}</i></span><span class="ch">›</span></button>`;
+  let h = '';
+  if (ps.length) h += `<div class="lbl"><span>계획 <span class="mono" style="letter-spacing:0">${ps.length}</span></span></div>` + ps.map(row).join('');
+  if (closed.length) h += `<div class="lbl"><span></span><button onclick="showClosed=!showClosed;renderWeek()">닫은 계획 ${closed.length} ${showClosed ? '접기' : '보기'}</button></div>` + (showClosed ? closed.map(row).join('') : '');
+  return h ? h + `<div class="sp"></div>` : '';
+}
+function openPlan(v) { planView = v; plRoutine = false; if (v === 'new') planDraft = { name: '', goal: '', due: '', how: '' }; go('plan'); if (v === 'new') setTimeout(() => { const e = document.getElementById('plName'); if (e) e.focus(); }, 60); }
+function planKeep() { const g = id => (document.getElementById(id) || {}).value; if (document.getElementById('plName')) { planDraft.name = g('plName') || ''; planDraft.goal = g('plGoal') || ''; planDraft.how = g('plHow') || ''; } }
+function editPlan(id) { const p = planOf(id); if (!p) return; planDraft = { name: p.name, goal: p.goal || '', due: p.due || '', how: p.how || '' }; planView = 'edit:' + id; render(); }
+function savePlan() {
+  planKeep(); const name = (planDraft.name || '').trim(); if (!name) { toast('어떤 계획인지 적어 주세요'); return; }
+  const now = new Date().toISOString(), f = { name, goal: (planDraft.goal || '').trim(), due: planDraft.due || '', how: (planDraft.how || '').trim() };
+  let p; if (planView === 'new') { p = Object.assign({ id: uid('p_'), at: now, u: now }, f); D.plans.push(p); } else { p = planOf(planView.slice(5)); if (!p) return; Object.assign(p, f); }
+  planView = p.id; save(); render(); window.scrollTo(0, 0); toast('계획을 적었어요');
+}
+function closePlan(id) { const p = planOf(id); if (!p) return; if (p.closedAt) delete p.closedAt; else { if (!confirm('이 계획을 닫을까요? 딸린 루틴과 할 일은 그대로 남아요')) return; p.closedAt = today(); } save(); render(); }
+function delPlan(id) { const p = planOf(id); if (!p || !confirm('이 계획을 지울까요? 딸린 루틴과 할 일은 지워지지 않고 계획 표시만 빠져요')) return; p._deleted = true; D.rocks.forEach(r => { if (r.plan === id) delete r.plan; }); save(); go('week'); }
+function planAddItem(pid) {
+  const p = planOf(pid), el = document.getElementById('plAdd'), title = ((el && el.value) || '').trim(); if (!p) return; if (!title) { if (el) el.focus(); return; }
+  const r = { id: uid(), week: weekKey(new Date()), bucket: 'important', role: '', title, done: false, carry: 0, checks: {}, plan: pid, vol: (curVol() || {}).id };
+  if (plRoutine) r.routine = Number((document.getElementById('plN') || {}).value) || 3;
+  else { const d6 = addDays(today(), 6); r.due = p.due && p.due >= today() && p.due < d6 ? p.due : d6; }
+  D.rocks.push(r); save(); render(); toast(plRoutine ? `루틴으로 적었어요 · 주 ${r.routine}회` : `B 칸에 적었어요 · ${md(r.due)}까지만`);
+}
+function renderPlan() {
+  const el = document.getElementById('plan'); if (!el) return;
+  const lbl = (t, x) => `<div class="lbl mg" style="padding-left:0"><span>${t}</span>${x || ''}</div>`;
+  if (planView === 'new' || planView.indexOf('edit:') === 0) {
+    const d = planDraft, ed = planView !== 'new';
+    el.innerHTML = `<div class="mpage">${lbl('어떤 계획인가요')}<input class="plf nm" id="plName" value="${esc(d.name)}" placeholder="예: 영어 회화" enterkeyhint="next">
+      ${lbl('목표 한 줄')}<input class="plf" id="plGoal" value="${esc(d.goal)}" placeholder="끝났을 때 무엇이 달라져 있나요" enterkeyhint="next">
+      ${lbl('언제까지')}<div style="min-height:44px;display:flex;align-items:center;border-bottom:1px solid var(--rule)">${dBtn(d.due, `planKeep();openDate(planDraft.due,{allowNone:true,title:'언제까지'},v=>{planDraft.due=v;renderPlan()})`)}</div>
+      ${lbl('어떻게')}<textarea class="plf" id="plHow" rows="3" placeholder="생각해 둔 방법이 있으면 적어 주세요. 비워도 돼요" oninput="memoGrow(this)">${esc(d.how)}</textarea>
+      <div class="pbtns">${ed ? `<button onclick="delPlan('${planView.slice(5)}')">지우기</button>` : ''}<span class="sp1"></span><button onclick="${ed ? `planView='${planView.slice(5)}';render()` : `go('week')`}">취소</button><button class="go" onclick="savePlan()">${ed ? '저장' : '적기'}</button></div></div>`;
+    const h = document.getElementById('plHow'); if (h) { h.dataset.min = 3; memoGrow(h); }
+    return;
+  }
+  const p = planOf(planView); if (!p) { el.innerHTML = `<div class="mpage"><div class="plt none">없는 계획이에요</div></div>`; return; }
+  const it = planItems(p.id), ro = it.filter(r => r.routine), todo = it.filter(r => !r.routine).sort((x, y) => (x.due || '9999') < (y.due || '9999') ? -1 : 1), B = { urgent: 'A', important: 'B', light: 'C', nice: 'D' };
+  const toRow = r => `rowOpen='${r.id}';showD=true;go('week')`;
+  let h = `<div class="mpage">${lbl('목표')}<div class="plt ${p.goal ? '' : 'none'}">${esc(p.goal || '목표를 적어 두면 비서가 읽어요')}</div>`;
+  if (p.how) h += lbl('어떻게') + `<div class="plt how">${esc(p.how)}</div>`;
+  h += lbl('이번 주 루틴') + (ro.length ? ro.map(r => `<button class="mrow tap" onclick="${toRow(r)}"><b>${esc(r.title)}</b><span class="v">주 ${r.routine}회</span><span class="v" style="font-weight:700;color:var(--ink)">${Math.min(checkedCount(r), r.routine)}/${r.routine}</span></button>`).join('') : `<div class="plt none">아직 루틴이 없어요</div>`);
+  h += lbl(`이 계획의 할 일 <span class="mono" style="letter-spacing:0">${todo.length}</span>`) + (todo.length ? todo.map(r => `<button class="mrow tap" onclick="${toRow(r)}"><b>${esc(r.title)}</b><span class="v">${B[r.bucket || 'nice']}${r.due ? ' · ' + md(r.due) + '까지만' : ''}</span></button>`).join('') : `<div class="plt none">아직 할 일이 없어요</div>`);
+  if (!p.closedAt) h += `<div class="pladd"><input id="plAdd" placeholder="${plRoutine ? '이 계획의 루틴' : '이 계획의 할 일'}" enterkeyhint="done" onkeydown="if(event.key==='Enter')planAddItem('${p.id}')"><button class="${plRoutine ? 'on' : ''}" onclick="plRoutine=!plRoutine;renderPlan()">루틴</button>${plRoutine ? `<select id="plN" aria-label="주 몇 회"><option value="2">주 2회</option><option value="3" selected>주 3회</option><option value="4">주 4회</option><option value="5">주 5회</option><option value="7">매일</option></select>` : ''}<button class="go" onclick="planAddItem('${p.id}')">적기</button></div>`;
+  h += `<div class="pbtns"><button onclick="editPlan('${p.id}')">고치기</button><span class="sp1"></span><button onclick="closePlan('${p.id}')">${p.closedAt ? '다시 열기' : '계획 닫기'}</button></div></div>`;
+  el.innerHTML = h;
+}
 // 날짜 고르기: 아이폰 기본 달력에는 취소가 없어서 앱 것을 쓴다. 날짜를 누르면 바로 정해지고, 취소·바깥 누르기는 아무것도 안 바꾼다
 let dp = null;
 function dLabel(v) { return v ? md(v) + ' ' + DOW[(new Date(v + 'T00:00').getDay() + 6) % 7] : '날짜 없음'; }
@@ -1762,8 +1840,9 @@ document.addEventListener('focusout', () => setTimeout(() => { const a = documen
 let rowOpen = null;
 function rowEdit(r) {
   return `<input class="rowed" value="${esc(r.title)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')this.blur()" onchange="rowTitle('${r.id}',this.value)">
-  <div class="bslot">${BUCKETS.map(([b, n]) => `<button class="${r.bucket === b ? 'on' : ''}" onclick="rowBucket('${r.id}','${b}')">${n.split(' ')[0]}</button>`).join('')}${r.routine ? '' : `<span style="margin-left:6px">${r.bucket === 'important' ? '언제까지' : '마감'}</span>${dBtn(r.due, `openDate('${r.due || ''}',{allowNone:${r.bucket !== 'important'},title:'${r.bucket === 'important' ? '언제까지' : '마감'}'},v=>rowDue('${r.id}',v))`)}`}<span style="flex:1"></span><button onclick="rowOpen=null;renderWeek()">닫기</button></div>`;
+  <div class="bslot">${BUCKETS.map(([b, n]) => `<button class="${r.bucket === b ? 'on' : ''}" onclick="rowBucket('${r.id}','${b}')">${n.split(' ')[0]}</button>`).join('')}${r.routine ? '' : `<span style="margin-left:6px">${r.bucket === 'important' ? '언제까지' : '마감'}</span>${dBtn(r.due, `openDate('${r.due || ''}',{allowNone:${r.bucket !== 'important'},title:'${r.bucket === 'important' ? '언제까지' : '마감'}'},v=>rowDue('${r.id}',v))`)}`}<span style="flex:1"></span><button onclick="rowOpen=null;renderWeek()">닫기</button></div>${openPlans().length ? `<div class="bslot"><span>계획</span>${openPlans().map(q => `<button class="${r.plan === q.id ? 'on' : ''}" onclick="rowPlan('${r.id}','${q.id}')">${esc(q.name)}</button>`).join('')}</div>` : ''}`;
 }
+function rowPlan(id, pid) { const r = rock(id); if (!r) return; if (r.plan === pid) delete r.plan; else r.plan = pid; save(); render(); }
 function rowTitle(id, v) { const r = rock(id); v = (v || '').trim(); if (!r || !v || v === r.title) return; r.title = v; save(); render(); }
 function rowBucket(id, b) {
   const r = rock(id); if (!r || r.bucket === b) return;
@@ -1776,7 +1855,8 @@ function rowDue(id, v) { const r = rock(id); if (!r) return; if (!v && r.bucket 
 function itemRow(r, n) {
   const td = today(), picked = (dayOf(td).picks||[]).includes(r.id);
   const dl = (!r.done && r.due && !r.routine) ? dleft(r.due) : null;
-  const meta = [esc(r.role), fmtDue(r)].filter(Boolean).join(' · ') + (dl !== null && dl <= 3 ? ` <b class="dd">${dl < 0 ? '지남' : dl ? 'D-' + dl : '오늘까지'}</b>` : '');
+  const pl = planOf(r.plan);
+  const meta = [pl ? esc(pl.name) : '', esc(r.role), fmtDue(r)].filter(Boolean).join(' · ') + (dl !== null && dl <= 3 ? ` <b class="dd">${dl < 0 ? '지남' : dl ? 'D-' + dl : '오늘까지'}</b>` : '');
   const prog = r.routine ? `<span class="dots">${Array.from({length:r.routine},(_,i)=>`<i class="${i<checkedCount(r)?'on':''}"></i>`).join('')}</span>` : '';
   return `<div class="item ${r.done?'done':''}">
     <div class="mg">${r.routine?`<span class="num">${n}</span>`:`<button class="chk ${r.done?'on':''}" aria-label="완료" onclick="finishRock('${r.id}')">${CHECK}</button>`}</div>
@@ -1788,7 +1868,8 @@ function itemRow(r, n) {
 function renderWeek() {
   const items = openItems();
   const gh = roleFinder() + weekNotes() + groupHtml() + guidesNow('week').map(guideHtml).join('');
-  let h = gh ? `<div class="stickies" style="padding-top:12px">${gh}</div>` : `<div class="sp"></div>`;
+  let h = planBanner() + (gh ? `<div class="stickies" style="padding-top:12px">${gh}</div>` : `<div class="sp"></div>`);
+  h += plansHtml();
   let n = 0;
   BUCKETS.forEach(([b, name]) => {
     const doneToday = live().filter(r => r.done && r.doneAt === today() && (r.bucket||'nice') === b);
@@ -1810,16 +1891,18 @@ function addFormHtml(b) {
   return `<div class="addrock on" id="addrock">
     <div class="item"><div class="mg"><span class="chk" style="border-style:dashed"></span></div><div class="bd"><input class="wr arin" id="rockTitle" placeholder="${b === 'nice' ? '언젠가 하고 싶은 일' : b === 'important' ? '오래 걸리는 중요한 일' : '할 일'}" value="${esc(addPrefill)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')addRock('${b}')"></div></div>
     ${D.roles.length || b !== 'urgent' ? `<div class="arrow"><span class="arl">역할</span><div class="sel" id="roleSel">${D.roles.map(r=>`<button class="${addRole===r?'on':''}" onclick="addKeep();addRole=addRole==='${esc(r)}'?'':'${esc(r)}';renderWeek()">${esc(r)}</button>`).join('')}${b!=='urgent'?`<button class="${addRoutine?'on':''}" onclick="addKeep();addRoutine=!addRoutine;renderWeek()">루틴</button>`:''}</div></div>` : ''}
+    ${openPlans().length ? `<div class="arrow"><span class="arl">계획</span><div class="sel">${openPlans().map(q => `<button class="${addPlan === q.id ? 'on' : ''}" onclick="addKeep();addPlan=addPlan==='${q.id}'?'':'${q.id}';renderWeek()">${esc(q.name)}</button>`).join('')}</div></div>` : ''}
     <div class="arrow">${addRoutine ? `<span class="arl">주</span><select id="rockN" class="arf"><option>2</option><option selected>3</option><option>4</option><option>5</option></select><span class="arl">회</span>` : `<span class="arl">${needDue ? '언제까지' : '마감'}</span><input type="hidden" id="rockDue" value="${addKeepV.due !== undefined ? addKeepV.due : needDue ? due : ''}">${dBtn(addKeepV.due !== undefined ? addKeepV.due : needDue ? due : '', `addKeep();openDate(addKeepV.due,{allowNone:${!needDue},title:'${needDue ? '언제까지' : '마감'}'},v=>{addKeepV.due=v;renderWeek()})`, 'arf')}<span class="arl">약속</span><input type="time" id="rockAt" class="arf" value="${addKeepV.at || ''}">`}</div>
     ${needDue ? '<div class="arh">B는 언제까지만 할지 날짜가 필요해요</div>' : ''}
     <div class="arbtn"><button class="ghost" onclick="addOpen=false;addPrefill='';addKeepV={};renderWeek()">취소</button><button class="go" onclick="addRock('${b}')">적기</button></div></div>`;
 }
-function openAdd(b) { addBucket = b; addOpen = true; addRoutine = false; addKeepV = {}; renderWeek(); setTimeout(()=>{ const e=document.getElementById('rockTitle'); if (e) e.focus(); }, 50); }
+function openAdd(b) { addBucket = b; addOpen = true; addRoutine = false; addPlan = ''; addKeepV = {}; renderWeek(); setTimeout(()=>{ const e=document.getElementById('rockTitle'); if (e) e.focus(); }, 50); }
 function addRock(b) {
   b = b || addBucket;
   const title = (document.getElementById('rockTitle').value||'').trim();
   if (!title) { toast('제목이 비어 있어요'); return; }
   const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: addRole || '', title, done: false, carry: 0, checks: {} };
+  if (addPlan && planOf(addPlan)) r.plan = addPlan;
   if (addRoutine) r.routine = Number((document.getElementById('rockN')||{}).value||3);
   else { const due = (document.getElementById('rockDue')||{}).value || ''; if (b==='important' && !due) { toast('B는 끝 조건이 필요해요'); return; } if (due) r.due = due; const at = (document.getElementById('rockAt')||{}).value || ''; if (at) { r.due = r.due || today(); r.at = r.due + 'T' + at; } }
   r.vol = (curVol()||{}).id; D.rocks.push(r); addOpen = false; addPrefill = ''; addKeepV = {}; save(); renderWeek(); renderCover(); toast('적었어요');
@@ -2084,32 +2167,34 @@ function baseUrl() { return (D.api || '').trim().replace(/\/+$/, ''); }
 function stateUrl() { return baseUrl() + '/u/' + D.token + '/state'; }
 function mcpUrl() { return baseUrl() ? baseUrl() + '/u/' + D.token + '/mcp' : '(API 주소를 먼저 넣어 주세요)'; }
 function mergeState(a, b) {
-  const em = () => ({ roles: [], rocks: [], days: {}, reviews: {}, seen: {}, vols: [], memos: [], settings: {}, _modified: '' });
+  const em = () => ({ roles: [], rocks: [], days: {}, reviews: {}, seen: {}, vols: [], memos: [], plans: [], settings: {}, _modified: '' });
   a = Object.assign(em(), a || {}); b = Object.assign(em(), b || {}); const out = em();
   const rm = new Map(); [...a.rocks, ...b.rocks].forEach(r => { if (!r || !r.id) return; const p = rm.get(r.id); if (!p || (r.u || '') >= (p.u || '')) rm.set(r.id, r); }); out.rocks = [...rm.values()];
   for (const k of new Set([...Object.keys(a.days), ...Object.keys(b.days)])) { const x = a.days[k], y = b.days[k]; out.days[k] = !x ? y : !y ? x : ((y.u || '') >= (x.u || '') ? y : x); }
   for (const k of new Set([...Object.keys(a.reviews), ...Object.keys(b.reviews)])) { const x = a.reviews[k], y = b.reviews[k]; out.reviews[k] = !x ? y : !y ? x : ((y.u || '') >= (x.u || '') ? y : x); }
   const vm = new Map(); [...(a.vols||[]), ...(b.vols||[])].forEach(v => { if (!v || !v.id) return; const p = vm.get(v.id); if (!p || (v.u || '') >= (p.u || '')) vm.set(v.id, v); }); out.vols = [...vm.values()];
   const mm = new Map(); [...(a.memos||[]), ...(b.memos||[])].forEach(v => { if (!v || !v.id) return; const p = mm.get(v.id); if (!p || (v.u || '') >= (p.u || '')) mm.set(v.id, v); }); out.memos = [...mm.values()];
+  const pm = new Map(); [...(a.plans||[]), ...(b.plans||[])].forEach(v => { if (!v || !v.id) return; const q = pm.get(v.id); if (!q || (v.u || '') >= (q.u || '')) pm.set(v.id, v); }); out.plans = [...pm.values()];
   out.roles = ((b._modified || '') >= (a._modified || '') ? b : a).roles || [];
   out.settings = (((b.settings || {}).u || '') >= ((a.settings || {}).u || '') ? b.settings : a.settings) || {};
   out.seen = Object.assign({}, a.seen, b.seen); out._modified = [a._modified, b._modified].sort().pop() || '';
   return out;
 }
 let _sig = {};
-function sigOf() { const o = { rocks: {}, days: {}, reviews: {}, vols: {}, memos: {} }; (D.memos||[]).forEach(v => { if (v && v.id) { const c = Object.assign({}, v); delete c.u; o.memos[v.id] = JSON.stringify(c); } }); (D.vols||[]).forEach(v => { if (v && v.id) { const c = Object.assign({}, v); delete c.u; o.vols[v.id] = JSON.stringify(c); } }); (D.rocks||[]).forEach(r => { if (r && r.id) { const c = Object.assign({}, r); delete c.u; o.rocks[r.id] = JSON.stringify(c); } }); for (const k in D.days) { const c = Object.assign({}, D.days[k]); delete c.u; o.days[k] = JSON.stringify(c); } for (const k in D.reviews) { const c = Object.assign({}, D.reviews[k]); delete c.u; o.reviews[k] = JSON.stringify(c); } return o; }
+function sigOf() { const o = { rocks: {}, days: {}, reviews: {}, vols: {}, memos: {}, plans: {} }; (D.plans||[]).forEach(v => { if (v && v.id) { const c = Object.assign({}, v); delete c.u; o.plans[v.id] = JSON.stringify(c); } }); (D.memos||[]).forEach(v => { if (v && v.id) { const c = Object.assign({}, v); delete c.u; o.memos[v.id] = JSON.stringify(c); } }); (D.vols||[]).forEach(v => { if (v && v.id) { const c = Object.assign({}, v); delete c.u; o.vols[v.id] = JSON.stringify(c); } }); (D.rocks||[]).forEach(r => { if (r && r.id) { const c = Object.assign({}, r); delete c.u; o.rocks[r.id] = JSON.stringify(c); } }); for (const k in D.days) { const c = Object.assign({}, D.days[k]); delete c.u; o.days[k] = JSON.stringify(c); } for (const k in D.reviews) { const c = Object.assign({}, D.reviews[k]); delete c.u; o.reviews[k] = JSON.stringify(c); } return o; }
 function stamp() { const now = new Date().toISOString(), n = sigOf(); let changed = false;
   (D.rocks||[]).forEach(r => { if (r && r.id && _sig.rocks && _sig.rocks[r.id] !== n.rocks[r.id]) { r.u = now; changed = true; } });
   (D.vols||[]).forEach(v => { if (v && v.id && _sig.vols && _sig.vols[v.id] !== n.vols[v.id]) { v.u = now; changed = true; } });
   (D.memos||[]).forEach(v => { if (v && v.id && _sig.memos && _sig.memos[v.id] !== n.memos[v.id]) { v.u = now; changed = true; } });
+  (D.plans||[]).forEach(v => { if (v && v.id && _sig.plans && _sig.plans[v.id] !== n.plans[v.id]) { v.u = now; changed = true; } });
   for (const k in D.days) if (_sig.days && _sig.days[k] !== n.days[k]) { D.days[k].u = now; changed = true; }
   for (const k in D.reviews) if (_sig.reviews && _sig.reviews[k] !== n.reviews[k]) { D.reviews[k].u = now; changed = true; }
   if (changed || !_sig.rocks) D._modified = now; _sig = n; return changed; }
 _sig = sigOf();
 const _save0 = save;
 save = function() { const ch = stamp(); _save0(); if (ch && baseUrl()) { clearTimeout(save._t); save._t = setTimeout(pushState, 1500); } };
-function pickState() { return { v: 1, settings: D.settings || {}, roles: D.roles, rocks: D.rocks, days: D.days, reviews: D.reviews, seen: D.seen, vols: D.vols, memos: D.memos || [], _modified: D._modified }; }
-function applyState(S) { if (S && S.agent) D.agent = S.agent; const m = mergeState(pickState(), S); D.roles = m.roles.length ? m.roles : D.roles; const calBefore = (D.settings || {}).calUrl; D.settings = m.settings || {}; if ((D.settings.calUrl || '') !== (calBefore || '')) setTimeout(() => loadCal(true), 0); D.rocks = m.rocks; D.days = m.days; D.reviews = m.reviews; D.seen = m.seen; D.vols = m.vols.length ? m.vols : (D.vols||[]); D.memos = m.memos; D._modified = m._modified; _sig = sigOf(); _save0(); }
+function pickState() { return { v: 1, settings: D.settings || {}, roles: D.roles, rocks: D.rocks, days: D.days, reviews: D.reviews, seen: D.seen, vols: D.vols, memos: D.memos || [], plans: D.plans || [], _modified: D._modified }; }
+function applyState(S) { if (S && S.agent) D.agent = S.agent; const m = mergeState(pickState(), S); D.roles = m.roles.length ? m.roles : D.roles; const calBefore = (D.settings || {}).calUrl; D.settings = m.settings || {}; if ((D.settings.calUrl || '') !== (calBefore || '')) setTimeout(() => loadCal(true), 0); D.rocks = m.rocks; D.days = m.days; D.reviews = m.reviews; D.seen = m.seen; D.vols = m.vols.length ? m.vols : (D.vols||[]); D.memos = m.memos; D.plans = m.plans; D._modified = m._modified; _sig = sigOf(); _save0(); }
 async function pushState() { if (!baseUrl()) return; try { const r = await fetch(stateUrl(), { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pickState()) }); if (r.ok) { applyState(await r.json()); render(); setConn(''); } } catch(e) { setConn(''); } }
 async function pullState(manual) { if (!baseUrl()) { if (manual) toast('서버 주소를 먼저 넣어 주세요'); return; } try { const r = await fetch(stateUrl() + '?_=' + Date.now()); if (!r.ok) throw 0; const before = JSON.stringify(pickState()); applyState(await r.json()); if (JSON.stringify(pickState()) !== before) { render(); if (manual) toast('비서가 적은 게 들어왔어요'); } else if (manual) toast('새 항목 없음'); setConn(''); } catch(e) { if (manual) toast('연결 실패'); setConn(''); } }
 function agentAgo() { const a = D.agent; if (!a || !a.at) return ''; const m = Math.round((Date.now() - new Date(a.at)) / 60000); return m < 1 ? '방금' : m < 60 ? m + '분 전' : m < 1440 ? Math.round(m/60) + '시간 전' : Math.round(m/1440) + '일 전'; }
