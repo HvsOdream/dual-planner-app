@@ -282,6 +282,8 @@ body.kb .tabbar { display: none; }
 .ev .et { flex: 1; min-width: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ev .te { font-family: var(--mono); font-size: 11px; color: var(--muted); padding-right: 4px; }
 .ev.past .et, .ev.past .tm { color: var(--faint); }
+.ev.gap .et { color: var(--muted); } .ev .gapb { flex: none; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; color: var(--ink); font-weight: 700; padding: 0 4px; }
+.ev.gapc button.et { text-align: left; font: inherit; font-size: 15px; color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 4px; padding: 0; }
 .ev.appt .te { font-family: inherit; color: var(--check); } .ev .evx { flex: none; color: var(--muted); font-size: 16px; padding: 0 4px; }
 .ev.evadd { align-items: center; gap: 8px; padding-right: 4px; } .ev.evadd input { font: inherit; font-size: 15px; background: transparent; border: none; border-bottom: 1px solid var(--rule); color: var(--ink); } .ev.evadd { flex-wrap: wrap; row-gap: 6px; padding-bottom: 6px; } .ev.evadd input[type=time] { width: 104px; flex: none; } .ev.evadd #evNt, .ev.evadd #evNc { flex: 1; min-width: 120px; } .ev.evadd select { font: inherit; font-size: 14px; background: transparent; border: none; border-bottom: 1px solid var(--rule); color: var(--ink); flex: none; } .ev.tmr .et, .ev.tmr .tm { color: var(--ink-2); } .ev.tmr { font-size: 14px; } .ev.evadd #evN { flex: 1; min-width: 0; } .ev.evadd button { flex: none; font-size: 13px; font-weight: 700; text-decoration: underline; }
 
@@ -757,7 +759,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.32'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.33'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1341,9 +1343,13 @@ function calHtml(ds, ctx) {
   ctx = ctx || 't';
   const hm = nowHM(), isToday = ds === today(), canAdd = ds >= today(), open = _evAdd === ctx;
   const rows = eventsOn(ds).map(e => ({ k: e.allDay ? '00:00' : e.start, e })).concat(apptsOn(ds).map(r => ({ k: atOn(r, ds), r })));
+  const gap = ctx === 't' && isToday ? freeGap(ds) : null, gc = gap ? gapCands(ds) : [];
+  if (gap && gc.length) rows.push({ k: gap[0], gap }); else _gapOpen = ctx === 't' && isToday ? false : _gapOpen;
   rows.sort((x, y) => x.k < y.k ? -1 : x.k > y.k ? 1 : 0);
   let h = `<div class="lbl"><span>일정</span>${canAdd ? `<button onclick="_evAdd=_evAdd==='${ctx}'?'':'${ctx}';render();setTimeout(()=>{const e=document.getElementById('evT${ctx}');if(e)e.focus()},50)">${open ? '닫기' : '+ 약속'}</button>` : ''}</div>`;
-  h += rows.map(({ e, r }) => e
+  h += rows.map(({ e, r, gap }) => gap
+    ? `<div class="ev ruled gap"><span class="tm">${evTm(gap[0], gap[1])}</span><span class="et">빈 시간</span><button class="gapb" onclick="_gapOpen=!_gapOpen;renderToday()">${_gapOpen ? '닫기' : '넣기'}</button></div>` + (_gapOpen ? gc.slice(0, 5).map(c => `<div class="ev ruled gapc"><span class="tm"></span><button class="et" onclick="placeGap('${c.id}')">${esc(c.title)}</button><span class="te">${gap[0]}에</span></div>`).join('') : '')
+    : e
     ? `<div class="ev ruled ${isToday && !e.allDay && e.end && e.end <= hm ? 'past' : ''}"><span class="tm">${e.allDay ? '종일' : evTm(e.start, e.end)}</span><span class="et">${esc(e.title)}</span></div>`
     : `<div class="ev ruled appt ${isToday && (r.atEnd || atOn(r, ds)) < hm ? 'past' : ''}"><span class="tm">${evTm(atOn(r, ds), r.atEnd)}</span><span class="et">${esc(r.title)}</span><span class="te">${apptClash(ds, atOn(r, ds), r.id) ? '겹침' : '약속'}</span><button class="evx" aria-label="약속 지우기" onclick="dropAppt('${r.id}')">×</button></div>`).join('');
   if (canAdd && open) h += `<div class="ev ruled evadd"><input type="hidden" id="evD${ctx}" value="${ds}"><input type="time" id="evT${ctx}" aria-label="시작" value="${isToday ? freeFrom(ds) : '09:00'}"><span style="color:var(--muted)">–</span><input type="time" id="evE${ctx}" aria-label="끝"><input id="evN${ctx}" placeholder="누구와 무엇을" onkeydown="if(event.key==='Enter')addAppt('${ctx}')"><button onclick="addAppt('${ctx}')">적기</button></div>`;
@@ -1387,6 +1393,26 @@ async function setCalNative(on) {
 const NOTIFY = [{ id: 101, k: 'morning', name: '오늘 브리핑', t: '08:00', title: '오늘', body: '오늘 할 것, 세 줄만' }, { id: 102, k: 'evening', name: '저녁', t: '21:30', title: '오늘 닫기', body: '체크하고 한 줄 일기' }, { id: 103, k: 'sunday', name: '일요일', t: '20:00', title: '한 주 돌아보기', body: '일요일 저녁 10분' }];
 function notifyCfg() { return Object.assign({ on: false, morning: '08:00', evening: '21:30', sunday: '20:00', off: {} }, (D.settings || {}).notify || {}); }
 // 비서가 쓰는 알림: 그날의 마감·오늘 칸·이번 주 숫자로 문구를 만든다(구독·체험 중일 때)
+// 빈 시간에 넣을 만한 일: 오늘 고른 것 중 시각이 없고 아직 안 한 것. 마감이 오늘이거나 지난 것, A, 고른 순
+function gapCands(ds) {
+  const pc = (dayOf(ds).picks || []).map(rock).filter(r => r && !r._deleted && !r.done && !r.at && !r.appt && !(r.checks && r.checks[ds])), rank = r => (r.due && r.due <= ds ? 0 : r.bucket === 'urgent' ? 1 : 2);
+  return pc.slice().sort((x, y) => rank(x) - rank(y) || (rank(x) === 0 ? (x.due < y.due ? -1 : x.due > y.due ? 1 : 0) : 0) || pc.indexOf(x) - pc.indexOf(y));
+}
+// 오늘 남은 시간 중 첫 빈 칸(9~18시, 한 시간 이상, 점심 12~13시 제외). 시각 있는 일정·약속이 하나라도 있는 날만
+let _gapOpen = false;
+function freeGap(ds) {
+  const toM = x => { const [h, m] = x.split(':').map(Number); return h * 60 + m; }, fm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  const bl = eventsOn(ds).filter(e => !e.allDay && e.start).map(e => [toM(e.start), e.end ? toM(e.end) : toM(e.start) + 60]).concat(apptsOn(ds).map(r => { const a = toM(atOn(r, ds)); return [a, r.atEnd && toM(r.atEnd) > a ? toM(r.atEnd) : a + 60]; }));
+  if (!bl.length) return null;
+  let cur = 9 * 60; if (ds === today()) cur = Math.max(cur, Math.ceil((toM(nowHM()) + 5) / 30) * 30);
+  for (const [a, z] of bl.concat([[12 * 60, 13 * 60]]).sort((x, y) => x[0] - y[0])) { if (a - cur >= 60 && a <= 18 * 60) return [fm(cur), fm(a)]; cur = Math.max(cur, z); }
+  return 18 * 60 - cur >= 60 ? [fm(cur), fm(18 * 60)] : null;
+}
+function placeGap(id) {
+  const r = rock(id), ds = today(), g = freeGap(ds); if (!r || !g) return;
+  const toM = x => { const [h, m] = x.split(':').map(Number); return h * 60 + m; }, e = Math.min(toM(g[0]) + 60, toM(g[1]));
+  r.at = ds + 'T' + g[0]; r.atEnd = String(Math.floor(e / 60)).padStart(2, '0') + ':' + String(e % 60).padStart(2, '0'); r.u = new Date().toISOString(); _gapOpen = false; save(); render(); apptToast(g[0], ds, id);
+}
 function briefOf(ds) {
   const ev = calEvents().filter(e => e.date === ds).sort((a, b) => (a.allDay ? '00' : a.start || '') < (b.allDay ? '00' : b.start || '') ? -1 : 1);
   const timed = ev.filter(e => !e.allDay && e.start), open = openItems();
@@ -1405,8 +1431,7 @@ function briefOf(ds) {
   const er = evRoles(), dayRoles = new Set(timed.map(e => er[(e.title || '').trim()]).filter(Boolean));
   const bTop = open.filter(r => r.bucket === 'important' && !r.routine && r.role && dayRoles.has(r.role) && !picks.includes(r) && r.due !== ds && !(r.due && r.due < ds) && !waiting(r)).sort((a, b) => (a.due || '9999') < (b.due || '9999') ? -1 : 1)[0];
   // 빈 시간에 넣을 일: 오늘 하겠다고 골라 둔 것이 먼저다(마감이 오늘이거나 지난 것, A, 고른 순). 골라 둔 게 없을 때만 B를 권한다
-  const pc = picks.filter(r => !r.at && !r.appt && !(r.checks && r.checks[ds])), rank = r => (r.due && r.due <= ds ? 0 : r.bucket === 'urgent' ? 1 : 2);
-  const gapTop = pc.slice().sort((x, y) => rank(x) - rank(y) || (rank(x) === 0 ? (x.due < y.due ? -1 : x.due > y.due ? 1 : 0) : 0) || pc.indexOf(x) - pc.indexOf(y))[0] || bTop;
+  const gapTop = gapCands(ds)[0] || bTop;
   return { ev, timed, due, soon, picks, gap: gap && [fm(gap[0]), fm(gap[1])], bTop, gapTop };
 }
 // 무료 한 달이 끝나 갈 때: 오늘 칸 위에 한 장만
@@ -1470,7 +1495,7 @@ function josa(w, a, b) { const c = String(w).trim().slice(-1).charCodeAt(0); ret
 function apptToast(st, ds, id) {
   const c = ds ? apptClash(ds, st.slice(-5), id) : '';
   if (c) { toast(`${st} 약속으로 적었어요 · ${c}${josa(c, '과', '와')} 겹쳐요`); return; } const lead = apptLead(); toast(isNative() && !notifyCfg().on ? `${st} 약속으로 적었어요 · 알림이 꺼져 있어요(메뉴 › 알림)` : `${st} 약속으로 적었어요 · ${lead ? lead + '분 전에' : '정각에'} 알려요`); }
-function clearAt(id) { const r = rock(id); if (!r) return; delete r.at; r.u = new Date().toISOString(); save(); render(); toast('시각을 뺐어요'); }
+function clearAt(id) { const r = rock(id); if (!r) return; delete r.at; delete r.atEnd; r.u = new Date().toISOString(); save(); render(); toast('시각을 뺐어요'); }
 // 저녁 정리: 저녁 알림 시각이 지나면(알림을 꺼 둬도) 오늘 맨 위에 붙는다. 알림과 같은 문장으로 시작한다. 남은 일 끝/내일로, 한 줄 일기를 여기서 바로
 let eveOpen = '';
 function eveTime() { return notifyCfg().evening || '21:30'; }
