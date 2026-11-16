@@ -136,6 +136,18 @@ async function ui(browser, label, ctxOpts) {
   C('닫은 계획은 목록에서 빠지고 따로 모인다', await ev(() => !document.querySelector('#week .prow') && [...document.querySelectorAll('#week .lbl button')].some(b => /닫은 계획 1/.test(b.textContent))));
   await ev(id => closePlan(id), pid);
   C('병합: 서버 계획과 내 계획이 다 남는다', await ev(() => { const m = mergeState(pickState(), { plans: [{ id: 'p_srv', name: '서버', at: '2026-01-01T00:00:00Z', u: '2026-01-01T00:00:00Z' }] }).plans; return m.length === 2 && m.some(x => x.id === 'p_srv'); }));
+  // 4-2. 오늘에서 칸 바꾸기
+  await ev(() => { D.rocks.push({ id: 'tb1', week: weekKey(new Date()), bucket: 'urgent', role: '', title: '오늘에서 칸 바꿀 일', done: false, carry: 0, checks: {} }); dayOf(today()).picks.push('tb1'); todayOpen = null; go('today'); });
+  const tbRow = () => pg.locator('#today .item', { hasText: '오늘에서 칸 바꿀 일' });
+  C('오늘 줄에 지금 칸이 보인다', await ev(() => { const e = [...document.querySelectorAll('#today .item')].find(x => /오늘에서 칸 바꿀 일/.test(x.textContent)); return !!e && e.querySelector('.m .bk').textContent === 'A'; }));
+  await tbRow().locator('.tx').click();
+  C('오늘에서 제목을 누르면 고치는 줄이 펴진다', await tbRow().locator('.bslot').first().isVisible());
+  await tbRow().locator('.bslot button', { hasText: /^B$/ }).click();
+  C('오늘에서 B로 옮기면 마감이 잡힌다', await ev(() => { const r = rock('tb1'), e = [...document.querySelectorAll('#today .item')].find(x => /오늘에서 칸 바꿀 일/.test(x.textContent)); return r.bucket === 'important' && !!r.due && e.querySelector('.m .bk').textContent === 'B' && !!e.querySelector('.bslot'); }));
+  await tbRow().locator('.bslot button', { hasText: '닫기' }).click();
+  C('닫기를 누르면 접힌다', await ev(() => !document.querySelector('#today .item .bslot')));
+  { const o = await overflow(); C('오늘에서 넘치는 줄이 없다(칸 바꾸기)', !o.length, o.slice(0, 4)); }
+  await ev(() => { rock('tb1')._deleted = true; save(); render(); });
   // 5. 메모: 적기, 고치기, 할 일로, 지우기, 비서 메모는 메모로 누른 것만
   await ev(() => go('memo'));
   const n0 = await ev(() => memoEntries().length);
