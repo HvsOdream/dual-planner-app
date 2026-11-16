@@ -739,7 +739,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.30'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.31'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1384,7 +1384,10 @@ function briefOf(ds) {
   // 빈 시간에는 그날 일정과 같은 역할의 일만(회의 사이엔 일, 근무 중에 개인 공부를 권하지 않는다)
   const er = evRoles(), dayRoles = new Set(timed.map(e => er[(e.title || '').trim()]).filter(Boolean));
   const bTop = open.filter(r => r.bucket === 'important' && !r.routine && r.role && dayRoles.has(r.role) && !picks.includes(r) && r.due !== ds && !(r.due && r.due < ds) && !waiting(r)).sort((a, b) => (a.due || '9999') < (b.due || '9999') ? -1 : 1)[0];
-  return { ev, timed, due, soon, picks, gap: gap && [fm(gap[0]), fm(gap[1])], bTop };
+  // 빈 시간에 넣을 일: 오늘 하겠다고 골라 둔 것이 먼저다(마감이 오늘이거나 지난 것, A, 고른 순). 골라 둔 게 없을 때만 B를 권한다
+  const pc = picks.filter(r => !r.at && !r.appt && !(r.checks && r.checks[ds])), rank = r => (r.due && r.due <= ds ? 0 : r.bucket === 'urgent' ? 1 : 2);
+  const gapTop = pc.slice().sort((x, y) => rank(x) - rank(y) || (rank(x) === 0 ? (x.due < y.due ? -1 : x.due > y.due ? 1 : 0) : 0) || pc.indexOf(x) - pc.indexOf(y))[0] || bTop;
+  return { ev, timed, due, soon, picks, gap: gap && [fm(gap[0]), fm(gap[1])], bTop, gapTop };
 }
 // 무료 한 달이 끝나 갈 때: 오늘 칸 위에 한 장만
 function trialHtml(ds) {
@@ -1407,7 +1410,7 @@ function briefRows(ds) {
   b.due.forEach(r => add(r, '오늘', true));
   overdueItems().slice(0, 2).forEach(r => add(r, '지남', true));
   b.soon.slice(0, 3).forEach(r => add(r, 'D-' + dleft(r.due), dleft(r.due) <= 1));
-  if (b.gap && b.bTop) add(b.bTop, b.gap[0] + ' 빔', false);
+  if (b.gap && b.gapTop) add(b.gapTop, b.gap[0] + ' 빔', false);
   return { b, rows };
 }
 let _slot = null, _fix = null;
@@ -1575,12 +1578,14 @@ function notifText(k, ds) {
   if (k === 'morning' && featOn('brief')) {
     const b = briefOf(ds), parts = [];
     const ap = apptsOn(ds), fa = b.timed.map(e => ({ t: e.start, n: e.title })).concat(ap.map(r => ({ t: atOn(r, ds), n: r.title }))).sort((x, y) => x.t < y.t ? -1 : 1)[0];
-    if (fa) parts.push(`일정 ${b.ev.length + ap.length}개, 첫 일정 ${fa.t} ${short(fa.n)}`); else if (b.ev.length) parts.push(`종일 일정: ${short(b.ev[0].title)}`);
-    if (b.due.length) parts.push(`오늘 마감: ${b.due.map(r => short(r.title)).join(', ')}`);
-    else if (b.soon.length) parts.push(`${short(b.soon[0].title)} D-${Math.round((new Date(b.soon[0].due) - new Date(ds)) / 86400000)}`);
-    if (b.picks.length) parts.push(`오늘 칸 ${b.picks.length}개`);
-    if (b.gap && b.bTop) parts.push(`${b.gap[0]}~${b.gap[1]} 비어요`);
-    if (parts.length) return { title: '오늘 브리핑', body: parts.join(' · ') };
+    const n = b.ev.length + ap.length, hm = t => { const [h, m] = t.split(':').map(Number); return h + '시' + (m ? ' ' + m + '분' : ''); };
+    if (fa) parts.push(`${n > 1 ? `일정 ${n}개, ` : ''}첫 일정은 ${fa.t} ${short(fa.n)}예요.`); else if (b.ev.length) parts.push(`종일 일정: ${short(b.ev[0].title)}.`);
+    if (b.due.length) parts.push(`오늘 마감: ${b.due.map(r => short(r.title)).join(', ')}.`);
+    else if (b.soon.length) parts.push(`${short(b.soon[0].title)} D-${Math.round((new Date(b.soon[0].due) - new Date(ds)) / 86400000)}.`);
+    // 빈 시간은 넣을 일이 있을 때만, 그 일과 함께 말한다
+    if (b.gap && b.gapTop) parts.push(`${fa && b.gap[1] <= fa.t ? '그 전에 ' : ''}${hm(b.gap[0])}~${hm(b.gap[1])}가 비어 있어요. 그 시간에 '${short(b.gapTop.title)}' 어때요?`);
+    else if (!parts.length && b.picks.length) parts.push(`오늘 할 것 ${b.picks.length}개가 기다려요.`);
+    if (parts.length) return { title: '오늘 브리핑', body: parts.join(' ') };
   }
   if (k === 'morning') {
     const due = open.filter(r => r.due === ds);
