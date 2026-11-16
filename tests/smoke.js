@@ -91,6 +91,7 @@ async function ui(browser, label, ctxOpts) {
   C('알림 뒤 10분 안에 열면 팝업 없이 맨 위에 붙는다', await ev(() => !!nTap && nTap.k === 'evening' && !!document.querySelector('#today #eveNote') && !document.getElementById('npop')), await ev(() => ({ nTap, last: D.nLast, log: (D.nlog || []).filter(x => /^eve/.test(x.k)), sched: D._sched, tab, eve: !!document.getElementById('eveNote') })));
   await ev(() => { nTap = null; });
   // 3. 하면 좋은 일
+  await ev(() => { D.guide = D.guide || { done: {}, off: {} }; D.guide.skip = { write: '2026-01-01', notify: '2026-01-01', cal: '2026-01-01', agent: '2026-01-01' }; render(); }); // 첫인사는 다 넘긴 사람
   C('하면 좋은 일 포스트잇이 붙는다(어제 A 1개)', await ev(() => [...document.querySelectorAll('#today .sticky')].some(e => /하면 좋은 일/.test(e.textContent) && /HvsO/.test(e.textContent))));
   await ev(() => niceToday('d1')); C('오늘로: 오늘 칸에 올리고 포스트잇은 떨어진다', await ev(() => D.days[today()].picks.includes('d1') && ![...document.querySelectorAll('#today .sticky')].some(e => /하면 좋은 일/.test(e.textContent))));
 
@@ -221,6 +222,15 @@ async function ui(browser, label, ctxOpts) {
   C('옆면 인덱스: 펼친 화면에서는 오늘 탭이 빠지고 표지 안 탭이 숨는다', await ev(() => !spread() || (getComputedStyle(document.querySelector('.tabbar button[data-tab="today"]')).display === 'none' && (!document.querySelector('#cover .right') || getComputedStyle(document.querySelector('#cover .right')).display === 'none'))));
   await ev(() => { edgeCheck(0); go('today'); });
   C('띠가 없으면 아래 탭으로 돌아온다', await ev(() => !document.documentElement.classList.contains('edge-r') && (spread() || document.querySelector('.tabbar').getBoundingClientRect().width > innerWidth - 2)));
+  // 첫날: 비서 인사 한 장, 하나씩 권하기
+  await ev(() => { window._D0 = JSON.stringify(D); D.rocks = []; D.days = {}; D.plans = []; D.guide = { done: {}, off: {} }; D.nlog = []; D.settings = Object.assign({}, D.settings, { calUrl: '', calNative: false }); D.agent = null; D.preview = ''; go('today'); });
+  C('첫날: 맨 위에 비서 인사 한 장만 있고 하면 좋은 일은 없다', await ev(() => { const st = [...document.querySelectorAll('#today .sticky')]; const hs = st.filter(e => e.classList.contains('start')); return hs.length === 1 && /오늘 할 것 하나만/.test(hs[0].textContent) && !st.some(e => /하면 좋은 일/.test(e.textContent)) && !(D.nlog || []).some(x => /하면 좋은/.test(x.label)); }));
+  C('첫날: 할 일 탭은 다섯 개 안내가 계획 배너보다 먼저다', await ev(() => { go('week'); const a = document.querySelector('#week .pbanner'), b = document.querySelector('#week .stickies'); return !!a && !!b && b.getBoundingClientRect().top < a.getBoundingClientRect().top; }));
+  await ev(() => { go('today'); D.rocks.push({ id: 'f1', week: weekKey(new Date()), bucket: 'light', role: '', title: '첫 할 일', done: false, carry: 0, checks: {} }); dayOf(today()).picks.push('f1'); render(); });
+  C('하나 적으면 다음 것(캘린더) 하나만 권한다', await ev(() => { const st = [...document.querySelectorAll('#today .sticky.start')]; return st.length === 1 && /캘린더/.test(st[0].textContent); }));
+  await pg.locator('#today .sticky.start button', { hasText: '나중에' }).click();
+  C('나중에를 누르면 그날은 더 권하지 않는다', await ev(() => !document.querySelector('#today .sticky.start')));
+  await ev(() => { D = JSON.parse(window._D0); save(); go('today'); });
   C('화면 오류가 없다', !errs.length, errs.slice(0, 3));
   await ctx.close();
 }

@@ -133,6 +133,7 @@ a { color: inherit; }
 .sticky:nth-child(even) { transform: rotate(1.1deg); background: #FFF6A8; }
 .sticky:nth-child(3n) { transform: rotate(-.4deg); }
 /* 처음부터 붙어 있는 안내 포스트잇(하늘색): 해내면 체크되고 떨어진다 */
+.sticky.start .tx { font-size: 16px; line-height: 1.6; } .sticky.start .act .go { font-weight: 800; }
 .sticky.guide, .sticky.guide:nth-child(even) { background: var(--guide); color: var(--guide-ink); }
 .sticky.guide:nth-child(even) { background: var(--guide-2); }
 .sticky.guide::before { background: rgba(30,47,79,.06); }
@@ -759,7 +760,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.33'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.34'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -885,6 +886,7 @@ function renderToday() {
   let h = `${full ? `<button class="banner" onclick="go('close')"><span>${volName(cv)} 속지가 다 찼어요. 1년을 돌아보고 새 속지를 끼울 시간이에요</span><b>속지 닫기 ›</b></button>` : ''}<div class="sp"></div>
   ${tapped('morning') && !(ds === today() && backMode()) ? briefHtml(ds) : ''}
   ${notifStickies(ds)}
+  ${ds === today() ? helloHtml() : ''}
   ${firstHtml(ds)}
   ${trialHtml(ds)}
   ${ds === today() && backMode() ? `<div class="stickies">${backHtml()}</div>` : ''}
@@ -932,12 +934,32 @@ const GUIDES = [
   { id: 'note', text: '저녁엔 한 줄 일기', hint: '맨 아래 줄에', done: () => Object.values(D.days).some(d => d && d.note) },
   { id: 'agent', text: '쓰는 AI 비서 데려오기', hint: 'Claude, ChatGPT…', act: ['연결', 'openMore()'], done: () => agentOn() },
 ];
+// ── 비서의 첫인사: 처음 며칠, 오늘 맨 위에 한 번에 하나씩만 권한다. 할 것 하나 적기 → 아침 알림 → 캘린더 → 내 AI 비서 ──
+// 하나를 하면 다음 것이 이어서 나오고, 「나중에」를 누르면 그날은 더 권하지 않는다
+const HELLO = [
+  { id: 'write', lab: '처음 뵙겠습니다', t: '여기 적어 두면 제가 아침마다 정리해 드려요. 먼저 오늘 할 것 하나만 적어 볼까요', btn: '적기', go: "const e=document.getElementById('quickIn');if(e){e.scrollIntoView({block:'center'});e.focus()}", done: () => Object.values(D.days).some(d => d && (d.picks || []).length) },
+  { id: 'notify', native: true, lab: '아침 브리핑', t: '적어 주셨네요. 내일 아침 8시에 오늘 일정과 마감을 알림으로 정리해 드릴까요', btn: '알림 켜기', go: 'enableNotifs()', done: () => !!(D.settings && D.settings.notify && D.settings.notify.on) },
+  { id: 'cal', lab: '캘린더', t: '캘린더를 연결하면 일정 사이 빈 시간을 찾아 드려요', btn: '캘린더 연결', go: "isNative()?setCalNative(true):(go('more'),openSec('cal'))", done: () => !!(D.settings && (D.settings.calUrl || D.settings.calNative)) },
+  { id: 'agent', lab: '내 AI 비서', t: 'Claude 같은 AI를 쓰고 계시면 연결해 보세요. 대화하다 생긴 할 일을 그 AI가 여기에 대신 적어 줘요', btn: '연결하기', go: "go('more');openSec('conn')", done: () => agentOn() },
+];
+function helloNext() {
+  D.guide = D.guide || { done: {}, off: {} }; const sk = D.guide.skip || {};
+  if (Object.values(sk).includes(today())) return null; // 오늘 「나중에」를 눌렀으면 더 권하지 않는다
+  return HELLO.find(x => !(x.native && !isNative()) && !sk[x.id] && !D.guide.off[x.id] && !x.done()) || null;
+}
+function helloSkip(id) { D.guide = D.guide || { done: {}, off: {} }; D.guide.skip = Object.assign({}, D.guide.skip, { [id]: today() }); _save0(); render(); }
+function helloHtml() {
+  const x = helloNext(); if (!x) return '';
+  return `<div class="stickies" style="padding-top:12px"><div class="sticky wide start"><div class="who"><span>비서</span><span>${x.lab}</span></div>
+    <div class="tx">${x.t}</div><div class="act"><button class="go" onclick="${x.go}">${x.btn}</button>${x.id === 'write' ? '' : `<button onclick="helloSkip('${x.id}')">나중에</button>`}</div></div></div>`;
+}
 function guidesNow(where) {
   where = where || 'today';
   D.guide = D.guide || { done: {}, off: {} };
   const now = Date.now(), out = []; let changed = false;
   for (const g of GUIDES) {
     if ((g.tab || 'today') !== where || D.guide.off[g.id] || (g.native && !isNative())) continue;
+    if (where === 'today' && (['write', 'cal', 'notify', 'agent'].includes(g.id) || (helloNext() || {}).id === 'write')) continue; // 비서의 첫인사(맨 위 한 장)가 하나씩 권한다. 하나도 안 적었을 때는 인사만
     const ok = g.done();
     if (ok && !D.guide.done[g.id]) { D.guide.done[g.id] = now; changed = true; }
     if (ok && now - D.guide.done[g.id] > 2400) continue;
@@ -1586,6 +1608,7 @@ function aOpenNow() { return openItems().filter(r => r.bucket === 'urgent' && !r
 function markAOpen() { const ds = today(), n = aOpenNow(), d = D.days[ds]; if (!d || d.aOpen !== n) { dayOf(ds).aOpen = n; _save0(); } } // 그날 마지막 값이 '전날 밤' 값이 된다
 function niceHtml(ds) {
   if (ds !== today() || !featOn('nice') || noteOff('nice:' + ds) || (D.niceNext || '') > ds) return '';
+  if (live().length < 3 || helloNext()) return ''; // 막 시작한 때(적은 게 거의 없거나 비서가 첫인사를 하는 중)에는 묻지 않는다
   const y = D.days[addDays(ds, -1)], base = y && typeof y.aOpen === 'number' ? y.aOpen : aOpenNow();
   if (base > 1) return '';
   const picks = dayOf(ds).picks || [];
@@ -1933,7 +1956,8 @@ function itemRow(r, n) {
 function renderWeek() {
   const items = openItems();
   const gh = roleFinder() + weekNotes() + groupHtml() + guidesNow('week').map(guideHtml).join('');
-  let h = planBanner() + (gh ? `<div class="stickies" style="padding-top:12px">${gh}</div>` : `<div class="sp"></div>`);
+  const early = live().length < 3 && !livePlans().length; // 처음에는 '할 일부터 적기'가 먼저다
+  let h = (early ? '' : planBanner()) + (gh ? `<div class="stickies" style="padding-top:12px">${gh}</div>` : `<div class="sp"></div>`) + (early ? planBanner() : '');
   h += plansHtml();
   let n = 0;
   BUCKETS.forEach(([b, name]) => {
