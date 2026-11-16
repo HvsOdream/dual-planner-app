@@ -200,6 +200,18 @@ async function ui(browser, label, ctxOpts) {
   C('구독 전: 첫 계획은 적을 수 있다', await ev(() => planView === 'new' && !!document.getElementById('plName')));
   C('구독 안 한 화면에서도 탭이 열린다', (await ev(() => document.querySelector('#p-more .sheet').textContent.length)) > 10);
 
+  await ev(() => { go('week'); openPlan('new'); }); await pg.waitForTimeout(150); await pg.fill('#plName', '탭 확인용'); await ev(() => savePlan()); await pg.waitForTimeout(80);
+  C('글 칸에서 적고 저장한 뒤 아래 탭이 돌아온다', await ev(() => !document.body.classList.contains('kb')));
+  await ev(() => { D.plans.forEach(p => { if (p.name === '탭 확인용') p._deleted = true; }); go('today'); });
+  // 옆면 인덱스: 오른쪽 띠가 넓은 기기 흉내
+  await ev(() => { D.preview = ''; edgeCheck(72); go('today'); });
+  C('옆면 인덱스: 탭이 오른쪽 띠 안에 세로로 선다', await ev(() => { const bs = [...document.querySelectorAll('.tabbar button')].filter(b => getComputedStyle(b).display !== 'none').map(b => b.getBoundingClientRect()); return bs.length >= 4 && bs.every(r => r.left >= innerWidth - 73 && r.right <= innerWidth + 1) && bs[1].top > bs[0].bottom - 1; }));
+  C('옆면 인덱스: 본문이 띠를 침범하지 않는다', await ev(() => { const c = document.getElementById('cover').getBoundingClientRect(); return c.right <= innerWidth - 71; }));
+  await pg.locator('.tabbar button[data-tab="review"]').click();
+  C('옆면 인덱스: 눌러서 달력으로 간다', await ev(() => (spread() ? rightTab : tab) === 'review' && document.querySelector('.tabbar button[data-tab="review"]').classList.contains('on')));
+  C('옆면 인덱스: 펼친 화면에서는 오늘 탭이 빠지고 표지 안 탭이 숨는다', await ev(() => !spread() || (getComputedStyle(document.querySelector('.tabbar button[data-tab="today"]')).display === 'none' && (!document.querySelector('#cover .right') || getComputedStyle(document.querySelector('#cover .right')).display === 'none'))));
+  await ev(() => { edgeCheck(0); go('today'); });
+  C('띠가 없으면 아래 탭으로 돌아온다', await ev(() => !document.documentElement.classList.contains('edge-r') && (spread() || document.querySelector('.tabbar').getBoundingClientRect().width > innerWidth - 2)));
   C('화면 오류가 없다', !errs.length, errs.slice(0, 3));
   await ctx.close();
 }

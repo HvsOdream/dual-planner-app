@@ -330,6 +330,16 @@ html.native .tabbar { padding-left: env(safe-area-inset-left); padding-right: en
 /* 화면 가장자리에 폰이 띄워 둔 것(시계·손잡이)이 있으면 그 자리는 비운다: 아래에서 올라오는 판과 팝업도 본문과 같은 폭 안에 */
 html.native .dpick, html.native .more, html.native .login, html.native .intro { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 html.native .npop { padding-left: calc(18px + env(safe-area-inset-left)); padding-right: calc(18px + env(safe-area-inset-right)); }
+/* ── 옆면 인덱스: 화면 오른쪽에 폰이 비워 두라는 띠(시계·손잡이 자리)가 넓으면, 그 띠를 공책 옆면으로 쓰고 탭을 인덱스처럼 단다 ── */
+html.edge-r body::after { content: ''; position: fixed; top: 0; right: 0; bottom: 0; width: var(--sar); background: var(--paper-2); box-shadow: inset 9px 0 10px -8px rgba(40,30,15,.28); z-index: 55; pointer-events: none; }
+html.edge-r .tabbar { display: flex; flex-direction: column; gap: 6px; left: auto; right: 0; top: auto; bottom: calc(22px + env(safe-area-inset-bottom)); width: var(--sar); padding: 0 6px 0 0; background: none; border: 0; }
+html.edge-r .tabbar button { flex-direction: row; gap: 6px; justify-content: flex-start; height: 54px; padding-left: 10px; font-size: 14px; background: var(--paper-2); border: 1px solid var(--border); border-left: 0; border-radius: 0 10px 10px 0; box-shadow: 2px 1px 3px rgba(40,30,15,.12); color: var(--ink-2); }
+html.edge-r .tabbar button.on { background: var(--paper); color: var(--ink); box-shadow: inset 4px 0 0 var(--check), 2px 1px 4px rgba(40,30,15,.18); }
+html.edge-r .tabbar button i { display: none; }
+html.edge-r body { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+html.edge-r body.spread .tabbar { display: flex; } html.edge-r body.spread .tabbar button[data-tab="today"] { display: none; }
+html.edge-r body.spread .cover .right { display: none; } html.edge-r body.spread { padding-bottom: 0; }
+html.edge-r body.kb .tabbar { display: none; }
 #saProbe { position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 .more h3 { font-size: 11px; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; }
 .more .mi { display: flex; align-items: center; justify-content: space-between; height: 48px; border-bottom: 1px solid var(--rule); font-size: 15px; width: 100%; text-align: left; }
@@ -670,7 +680,7 @@ function syncPages() {
   const sp = spread(); document.body.classList.toggle('spread', sp);
   const on = sp ? ['today', rightTab] : [tab];
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', on.includes(p.id.slice(2))));
-  const tb = ['sub', 'roles', 'priv'].includes(tab) ? 'more' : tab === 'notis' ? notisBack : tab === 'plan' ? 'week' : tab; document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === tb));
+  const tb = ['sub', 'roles', 'priv'].includes(tab) ? 'more' : tab === 'notis' ? notisBack : tab === 'plan' ? 'week' : tab; const tb2 = sp ? (['sub', 'roles', 'priv'].includes(rightTab) ? 'more' : rightTab === 'notis' ? notisBack : rightTab === 'plan' ? 'week' : rightTab) : tb; document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === tb2));
 }
 function go(t) {
   tab = t; if (t !== 'today') rightTab = t;
@@ -678,7 +688,15 @@ function go(t) {
   if (!spread()) window.scrollTo(0,0); else if (t !== 'today') { const p = document.getElementById('p-' + t); if (p) p.scrollTop = 0; }
   render();
 }
-SPREAD_MQ.addEventListener('change', () => { syncPages(); render(); });
+SPREAD_MQ.addEventListener('change', () => { edgeCheck(); syncPages(); render(); });
+// 오른쪽 안전 영역이 넓으면(44px 이상) 옆면 인덱스를 켠다. 좁거나 없으면 평소대로 아래 탭
+function edgeCheck(force) {
+  const pr = document.getElementById('saProbe'), w = typeof force === 'number' ? force : (pr ? parseFloat(getComputedStyle(pr).paddingRight) || 0 : 0), on = w >= 44;
+  document.documentElement.classList.toggle('edge-r', on); document.documentElement.style.setProperty('--sar', on ? w + 'px' : '0px');
+  if (typeof force === 'number') document.body.style.paddingRight = on ? w + 'px' : '';
+  return on;
+}
+window.addEventListener('resize', () => edgeCheck());
 // 작은 화면에서 좌우로 끌면 오늘 ↔ 할 일 ↔ 메모 ↔ 달력 ↔ 메뉴
 const SWIPE_TABS = ['today', 'week', 'memo', 'review', 'more'];
 (function swipeTabs() {
@@ -739,7 +757,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.31'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.32'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -789,7 +807,9 @@ function backHtml() {
   return aNote({ label: '다시 왔어요', cls: 'wide brief', text: top.map(r => r.title).join(' · '), html, acts: (n > 1 ? `<button onclick="pickMany(${esc(JSON.stringify(top.map(r => r.id)))})">${word} 다 오늘 칸에</button>` : '') + (rest.length ? `<button onclick="toD(${esc(JSON.stringify(rest.map(r => r.id)))})">${rest.length}개 D로</button>` : '') + `<button onclick="dropNote('back:${today()}')">떼기</button>` });
 }
 function pickBack(id) { pickMany([id]); }
-function render() { markSeen(); ensureTrial(); syncRoles(); rescheduleSoon(); setTimeout(maybeGroup, 800); widgetSync(); applyTheme(); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.preview ? '' : 'none'; if (db) db.textContent = D.preview === 'free' ? '구독 안 한 화면' : '구독한 화면'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); renderPop(); }
+// 글 칸이 화면을 다시 그리며 사라지면 focusout이 오지 않아 아래 탭이 숨은 채 남는다. 그릴 때마다, 적는 중이 아니면 탭을 되돌린다
+function kbSync() { const a = document.activeElement; if (!(a && a.matches && a.matches('textarea, input, select') && document.body.contains(a))) document.body.classList.remove('kb'); }
+function render() { setTimeout(kbSync, 0); markSeen(); ensureTrial(); syncRoles(); rescheduleSoon(); setTimeout(maybeGroup, 800); widgetSync(); applyTheme(); applyDesign(); renderCover(); const db = document.getElementById('devTag'); if (db) db.style.display = D.preview ? '' : 'none'; if (db) db.textContent = D.preview === 'free' ? '구독 안 한 화면' : '구독한 화면'; if (spread()) { renderToday(); renderPage(rightTab); } else renderPage(tab); renderPop(); }
 
 function renderCover() {
   const s = streak(), dots = Math.min(s,3);
@@ -2314,6 +2334,7 @@ function renderAccount() {
 
 // ── 시작 ──
 ensureVol();
+edgeCheck();
 syncPages();
 listenNotifs();
 render();
