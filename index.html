@@ -760,7 +760,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.34'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.35'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -935,7 +935,7 @@ const GUIDES = [
   { id: 'agent', text: '쓰는 AI 비서 데려오기', hint: 'Claude, ChatGPT…', act: ['연결', 'openMore()'], done: () => agentOn() },
 ];
 // ── 비서의 첫인사: 처음 며칠, 오늘 맨 위에 한 번에 하나씩만 권한다. 할 것 하나 적기 → 아침 알림 → 캘린더 → 내 AI 비서 ──
-// 하나를 하면 다음 것이 이어서 나오고, 「나중에」를 누르면 그날은 더 권하지 않는다
+// 하나를 하면 다음 것이 이어서 나온다. 「나중에」는 그날은 더 권하지 않고 다음 날 다시 묻는다(세 번 미루면 그만 묻는다). 「다시 보지 않기」는 그 항목을 끝낸다
 const HELLO = [
   { id: 'write', lab: '처음 뵙겠습니다', t: '여기 적어 두면 제가 아침마다 정리해 드려요. 먼저 오늘 할 것 하나만 적어 볼까요', btn: '적기', go: "const e=document.getElementById('quickIn');if(e){e.scrollIntoView({block:'center'});e.focus()}", done: () => Object.values(D.days).some(d => d && (d.picks || []).length) },
   { id: 'notify', native: true, lab: '아침 브리핑', t: '적어 주셨네요. 내일 아침 8시에 오늘 일정과 마감을 알림으로 정리해 드릴까요', btn: '알림 켜기', go: 'enableNotifs()', done: () => !!(D.settings && D.settings.notify && D.settings.notify.on) },
@@ -945,13 +945,18 @@ const HELLO = [
 function helloNext() {
   D.guide = D.guide || { done: {}, off: {} }; const sk = D.guide.skip || {};
   if (Object.values(sk).includes(today())) return null; // 오늘 「나중에」를 눌렀으면 더 권하지 않는다
-  return HELLO.find(x => !(x.native && !isNative()) && !sk[x.id] && !D.guide.off[x.id] && !x.done()) || null;
+  return HELLO.find(x => !(x.native && !isNative()) && !D.guide.off[x.id] && !x.done()) || null;
 }
-function helloSkip(id) { D.guide = D.guide || { done: {}, off: {} }; D.guide.skip = Object.assign({}, D.guide.skip, { [id]: today() }); _save0(); render(); }
+function helloSkip(id) {
+  D.guide = D.guide || { done: {}, off: {} }; D.guide.skip = Object.assign({}, D.guide.skip, { [id]: today() });
+  const n = D.guide.skipN = Object.assign({}, D.guide.skipN); n[id] = (n[id] || 0) + 1; if (n[id] >= 3) D.guide.off[id] = true;
+  _save0(); render();
+}
+function helloOff(id) { D.guide = D.guide || { done: {}, off: {} }; D.guide.off[id] = true; _save0(); render(); }
 function helloHtml() {
   const x = helloNext(); if (!x) return '';
   return `<div class="stickies" style="padding-top:12px"><div class="sticky wide start"><div class="who"><span>비서</span><span>${x.lab}</span></div>
-    <div class="tx">${x.t}</div><div class="act"><button class="go" onclick="${x.go}">${x.btn}</button>${x.id === 'write' ? '' : `<button onclick="helloSkip('${x.id}')">나중에</button>`}</div></div></div>`;
+    <div class="tx">${x.t}</div><div class="act"><button class="go" onclick="${x.go}">${x.btn}</button>${x.id === 'write' ? '' : `<button onclick="helloSkip('${x.id}')">나중에</button><button onclick="helloOff('${x.id}')">다시 보지 않기</button>`}</div></div></div>`;
 }
 function guidesNow(where) {
   where = where || 'today';

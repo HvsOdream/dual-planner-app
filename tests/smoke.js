@@ -91,7 +91,7 @@ async function ui(browser, label, ctxOpts) {
   C('알림 뒤 10분 안에 열면 팝업 없이 맨 위에 붙는다', await ev(() => !!nTap && nTap.k === 'evening' && !!document.querySelector('#today #eveNote') && !document.getElementById('npop')), await ev(() => ({ nTap, last: D.nLast, log: (D.nlog || []).filter(x => /^eve/.test(x.k)), sched: D._sched, tab, eve: !!document.getElementById('eveNote') })));
   await ev(() => { nTap = null; });
   // 3. 하면 좋은 일
-  await ev(() => { D.guide = D.guide || { done: {}, off: {} }; D.guide.skip = { write: '2026-01-01', notify: '2026-01-01', cal: '2026-01-01', agent: '2026-01-01' }; render(); }); // 첫인사는 다 넘긴 사람
+  await ev(() => { D.guide = D.guide || { done: {}, off: {} }; D.guide.off = Object.assign({}, D.guide.off, { write: true, notify: true, cal: true, agent: true }); render(); }); // 첫인사는 다 넘긴 사람
   C('하면 좋은 일 포스트잇이 붙는다(어제 A 1개)', await ev(() => [...document.querySelectorAll('#today .sticky')].some(e => /하면 좋은 일/.test(e.textContent) && /HvsO/.test(e.textContent))));
   await ev(() => niceToday('d1')); C('오늘로: 오늘 칸에 올리고 포스트잇은 떨어진다', await ev(() => D.days[today()].picks.includes('d1') && ![...document.querySelectorAll('#today .sticky')].some(e => /하면 좋은 일/.test(e.textContent))));
 
@@ -230,6 +230,11 @@ async function ui(browser, label, ctxOpts) {
   C('하나 적으면 다음 것(캘린더) 하나만 권한다', await ev(() => { const st = [...document.querySelectorAll('#today .sticky.start')]; return st.length === 1 && /캘린더/.test(st[0].textContent); }));
   await pg.locator('#today .sticky.start button', { hasText: '나중에' }).click();
   C('나중에를 누르면 그날은 더 권하지 않는다', await ev(() => !document.querySelector('#today .sticky.start')));
+  await ev(() => { D.guide.skip.cal = addDays(today(), -1); render(); });
+  C('나중에: 다음 날 같은 것을 다시 묻는다', await ev(() => { const e = document.querySelector('#today .sticky.start'); return !!e && /캘린더/.test(e.textContent); }));
+  await pg.locator('#today .sticky.start button', { hasText: '다시 보지 않기' }).click();
+  C('다시 보지 않기: 그 항목은 끝나고 다음 항목을 권한다', await ev(() => { const e = document.querySelector('#today .sticky.start'); return D.guide.off.cal === true && !!e && !/캘린더/.test(e.textContent) && /AI/.test(e.textContent); }));
+  { const o = await overflow(); C('첫인사 한 장에 넘치는 줄이 없다', !o.length, o.slice(0, 4)); }
   await ev(() => { D = JSON.parse(window._D0); save(); go('today'); });
   C('화면 오류가 없다', !errs.length, errs.slice(0, 3));
   await ctx.close();
