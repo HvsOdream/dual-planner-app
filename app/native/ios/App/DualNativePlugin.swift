@@ -109,7 +109,11 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
             guard let id = o["id"] as? String, let t = o["title"] as? String else { return nil }
             return SharedStore.Item(id: id, title: t, done: (o["done"] as? Bool) ?? false)
         }
-        SharedStore.saveToday(SharedStore.Today(date: call.getString("date") ?? "", items: items, first: call.getString("first")))
+        let soon = (call.getArray("soon", JSObject.self) ?? []).compactMap { o -> SharedStore.Soon? in
+            guard let id = o["id"] as? String, let t = o["title"] as? String, let d = o["due"] as? String else { return nil }
+            return SharedStore.Soon(id: id, title: t, due: d)
+        }
+        SharedStore.saveToday(SharedStore.Today(date: call.getString("date") ?? "", items: items, first: call.getString("first"), soon: soon))
         WidgetCenter.shared.reloadAllTimelines()
         call.resolve()
     }
@@ -123,7 +127,7 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
     // 위젯 체크, 공유 시트·시리로 들어온 것을 꺼내 준다(꺼내면 비운다)
     @objc func takePending(_ call: CAPPluginCall) {
         let p = SharedStore.takePending()
-        call.resolve(["checks": p.checks, "shared": p.shared.map { ["text": $0.text, "at": $0.at, "src": $0.src] }])
+        call.resolve(["checks": p.checks, "picks": p.picks, "shared": p.shared.map { ["text": $0.text, "at": $0.at, "src": $0.src] }])
     }
 }
 

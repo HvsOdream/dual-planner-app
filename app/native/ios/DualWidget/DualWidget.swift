@@ -17,6 +17,22 @@ struct ToggleItemIntent: AppIntent {
     }
 }
 
+// 곧 마감 줄의 [오늘로]: 그 일을 오늘 할 것으로 올린다(앱이 열릴 때 반영)
+struct PickTodayIntent: AppIntent {
+    static var title: LocalizedStringResource = "오늘로"
+    @Parameter(title: "id") var id: String
+    init() {}
+    init(id: String) { self.id = id }
+    func perform() async throws -> some IntentResult {
+        if var t = SharedStore.loadToday(), var soon = t.soon, let i = soon.firstIndex(where: { $0.id == id }) {
+            let s = soon.remove(at: i)
+            t.soon = soon; t.items.append(SharedStore.Item(id: s.id, title: s.title, done: false))
+            SharedStore.saveToday(t); SharedStore.pushPick(id)
+        }
+        return .result()
+    }
+}
+
 struct Entry: TimelineEntry { let date: Date; let today: SharedStore.Today? }
 
 struct Provider: TimelineProvider {
@@ -63,6 +79,34 @@ struct Row: View {
     }
 }
 
+// 마감까지 남은 날: 오늘 / D-n / 지남
+func dueLabel(_ due: String) -> String {
+    let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.timeZone = .current
+    guard let d = f.date(from: due) else { return "" }
+    let cal = Calendar.current
+    let n = cal.dateComponents([.day], from: cal.startOfDay(for: Date()), to: cal.startOfDay(for: d)).day ?? 0
+    return n < 0 ? "지남" : n == 0 ? "오늘" : "D-\(n)"
+}
+
+struct SoonRow: View {
+    let s: SharedStore.Soon
+    let canPick: Bool
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(dueLabel(s.due)).font(.system(size: 10, weight: .heavy)).foregroundColor(checkRed)
+            Text(s.title).font(.system(size: 12, weight: .medium)).foregroundColor(navy.opacity(0.8)).lineLimit(1)
+            Spacer(minLength: 0)
+            if canPick {
+                Button(intent: PickTodayIntent(id: s.id)) {
+                    Text("오늘로").font(.system(size: 10, weight: .bold)).foregroundColor(navy)
+                        .padding(.horizontal, 7).padding(.vertical, 2)
+                        .overlay(Capsule().stroke(navy.opacity(0.5), lineWidth: 1))
+                }.buttonStyle(.plain)
+            }
+        }
+    }
+}
+
 struct DualWidgetView: View {
     @Environment(\.widgetFamily) var family
     let entry: Entry
@@ -70,6 +114,10 @@ struct DualWidgetView: View {
         guard let t = entry.today else { return [] }
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         return t.date == f.string(from: Date()) ? t.items : []
+    }
+    // 곧 마감: 이미 지난 것은 빼고 가까운 순서로
+    var soon: [SharedStore.Soon] {
+        (entry.today?.soon ?? []).filter { dueLabel($0.due) != "지남" && dueLabel($0.due) != "" }
     }
     var body: some View {
         switch family {
@@ -80,12 +128,20 @@ struct DualWidgetView: View {
             }.widgetURL(writeURL)
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 1) {
-                Text("오늘 \(items.filter { $0.done }.count)/\(items.count)").font(.system(size: 12, weight: .bold))
-                ForEach(items.prefix(2), id: \.id) { i in Text((i.done ? "✓ " : "□ ") + i.title).font(.system(size: 12)).lineLimit(1) }
+                if items.isEmpty, let s = soon.first {
+                    // 오늘 칸이 비어 있으면 가장 가까운 마감을 대신 보여 준다
+                    Text("다음 마감 \(dueLabel(s.due))").font(.system(size: 12, weight: .bold))
+                    Text(s.title).font(.system(size: 12)).lineLimit(2)
+                } else {
+                    Text("오늘 \(items.filter { $0.done }.count)/\(items.count)").font(.system(size: 12, weight: .bold))
+                    ForEach(items.prefix(soon.isEmpty ? 2 : 1), id: \.id) { i in Text((i.done ? "✓ " : "□ ") + i.title).font(.system(size: 12)).lineLimit(1) }
+                    if let s = soon.first { Text("\(dueLabel(s.due)) \(s.title)").font(.system(size: 12)).lineLimit(1) }
+                }
             }
         default:
             let small = family == .systemSmall
-            let n = small ? 4 : 5
+            let ns = soon.isEmpty ? 0 : (small ? 1 : 2)   // 곧 마감 줄 수
+            let n = (small ? 4 : 5) - (ns == 0 ? 0 : ns)
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Text("오늘").font(.system(size: 12, weight: .heavy)).foregroundColor(navy)
@@ -95,12 +151,15 @@ struct DualWidgetView: View {
                     if small { WriteLabel() } else { Link(destination: writeURL) { WriteLabel() } }
                 }.padding(.bottom, 6)
                 if items.isEmpty {
-                    Text(entry.today?.first.flatMap { $0.isEmpty ? nil : $0 } ?? "앱에서 오늘 할 것 적기").font(.system(size: 13)).foregroundColor(navy.opacity(0.5))
+                    Text(entry.today?.first.flatMap { $0.isEmpty ? nil : $0 } ?? (soon.isEmpty ? "앱에서 오늘 할 것 적기" : "오늘 할 것은 아직 비어 있어요")).font(.system(size: 13)).foregroundColor(navy.opacity(0.5)).padding(.bottom, 4)
                 } else {
                     ForEach(items.prefix(n), id: \.id) { i in
                         Row(item: i).padding(.vertical, 4)
                         Rectangle().fill(rule).frame(height: 0.5)
                     }
+                }
+                if ns > 0 {
+                    ForEach(soon.prefix(ns), id: \.id) { s in SoonRow(s: s, canPick: !small).padding(.top, 5) }
                 }
                 Spacer(minLength: 0)
             }.widgetURL(small ? writeURL : nil)
@@ -115,7 +174,7 @@ struct DualWidget: Widget {
             DualWidgetView(entry: e).containerBackground(for: .widget) { paper }
         }
         .configurationDisplayName("DUAL 오늘")
-        .description("오늘 할 것과 체크칸, 떠오른 것 바로 적기")
+        .description("오늘 할 것과 체크칸, 곧 마감, 떠오른 것 바로 적기")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular])
     }
 }

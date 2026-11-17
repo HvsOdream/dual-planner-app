@@ -810,7 +810,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.54'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.55'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -2001,7 +2001,9 @@ function renderCoverBox() {
 function widgetSync() {
   if (!nat()) return; const ds = today(), d = D.days[ds] || {};
   const items = (d.picks || []).map(id => rock(id)).filter(r => r && !r._deleted).map(r => ({ id: r.id, title: r.title, done: !!(r.checks && r.checks[ds]) || !!r.done }));
-  clearTimeout(widgetSync._t); widgetSync._t = setTimeout(() => nat().widgetSave({ date: ds, items, first: d.first || '' }).catch(() => {}), 300);
+  // 곧 마감: 오늘 칸에 아직 없는 사흘 안의 마감 셋까지. 안 열어도 홈 화면에서 보이게
+  const soon = openItems().filter(r => r.due && !r.routine && !(d.picks || []).includes(r.id) && dleft(r.due) >= 0 && dleft(r.due) <= 3 && !waiting(r)).sort((a, b) => a.due < b.due ? -1 : 1).slice(0, 3).map(r => ({ id: r.id, title: r.title, due: r.due }));
+  clearTimeout(widgetSync._t); widgetSync._t = setTimeout(() => nat().widgetSave({ date: ds, items, first: d.first || '', soon }).catch(() => {}), 300);
 }
 // ── 위젯·잠금 화면의 「적기」: 앱이 적는 칸으로 바로 열린다. 떠오른 것을 줄마다 적고, 할 일로 놓거나 메모로 둔다 ──
 function openWrite() {
@@ -2026,6 +2028,7 @@ async function takePending() {
   if (!nat()) return; let p; try { p = await nat().takePending(); } catch(e) { return; }
   const ds = today(); let n = 0;
   (p.checks || []).forEach(id => { if (rock(id)) { toggleCheck(id, ds); n++; } });
+  (p.picks || []).forEach(id => { const r = rock(id), d = dayOf(ds); d.picks = d.picks || []; if (r && !r._deleted && !r.done && !d.picks.includes(id)) { d.picks.push(id); n++; } }); // 위젯의 [오늘로]
   (p.shared || []).forEach(x => { const d = dayOf(ds); d.inbox = d.inbox || []; d.inbox.unshift({ id: uid('i_'), text: x.text, kind: 'todo', src: x.src === 'siri' ? 'Siri' : '공유', at: x.at }); n++; });
   if (n) { save(); render(); if ((p.shared || []).length) toast(`${p.shared.length}장 붙였어요`); }
 }
