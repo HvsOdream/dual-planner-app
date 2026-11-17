@@ -220,6 +220,12 @@ async function ui(browser, label, ctxOpts) {
   await pg.locator('.tabbar button[data-tab="review"]').click();
   C('옆면 인덱스: 눌러서 달력으로 간다', await ev(() => (spread() ? rightTab : tab) === 'review' && document.querySelector('.tabbar button[data-tab="review"]').classList.contains('on')));
   C('옆면 인덱스: 펼친 화면에서는 오늘 탭이 빠지고 표지 안 탭이 숨는다', await ev(() => !spread() || (getComputedStyle(document.querySelector('.tabbar button[data-tab="today"]')).display === 'none' && (!document.querySelector('#cover .right') || getComputedStyle(document.querySelector('#cover .right')).display === 'none'))));
+  C('옆면 인덱스: 기본은 띠지, 40px', await ev(() => !document.documentElement.dataset.edge && getComputedStyle(document.querySelector('.tabbar button[data-tab="week"]'), '::before').height === '40px'));
+  await ev(() => { go('more'); openSec('cover'); });
+  C('옆면 인덱스: 표지 화면에서 띠지/탭을 고른다', await ev(() => [...document.querySelectorAll('#coverBox .chips button')].map(b => b.textContent).join() === '띠지,탭'));
+  await ev(() => setEdgeStyle('tab'));
+  C('옆면 인덱스: 탭을 고르면 두툼한 탭 모양이 되고 저장된다', await ev(() => document.documentElement.dataset.edge === 'tab' && D.settings.edge === 'tab' && getComputedStyle(document.querySelector('.tabbar button[data-tab="week"]'), '::before').borderTopRightRadius === '8px' && document.querySelector('.tabbar button[data-tab="week"]').getBoundingClientRect().height >= 44));
+  await ev(() => setEdgeStyle('flag'));
   await ev(() => { edgeCheck(0); go('today'); });
   C('띠가 없으면 아래 탭으로 돌아온다', await ev(() => !document.documentElement.classList.contains('edge-r') && (spread() || document.querySelector('.tabbar').getBoundingClientRect().width > innerWidth - 2)));
   // 첫날: 비서 인사 한 장, 하나씩 권하기
