@@ -1790,7 +1790,7 @@ function notifText(k, ds) {
     if (dl.length) parts.push(`오늘 마감: ${dl.map(r => short(r.title)).join(', ')}.`);
     if (on.length) parts.push(`오늘 있는 일: ${on.map(r => short(r.title)).join(', ')}.`);
     const rk = r => yn(r) ? 0 : r.due ? 1 : 2, top = b.picks.filter(r => !b.due.includes(r) && !r.appt).sort((x, y) => rk(x) - rk(y) || ((x.due || '9') < (y.due || '9') ? -1 : 1))[0];
-    if (top && !(b.gap && b.gapTop)) parts.push(`${dl.length || on.length ? '그리고 ' : '오늘은 '}'${short(top.title)}'${top.due ? ` (D-${Math.round((new Date(top.due) - new Date(ds)) / 86400000)})` : ''}${yn(top) ? ` — 어제 "${short(yn(top))}"까지 했어요.` : dl.length || on.length ? '.' : '부터.'}`);
+    if (top && !(b.gap && b.gapTop)) parts.push(`${dl.length || on.length ? '그리고 ' : '오늘은 '}'${short(top.title)}'${top.due ? (top.due < ds ? ' (마감 지남)' : ` (D-${Math.round((new Date(top.due) - new Date(ds)) / 86400000)})`) : ''}${yn(top) ? ` — 어제 "${short(yn(top))}"까지 했어요.` : dl.length || on.length ? '.' : '부터.'}`);
     else if (!b.due.length && b.soon.length) parts.push(`${short(b.soon[0].title)} D-${Math.round((new Date(b.soon[0].due) - new Date(ds)) / 86400000)}.`);
     if (new Date(ds + 'T00:00').getDay() === 1 && parked().length) parts.push(`미뤄 둔 일 ${parked().length}개도 있어요.`);
     // 빈 시간은 넣을 일이 있을 때만, 그 일과 함께 말한다
