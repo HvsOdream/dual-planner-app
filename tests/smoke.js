@@ -159,6 +159,8 @@ async function ui(browser, label, ctxOpts) {
   C('날짜를 고르면 B로 옮기고 오늘 칸에서 뺀다', await ev(() => { const r = rock('tb1'); return r.bucket === 'important' && r.due === addDays(today(), 5) && !dayOf(today()).picks.includes('tb1'); }));
   await ev(() => { document.getElementById('quickIn').value = '칸 유지 확인 금요일까지'; setQuickB('important'); addToday(); });
   C('B를 고르면 적은 뒤에도 B가 남고, 끝의 마감 글자는 제목에서 덜어 낸다', await ev(() => { const r = D.rocks[D.rocks.length - 1]; const ok = quickB === 'important' && r.bucket === 'important' && r.title === '칸 유지 확인' && !!r.due; r._deleted = true; setQuickB('urgent'); save(); render(); return ok; }));
+  await ev(() => { const wd = '일월화수목금토'[new Date(addDays(today(), 2) + 'T00:00').getDay()]; document.getElementById('quickIn').value = wd + '요일 다른 날 놓기 확인'; addToday(); });
+  C('다른 날이 적힌 일은 오늘 칸이 아니라 그날 칸에 놓인다', await ev(() => { const r = D.rocks[D.rocks.length - 1], d2 = addDays(today(), 2); const ok = r.due === d2 && !dayOf(today()).picks.includes(r.id) && (dayOf(d2).picks || []).includes(r.id) && /칸에 적었어요/.test(document.getElementById('toast').textContent); r._deleted = true; dayOf(d2).picks = dayOf(d2).picks.filter(x => x !== r.id); save(); render(); return ok; }));
   C('마감 읽기: 전·느슨한 읽기', await ev(() => { const a = parseDue('엄마 생신선물 금 저녁전'), b = parseDue('금요일 회식 예약'), c = parseDue('금요일 회식 예약', true), d = parseDue('적금 넣기', true), e = parseDue('불량률 보고서 목 1시 리뷰전까지'); return !!a && a.cut === '엄마 생신선물' && !b && !!c && !d && !!e && e.t === '13:00' && !e.cut; }));
   await ev(() => { rock('tb1')._deleted = true; D.settings.notify.evening = window._ne0; save(); render(); });
   // 4-3. 일정 칸의 빈 시간
