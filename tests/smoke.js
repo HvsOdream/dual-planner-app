@@ -142,17 +142,25 @@ async function ui(browser, label, ctxOpts) {
   await ev(id => closePlan(id), pid);
   C('병합: 서버 계획과 내 계획이 다 남는다', await ev(() => { const m = mergeState(pickState(), { plans: [{ id: 'p_srv', name: '서버', at: '2026-01-01T00:00:00Z', u: '2026-01-01T00:00:00Z' }] }).plans; return m.length === 2 && m.some(x => x.id === 'p_srv'); }));
   // 4-2. 오늘에서 칸 바꾸기
-  await ev(() => { D.rocks.push({ id: 'tb1', week: weekKey(new Date()), bucket: 'urgent', role: '', title: '오늘에서 칸 바꿀 일', done: false, carry: 0, checks: {} }); dayOf(today()).picks.push('tb1'); todayOpen = null; go('today'); });
+  await ev(() => { D.rocks.push({ id: 'tb1', week: weekKey(new Date()), bucket: 'urgent', role: '', title: '오늘에서 칸 바꿀 일', done: false, carry: 0, checks: {} }); dayOf(today()).picks.push('tb1'); todayOpen = null; eveOpen = ''; window._ne0 = (D.settings.notify || {}).evening; D.settings.notify = Object.assign({}, D.settings.notify, { evening: '23:59' }); go('today'); });
   const tbRow = () => pg.locator('#today .item', { hasText: '오늘에서 칸 바꿀 일' });
   C('오늘 줄에 지금 칸이 보인다', await ev(() => { const e = [...document.querySelectorAll('#today .item')].find(x => /오늘에서 칸 바꿀 일/.test(x.textContent)); return !!e && e.querySelector('.m .bk').textContent === 'A'; }));
   await tbRow().locator('.tx').click();
   C('오늘에서 제목을 누르면 고치는 줄이 펴진다', await tbRow().locator('.bslot').first().isVisible());
-  await tbRow().locator('.bslot button', { hasText: /^B$/ }).click();
-  C('오늘에서 B로 옮기면 마감이 잡힌다', await ev(() => { const r = rock('tb1'), e = [...document.querySelectorAll('#today .item')].find(x => /오늘에서 칸 바꿀 일/.test(x.textContent)); return r.bucket === 'important' && !!r.due && e.querySelector('.m .bk').textContent === 'B' && !!e.querySelector('.bslot'); }));
+  { const o = await overflow(); C('오늘에서 넘치는 줄이 없다(칸 펼침)', !o.length, o.slice(0, 4)); }
   await tbRow().locator('.bslot button', { hasText: '닫기' }).click();
   C('닫기를 누르면 접힌다', await ev(() => !document.querySelector('#today .item .bslot')));
-  { const o = await overflow(); C('오늘에서 넘치는 줄이 없다(칸 바꾸기)', !o.length, o.slice(0, 4)); }
-  await ev(() => { rock('tb1')._deleted = true; save(); render(); });
+  await tbRow().locator('.tx').click();
+  await tbRow().locator('.bslot button', { hasText: /^B$/ }).click();
+  C('오늘에서 B로 옮기면 날짜를 멋대로 넣지 않고 묻는다', await ev(() => { const r = rock('tb1'); return r.bucket === 'important' && !r.due && !!document.getElementById('dpick') && !dayOf(today()).picks.includes('tb1'); }));
+  await ev(() => closeDate(true));
+  C('날짜를 안 고르면 원래 칸·오늘 칸으로 돌아온다', await ev(() => { const r = rock('tb1'); return r.bucket === 'urgent' && !r.due && dayOf(today()).picks.includes('tb1'); }));
+  await ev(() => { rowBucket('tb1', 'important'); pickDate(addDays(today(), 5)); });
+  C('날짜를 고르면 B로 옮기고 오늘 칸에서 뺀다', await ev(() => { const r = rock('tb1'); return r.bucket === 'important' && r.due === addDays(today(), 5) && !dayOf(today()).picks.includes('tb1'); }));
+  await ev(() => { document.getElementById('quickIn').value = '칸 유지 확인 금요일까지'; setQuickB('important'); addToday(); });
+  C('B를 고르면 적은 뒤에도 B가 남고, 끝의 마감 글자는 제목에서 덜어 낸다', await ev(() => { const r = D.rocks[D.rocks.length - 1]; const ok = quickB === 'important' && r.bucket === 'important' && r.title === '칸 유지 확인' && !!r.due; r._deleted = true; setQuickB('urgent'); save(); render(); return ok; }));
+  C('마감 읽기: 전·느슨한 읽기', await ev(() => { const a = parseDue('엄마 생신선물 금 저녁전'), b = parseDue('금요일 회식 예약'), c = parseDue('금요일 회식 예약', true), d = parseDue('적금 넣기', true), e = parseDue('불량률 보고서 목 1시 리뷰전까지'); return !!a && a.cut === '엄마 생신선물' && !b && !!c && !d && !!e && e.t === '13:00' && !e.cut; }));
+  await ev(() => { rock('tb1')._deleted = true; D.settings.notify.evening = window._ne0; save(); render(); });
   // 4-3. 일정 칸의 빈 시간
   await ev(() => { window._nh0 = nowHM; window.nowHM = () => '08:10'; const td = today(); window._cc0 = [D.settings.calUrl, D.calCache]; D.settings.calUrl = 'x'; D.calCache = { url: 'x', events: [{ date: td, start: '15:00', end: '16:00', title: '빈 시간 확인 회의' }] }; D.rocks.push({ id: 'gp1', week: weekKey(new Date()), bucket: 'urgent', role: '', title: '빈 시간에 넣을 일', done: false, carry: 0, checks: {} }); dayOf(td).picks.push('gp1'); _gapOpen = false; go('today'); });
   C('일정 칸에 빈 시간 줄이 나온다', await ev(() => { const g = document.querySelector('#today .ev.gap'); const f = window._g0 = freeGap(today()); return !!g && !!f && f[0] === '09:00' && g.textContent.includes(f[0]) && g.textContent.includes(f[1]) && /넣기/.test(g.textContent); }), await ev(() => JSON.stringify({ gap: freeGap(today()), appts: apptsOn(today()).map(r => [r.title, r.at, r.atEnd]), hm: nowHM() })));
