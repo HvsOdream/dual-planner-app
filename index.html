@@ -687,7 +687,7 @@ function apptLead() { const v = notifyCfg().appt; return v === undefined || v ==
 // "14:00 통화", "14시 통화", "오후 2시 30분 통화" → [시각, 나머지]
 // 적은 글에 '마감'이나 '까지'가 있으면 날짜(오늘·내일·모레, 요일, 11/20, 11월 20일)와 시각을 마감으로 읽는다. 제목은 그대로 둔다
 function parseDue(t, loose) {
-  t = String(t || ''); const cue = /(마감|까지|제출|전에(?=\s)|전(?:에|까지)?\s*$)/.test(t); if (!cue && !loose) return null;
+  t = String(t || ''); const cue = /(마감|까지|제출|전에(?=\s)|(?:시|분|반|요일|일)\s*전(?=\s)|전(?:에|까지)?\s*$)/.test(t); if (!cue && !loose) return null;
   // 신호가 없을 때(loose)는 날짜가 분명한 것만: ○요일, 11/20, 11월 20일, '금 저녁'처럼 요일 뒤에 때가 오는 것
   if (!cue && !/(?:^|\s)(?:다음\s*주\s*)?[월화수목금토일]요일|\d{1,2}\s*(?:\/|월)\s*\d{1,2}|(?:^|\s)[월화수목금토]\s*(?:저녁|아침|오전|오후|밤|점심|\d)|^\s*(?:내일|모레)\s/.test(t)) return null;
   const td = today(), p2 = x => String(x).padStart(2, '0'); let d = '', m;
@@ -809,7 +809,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.53'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.54'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1139,7 +1139,8 @@ function picksFor(ds) {
 // 못 한 일은 다음에 연 날의 오늘 칸으로 넘긴다(종이 플래너의 화살표). 하루에 한 번. 날짜가 지난 '그날의 일'은 넘기지 않고 「곧 마감」에서 끝났는지 묻는다
 function carryIn() {
   const td = today(); if (D.carried === td || backMode()) return; D.carried = td; const tdp = dayOf(td); tdp.picks = tdp.picks || []; let n = 0;
-  const later = id => Object.keys(D.days).some(d => d > td && (D.days[d].picks || []).includes(id));
+  // 뒤의 날로 잡아 둔 일은 넘기지 않는다. 다만 마감 날 칸에 놓여 있는 것(쏟아 적기가 놓은 자리)은 '뒤로 미룬 것'이 아니라서, 오늘로 가져왔다 못 한 일은 넘긴다
+  const later = id => { const r = rock(id); return Object.keys(D.days).some(d => d > td && (D.days[d].picks || []).includes(id) && !(r && !r.on && r.due === d)); };
   for (let i = 1; i <= 14; i++) { const d = addDays(td, -i), day = D.days[d]; if (!day || !day.picks) continue;
     for (const id of day.picks) { const r = rock(id); if (!r || r._deleted || r.done || r.appt || r.routine || r.bucket === 'important' || (r.on && r.due && r.due < td) || (r.checks && r.checks[d]) || tdp.picks.includes(id) || later(id)) continue; tdp.picks.push(id); r.carry = (r.carry || 0) + 1; n++; } }
   D.carriedN = n; _save0();
