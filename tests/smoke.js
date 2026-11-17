@@ -151,11 +151,11 @@ async function ui(browser, label, ctxOpts) {
   await ev(() => { rock('tb1')._deleted = true; save(); render(); });
   // 4-3. 일정 칸의 빈 시간
   await ev(() => { window._nh0 = nowHM; window.nowHM = () => '08:10'; const td = today(); window._cc0 = [D.settings.calUrl, D.calCache]; D.settings.calUrl = 'x'; D.calCache = { url: 'x', events: [{ date: td, start: '15:00', end: '16:00', title: '빈 시간 확인 회의' }] }; D.rocks.push({ id: 'gp1', week: weekKey(new Date()), bucket: 'urgent', role: '', title: '빈 시간에 넣을 일', done: false, carry: 0, checks: {} }); dayOf(td).picks.push('gp1'); _gapOpen = false; go('today'); });
-  C('일정 칸에 빈 시간 줄이 나온다', await ev(() => { const g = document.querySelector('#today .ev.gap'); return !!g && /09:00/.test(g.textContent) && /12:00/.test(g.textContent) && /넣기/.test(g.textContent); }));
+  C('일정 칸에 빈 시간 줄이 나온다', await ev(() => { const g = document.querySelector('#today .ev.gap'); const f = window._g0 = freeGap(today()); return !!g && !!f && f[0] === '09:00' && g.textContent.includes(f[0]) && g.textContent.includes(f[1]) && /넣기/.test(g.textContent); }), await ev(() => JSON.stringify({ gap: freeGap(today()), appts: apptsOn(today()).map(r => [r.title, r.at, r.atEnd]), hm: nowHM() })));
   await pg.locator('#today .ev.gap .gapb').click();
   await pg.locator('#today .ev.gapc button', { hasText: '빈 시간에 넣을 일' }).click();
-  C('빈 시간에 넣으면 그 시각의 일정이 된다', await ev(() => { const r = rock('gp1'); return r.at === today() + 'T09:00' && r.atEnd === '10:00' && [...document.querySelectorAll('#today .ev.appt')].some(e => /빈 시간에 넣을 일/.test(e.textContent) && /09:00/.test(e.textContent)); }));
-  C('남은 빈 시간은 그 뒤부터다', await ev(() => { const g = freeGap(today()); return !!g && g[0] === '10:00' && g[1] === '12:00'; }));
+  C('빈 시간에 넣으면 그 시각의 일정이 된다', await ev(() => { const r = rock('gp1'); return r.at === today() + 'T09:00' && r.atEnd === window._g0[1] && r.block === true && [...document.querySelectorAll('#today .ev.appt')].some(e => /빈 시간에 넣을 일/.test(e.textContent) && /09:00/.test(e.textContent)); }));
+  C('남은 빈 시간은 그 뒤부터다', await ev(() => { const g = freeGap(today()); return !g || g[0] >= window._g0[1]; }));
   { const o = await overflow(); C('오늘에서 넘치는 줄이 없다(빈 시간)', !o.length, o.slice(0, 4)); }
   await ev(() => { rock('gp1')._deleted = true; D.calCache = window._cc0[1]; if (window._cc0[0] === undefined) delete D.settings.calUrl; else D.settings.calUrl = window._cc0[0]; window.nowHM = window._nh0; save(); render(); });
   // 5. 메모: 적기, 고치기, 할 일로, 지우기, 비서 메모는 메모로 누른 것만
