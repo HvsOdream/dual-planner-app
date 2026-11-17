@@ -426,6 +426,37 @@ async function planDraft(req, env, token) {
   if (!steps.length && !rt) return json({ error: 'bad draft' }, 502);
   return json({ goal: line(out.goal, 120), steps, routine: rt });
 }
+// 종이 찍기: 손으로 적은 메모 사진 → 줄 목록. 사진은 읽는 데만 쓰고 저장하지 않는다. 넣을지는 사용자가 고쳐서 정한다
+async function scanNote(req, env, token) {
+  if (req.method !== 'POST') return json({ error: 'method' }, 405);
+  if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
+  if (!env.ANTHROPIC_API_KEY) return json({ error: 'not available' }, 503);
+  const dk = 's:' + token + ':' + new Date().toISOString().slice(0, 10), used = Number(await env.PLANNER.get(dk) || 0);
+  if (used >= 15) return json({ error: 'daily limit' }, 429);
+  let b; try { b = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const img = String(b.image || '').replace(/^data:image\/\w+;base64,/, '');
+  if (img.length < 2000 || img.length > 1400000 || !/^[A-Za-z0-9+/=]+$/.test(img)) return json({ error: 'bad image' }, 400);
+  const sys = [
+    '너는 종이 플래너를 함께 쓰는 비서다. 사용자가 손으로 적은 메모 사진을 보고, 적힌 글을 한 줄에 하나씩 옮겨 적는다.',
+    '할 일로 보이는 줄을 먼저, 적힌 순서대로 옮긴다. 날짜·요일·시각·"까지" 같은 말은 적힌 그대로 둔다(바꾸거나 계산하지 않는다).',
+    '글머리표·번호·체크칸 기호는 뺀다. 줄을 그어 지운 일과 이미 체크된 일은 뺀다. 화살표로 이어진 것은 한 줄로 합친다.',
+    '할 일이 아닌 메모(회의 내용, 생각 조각)도 읽을 수 있으면 짧게 옮기되 notes에 따로 둔다.',
+    '읽을 수 없는 글자는 지어내지 않는다. 그 줄은 읽힌 부분만 적고 끝에 (?)를 붙인다. 적혀 있지 않은 것은 넣지 않는다.',
+    '설명 없이 JSON 하나만 출력한다: {"lines":["..."],"notes":["..."]}'
+  ].join('\n');
+  const model = env.SCAN_MODEL || 'claude-haiku-5-5', meter = { calls: [] };
+  let out;
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model, system: sys, max_tokens: 1500, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: img } }, { type: 'text', text: '이 메모에 적힌 것을 옮겨 줘.' }] }] }) });
+    const j = await r.json(); if (!r.ok) throw new Error('anthropic ' + r.status + ' ' + JSON.stringify(j).slice(0, 200));
+    meterAdd(meter, model, j.usage); out = jsonIn((j.content || []).map(c => c.text || '').join(''));
+  } catch (e) { return json({ error: 'model failed', reason: String(e.message || e) }, 502); }
+  await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 }); await meterSave(env, 'scan', meter);
+  const clean = a => (Array.isArray(a) ? a : []).map(x => String(x || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 120)).filter(Boolean).slice(0, 40);
+  if (!out) return json({ error: 'unreadable' }, 502);
+  return json({ lines: clean(out.lines), notes: clean(out.notes) });
+}
 async function review(req, env, token) {
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
   if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
@@ -615,7 +646,7 @@ export default {
     const am = url.pathname.match(/^\/auth\/(config|google|apple|account)\/?$/);
     if (am) return auth(req, env, am[1]);
     if (url.pathname.replace(/\/$/, '') === '/admin/stats') return adminStats(req, env);
-    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group|cal|feedback|review|plan)\/?$/);
+    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group|cal|feedback|review|plan|scan)\/?$/);
     if (!m) return json({ ok: true, name: 'dual-planner-api', usage: '/u/:token/state | /u/:token/items | /u/:token/mcp | /auth/config | /auth/google | /auth/apple | /auth/account' });
     const token = m[1], kind = m[2], key = 'u:' + token;
     if (kind === 'mcp') return mcp(req, env, token);
@@ -624,6 +655,7 @@ export default {
     if (kind === 'feedback') return feedback(req, env, token);
     if (kind === 'review') return review(req, env, token);
     if (kind === 'plan') return planDraft(req, env, token);
+    if (kind === 'scan') return scanNote(req, env, token);
     const cur = Object.assign(empty(), JSON.parse(await env.PLANNER.get(key) || 'null') || {});
     if (kind === 'state') {
       if (req.method === 'GET') return json(cur);

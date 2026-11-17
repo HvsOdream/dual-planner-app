@@ -809,7 +809,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.52'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.53'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1021,12 +1021,38 @@ function helloSkip(id) {
 function helloOff(id) { D.guide = D.guide || { done: {}, off: {} }; D.guide.off[id] = true; _save0(); render(); }
 // 이번 주(일요일 밤에는 다음 주)에 할 일을 한 번에 쏟아 적는다. 한 줄에 하나. 적힌 날짜대로 그날 칸에 놓고, 날짜 없는 일은 할 일 탭에 모은다
 let _dump = null; // null | 'more' | 'next'
+// ── 종이 찍기: 손으로 적은 메모를 찍으면 비서가 읽어 적는 칸에 채워 준다. 바로 넣지 않고, 고친 뒤 본인이 넣는다 ──
+let _scanBusy = false;
+function aiOff() { return (D.settings || {}).ai === false; }
+function scanBtn(target) { return `<label class="scanb" style="display:inline-flex;align-items:center;cursor:pointer">${_scanBusy ? '읽는 중…' : '종이 찍기'}<input type="file" accept="image/*" capture="environment" style="display:none" ${_scanBusy ? 'disabled' : ''} onchange="scanInto('${target}', this.files[0]);this.value=''"></label>`; }
+async function scanInto(target, file) {
+  if (!file || _scanBusy) return;
+  if (aiOff()) { toast('비서 AI가 꺼져 있어요. 메뉴 › 내 정보가 가는 곳에서 켜 주세요'); return; }
+  if (!baseUrl() || !D.token) { toast('지금은 사진을 읽을 수 없어요. 직접 적어 주세요'); return; }
+  const box = () => document.getElementById(target), keep = (box() || {}).value || '';
+  _scanBusy = true; toast('메모를 읽는 중이에요'); document.querySelectorAll('.scanb').forEach(l => { l.firstChild.textContent = '읽는 중…'; });
+  try {
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(file); });
+    const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    let q = 0.8, data; do { data = c.toDataURL('image/jpeg', q); q -= 0.12; } while (data.length > 1200000 && q > 0.3);
+    const req = () => fetch(baseUrl() + '/u/' + D.token + '/scan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image: data }) });
+    let r = await req(); if (r.status === 404) { await pushState(); r = await req(); }
+    if (r.status === 429) { toast('오늘은 많이 읽었어요. 내일 다시 해 주세요'); return; }
+    const j = await r.json(); if (!r.ok || !Array.isArray(j.lines)) throw 0;
+    const lines = j.lines.concat((j.notes || []).length && !j.lines.length ? j.notes : []);
+    if (!lines.length) { toast('읽을 수 있는 글이 없었어요'); return; }
+    const el = box(); if (el) { const cur = el.value.trim() ? el.value.replace(/\s+$/, '') : keep.replace(/\s+$/, ''); el.value = (cur ? cur + '\n' : '') + lines.join('\n'); el.dispatchEvent(new Event('input')); el.focus(); }
+    toast(`${lines.length}줄을 읽었어요. 고칠 곳을 보고 넣어 주세요`);
+  } catch(e) { toast('메모를 읽지 못했어요. 직접 적어 주세요'); }
+  finally { _scanBusy = false; document.querySelectorAll('.scanb').forEach(l => { l.firstChild.textContent = '종이 찍기'; }); }
+}
 function dumpHtml(kind) {
   const nx = kind === 'next', first = kind === 'first';
   return `<div class="stickies" style="padding-top:12px"><div class="sticky wide start"><div class="who"><span>비서</span><span>${first ? '처음 뵙겠습니다' : nx ? '다음 주' : '이번 주'}</span></div>
     <div class="tx">${first ? '적어 두면 까먹지 않게 알려 드려요. ' : ''}${nx ? '다음 주' : '이번 주'}에 해야 할 일을 생각나는 대로 적어 보세요. 미뤄 둔 일, 아직 먼 마감도요. 한 줄에 하나씩</div>
     <textarea id="dumpIn" class="dump" rows="7" placeholder="금요일까지 보고서 제출&#10;수요일 저녁 학원 픽업&#10;목요일 회의 자료 준비&#10;12/5 원고 마감&#10;미뤄 둔 건강검진 예약&#10;세금 신고 서류 챙기기&#10;엄마한테 전화"></textarea>
-    <div class="act"><button class="go" onclick="weekDump()">정리해 주세요</button>${first ? '' : `<button onclick="_dump=null;render()">닫기</button>`}</div></div></div>`;
+    <div class="act"><button class="go" onclick="weekDump()">정리해 주세요</button><button style="padding:0">${scanBtn('dumpIn')}</button>${first ? '' : `<button onclick="_dump=null;render()">닫기</button>`}</div></div></div>`;
 }
 function putLine(t) {
   t = String(t || '').replace(/^\s*(?:[-–·•*]\s*|\d+[.)]\s+)/, '').trim(); if (!t) return null;
@@ -1079,13 +1105,16 @@ function pickGo(skip) {
   if (!skip) { day.picks = day.picks.filter(id => !s.off[id]); Object.keys(s.off).forEach(id => { const r = rock(id); if (r && r.carry) r.carry = Math.max(0, r.carry - 1); }); Object.keys(s.on).forEach(id => { if (rock(id) && !day.picks.includes(id)) day.picks.push(id); }); }
   day.pickAt = skip ? 'skip' : 'done'; _pk = null; save(); render(); if (!skip) toast(`오늘 ${day.picks.map(rock).filter(r => r && !r.done && !r.appt).length}개로 시작해요`);
 }
+// 종이에서 이미 끝낸 일은 여기서 한 번에 털어낸다
+function pickDone(id) { const r = rock(id); if (!r) return; if (_pk) { delete _pk.on[id]; delete _pk.off[id]; } toggleCheck(id, today()); renderToday(); toast('끝낸 걸로 적었어요'); }
 function pickHtml() {
   if (!pickShow()) return ''; const c = pickCands(), s = _pk || { on: {}, off: {} }, td = today();
   const dl = r => { const n = dleft(r.due); return n <= 0 ? '오늘' : 'D-' + n; };
-  const row = (r, base, meta, lead) => { const on = base ? !s.off[r.id] : !!s.on[r.id]; return `<button class="shr pkr" role="checkbox" aria-checked="${on}" onclick="pickTog('${r.id}',${base ? 1 : 0})" style="width:100%;text-align:left;align-items:flex-start;padding:6px 0;color:inherit"><span class="pkc ${on ? 'on' : ''}" aria-hidden="true">${on ? '✓' : ''}</span><span class="sht">${lead ? `<i style="font-style:normal;opacity:.7">${lead} </i>` : ''}${esc(r.title)}</span>${meta ? `<span class="shm">${meta}</span>` : ''}</button>`; };
+  const fin = r => `<button class="pill" style="color:inherit;flex:none;margin-left:6px" onclick="pickDone('${r.id}')">끝냄</button>`;
+  const row = (r, base, meta, lead) => { const on = base ? !s.off[r.id] : !!s.on[r.id]; return `<div style="display:flex;align-items:flex-start"><button class="shr pkr" role="checkbox" aria-checked="${on}" onclick="pickTog('${r.id}',${base ? 1 : 0})" style="flex:1;min-width:0;text-align:left;align-items:flex-start;padding:6px 0;color:inherit"><span class="pkc ${on ? 'on' : ''}" aria-hidden="true">${on ? '✓' : ''}</span><span class="sht">${lead ? `<i style="font-style:normal;opacity:.7">${lead} </i>` : ''}${esc(r.title)}</span>${meta ? `<span class="shm">${meta}</span>` : ''}</button>${base ? fin(r) : ''}</div>`; };
   let h = '';
-  if (c.fix.length) h += `<div class="shd">오늘 마감 · 이미 오늘 칸에</div>` + c.fix.map(r => `<div class="shr" style="align-items:flex-start;padding:6px 0"><span class="pkc on" aria-hidden="true">✓</span><span class="sht">${esc(r.title)}</span><span class="shm" style="color:var(--check);opacity:1;font-weight:700">${r.due < td ? '지남' : '오늘'}</span></div>`).join('');
-  if (c.kept.length) h += `<div class="shd">어제 남은 일 · 누르면 빼요</div>` + c.kept.map(r => row(r, true, r.due ? dl(r) : '')).join('');
+  if (c.fix.length) h += `<div class="shd">오늘 마감 · 이미 오늘 칸에</div>` + c.fix.map(r => `<div class="shr" style="align-items:flex-start;padding:6px 0"><span class="pkc on" aria-hidden="true">✓</span><span class="sht">${esc(r.title)}</span><span class="shm" style="color:var(--check);opacity:1;font-weight:700">${r.due < td ? '지남' : '오늘'}</span>${r.due < td ? fin(r) : ''}</div>`).join('');
+  if (c.kept.length) h += `<div class="shd">어제 남은 일 · 누르면 빼요, 이미 했으면 끝냄</div>` + c.kept.map(r => row(r, true, r.due ? dl(r) : '')).join('');
   if (c.soon.length) h += `<div class="shd">곧 마감</div>` + c.soon.map(r => row(r, false, `<b style="color:var(--check)">${dl(r)}</b>`)).join('');
   if (c.plan.length || c.rout.length) h += `<div class="shd">계획</div>` + c.plan.map(x => row(x.r, false, x.r.due ? md(x.r.due) + '까지' : esc(x.p.name), '다음 단계:')).join('') + c.rout.map(x => row(x.r, false, `이번 주 ${Math.min(checkedCount(x.r), x.r.routine)}/${x.r.routine}`, '루틴:')).join('');
   const n = c.fix.length + c.kept.filter(r => !s.off[r.id]).length + Object.keys(s.on).length;
@@ -1174,8 +1203,8 @@ function renderPrivPage() {
     <div class="lbl" style="padding-left:0;margin-top:10px">무엇이 어디로 가나요</div>
     ${row('내 폰', '할 일·오늘·기록·약속 전부. 로그인하지 않으면 여기에만 있어요')}
     ${row('DUAL 서버 (Cloudflare, 미국)', '로그인하거나 비서를 쓰면 플래너 내용이 저장돼요. 다른 기기와 맞추고 비서가 읽기 위해서예요')}
-    ${row('AI 회사 (Anthropic · Cloudflare, 미국)', '역할을 찾을 때: 할 일·일정 제목, 적어 준 사람 설명, 하는 일 한 줄<br>주간 리뷰를 쓸 때: 그 주의 할 일 제목, 역할 이름, 역할별 시간, 그 주 메모')}
-    ${row('보내지 않는 것', '이름, 이메일, 사진, 결제 정보')}
+    ${row('AI 회사 (Anthropic · Cloudflare, 미국)', '역할을 찾을 때: 할 일·일정 제목, 적어 준 사람 설명, 하는 일 한 줄<br>주간 리뷰를 쓸 때: 그 주의 할 일 제목, 역할 이름, 역할별 시간, 그 주 메모<br>계획 초안을 받을 때: 적은 한 줄·언제까지·지금 상황, 가까운 할 일 제목 몇 개<br>종이 찍기를 누를 때: 찍은 메모 사진(읽는 데만 쓰고 저장하지 않아요)')}
+    ${row('보내지 않는 것', '이름, 이메일, 결제 정보, 직접 찍어 올리지 않은 사진')}
     <div class="lbl" style="padding-left:0;margin-top:10px">AI 학습</div>
     ${row('AI 회사', '두 회사 모두 약관에서 API로 받은 내용을 자기 모델 학습에 쓰지 않는다고 밝히고 있어요')}
     ${row('DUAL', `역할을 고친 내용은 <b>${learnOk() ? '학습에 쓰기 켬' : '학습에 쓰기 끔'}</b> — 메뉴 › 내 역할에서 바꿔요. 켜도 이름 없이 저장돼요`)}
@@ -1972,7 +2001,7 @@ function openWrite() {
   el.onclick = e => { if (e.target === el) closeWrite(); };
   el.innerHTML = `<div class="sticky wide" style="width:100%;max-width:440px;transform:none"><div class="who"><span>적기</span><span>${md(today())}</span></div>
     <textarea id="wrIn" rows="4" aria-label="적기" placeholder="지금 떠오른 것, 적어 둘 것\n한 줄에 하나씩" style="width:100%;box-sizing:border-box;border:0;background:rgba(255,255,255,.55);border-radius:6px;padding:10px;font:inherit;font-size:16px;line-height:1.5;resize:none;color:inherit"></textarea>
-    <div class="act"><button onclick="saveWrite('todo')">할 일로</button><button onclick="saveWrite('memo')">메모로</button><button onclick="closeWrite()">닫기</button></div></div>`;
+    <div class="act"><button onclick="saveWrite('todo')">할 일로</button><button onclick="saveWrite('memo')">메모로</button><button style="padding:0">${scanBtn('wrIn')}</button><button onclick="closeWrite()">닫기</button></div></div>`;
   document.body.appendChild(el); setTimeout(() => { const t = document.getElementById('wrIn'); if (t) t.focus(); }, 60);
 }
 function closeWrite() { const el = document.getElementById('wrBox'); if (el) el.remove(); }
@@ -2062,6 +2091,7 @@ function editPlan(id) { const p = planOf(id); if (!p) return; planDraft = { name
 let plMode = 'ask', plAI = null, plBusy = false;
 async function planAsk(more) {
   planKeep(); const want = (planDraft.name || '').trim(); if (!want) { toast('잘하고 싶은 것을 한 줄 적어 주세요'); const e = document.getElementById('plName'); if (e) e.focus(); return; }
+  if (aiOff()) { toast('비서 AI가 꺼져 있어요. 메뉴 › 내 정보가 가는 곳에서 켜 주세요'); return; }
   if (!baseUrl() || !D.token) { toast('로그인하면 비서가 초안을 짜 드려요. 지금은 직접 적어 주세요'); plMode = 'manual'; renderPlan(); return; }
   if (plBusy) return; plBusy = true; renderPlan();
   try {
