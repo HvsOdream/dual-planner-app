@@ -259,6 +259,9 @@ async function ui(browser, label, ctxOpts) {
   C('띠가 없으면 아래 탭으로 돌아온다', await ev(() => !document.documentElement.classList.contains('edge-r') && (spread() || document.querySelector('.tabbar').getBoundingClientRect().width > innerWidth - 2)));
   await ev(() => setEdgePick('on'));
   C('옆면 인덱스: 여백이 없는 화면에서도 고르면 켜진다', await ev(() => document.documentElement.classList.contains('edge-r') && document.body.style.paddingRight === '44px'));
+  await ev(() => { const pr = document.getElementById('saProbe'); pr.style.paddingRight = '100px'; edgeCheck(); });
+  C('옆면 인덱스: 내어 준 44px은 진짜 여백이 읽히면 거둔다(오른쪽이 잘리지 않게)', await ev(() => document.documentElement.classList.contains('edge-r') && !document.body.style.paddingRight && getComputedStyle(document.documentElement).getPropertyValue('--sar').trim() === '100px'));
+  await ev(() => { document.getElementById('saProbe').style.paddingRight = ''; });
   await ev(() => setEdgePick('off'));
   C('옆면 인덱스: 아래 메뉴를 고르면 꺼진다', await ev(() => !document.documentElement.classList.contains('edge-r') && !document.body.style.paddingRight));
   await ev(() => { localStorage.removeItem('dpa_edge'); edgeCheck(); openWrite(); document.getElementById('wrIn').value = '모레 병원 예약\n우유 사기'; saveWrite('todo'); });

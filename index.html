@@ -737,10 +737,11 @@ SPREAD_MQ.addEventListener('change', () => { edgeCheck(); syncPages(); render();
 function edgeCheck(force) {
   const pr = document.getElementById('saProbe'), m = pr ? parseFloat(getComputedStyle(pr).paddingRight) || 0 : 0, pick = typeof force === 'number' ? '' : edgePick();
   // 메뉴 › 표지에서 고르면 이 기기에서는 그대로 따른다(옆 여백이 없는 화면은 44px을 내어 준다). 안 골랐으면 여백이 넓을 때만 켠다
-  if (pick === 'on' && m < 44) force = 44; if (pick !== 'on' && typeof force !== 'number') document.body.style.paddingRight = '';
+  if (pick === 'on' && m < 44) force = 44;
   const w = pick === 'off' ? 0 : typeof force === 'number' ? force : m, on = w >= 44;
   document.documentElement.classList.toggle('edge-r', on); document.documentElement.style.setProperty('--sar', on ? w + 'px' : '0px');
-  if (typeof force === 'number') document.body.style.paddingRight = on ? w + 'px' : '';
+  // 여백을 내어 준 것은 그때만: 뒤늦게 진짜 여백이 읽히면 내어 준 44px을 반드시 거둔다(안 거두면 본문이 옆면 밑으로 들어가 오른쪽이 잘린다)
+  document.body.style.paddingRight = typeof force === 'number' && on ? w + 'px' : '';
   return on;
 }
 window.addEventListener('resize', () => edgeCheck());
@@ -807,7 +808,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.50'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.51'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
