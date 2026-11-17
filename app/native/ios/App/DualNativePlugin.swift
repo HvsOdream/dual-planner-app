@@ -17,6 +17,7 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "takePending", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "appleSignIn", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "calendarAdd", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openUrl", returnType: CAPPluginReturnPromise),
     ]
     private let store = EKEventStore()
     private var appleDelegate: AppleSignInDelegate?
@@ -111,6 +112,12 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
         SharedStore.saveToday(SharedStore.Today(date: call.getString("date") ?? "", items: items, first: call.getString("first")))
         WidgetCenter.shared.reloadAllTimelines()
         call.resolve()
+    }
+
+    // { url } → 다른 앱 열기(내 에이전트와 논의하기: claude://…). 못 열면 ok=false
+    @objc func openUrl(_ call: CAPPluginCall) {
+        guard let u = URL(string: call.getString("url") ?? "") else { call.resolve(["ok": false]); return }
+        DispatchQueue.main.async { UIApplication.shared.open(u, options: [:]) { ok in call.resolve(["ok": ok]) } }
     }
 
     // 위젯 체크, 공유 시트·시리로 들어온 것을 꺼내 준다(꺼내면 비운다)

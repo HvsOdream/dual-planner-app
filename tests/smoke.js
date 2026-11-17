@@ -124,7 +124,7 @@ async function ui(browser, label, ctxOpts) {
   await ev(() => go('week'));
   C('할 일 맨 위에 계획 배너가 있다', await ev(() => { const b = document.querySelector('#week .pbanner'); return !!b && /새로운 계획이 있으신가요/.test(b.textContent); }));
   await pg.locator('#week .pbanner').click(); await pg.waitForTimeout(150);
-  await pg.fill('#plName', '영어 회화'); await pg.fill('#plGoal', '국제 학회에서 질의응답을 영어로 받아낸다'); await pg.fill('#plHow', '평일 아침 리얼클래스 20분\n주 2회 영어 채팅');
+  await pg.fill('#plName', '영어 회화'); await pg.getByText('내가 직접 적기', { exact: true }).click(); await pg.waitForTimeout(100); await pg.fill('#plGoal', '국제 학회에서 질의응답을 영어로 받아낸다'); await pg.fill('#plHow', '평일 아침 리얼클래스 20분\n주 2회 영어 채팅');
   await pg.locator('#plan .dbtn').click(); await pg.locator('#dpick .dpq button', { hasText: '내일' }).click();
   C('날짜를 골라도 적던 글이 남는다', await ev(() => document.getElementById('plName').value === '영어 회화' && /리얼클래스/.test(document.getElementById('plHow').value)));
   await pg.locator('#plan .pbtns .go').click();
@@ -265,6 +265,16 @@ async function ui(browser, label, ctxOpts) {
   C('적기: 줄마다 할 일로 놓고 날짜를 읽는다', await ev(() => !document.getElementById('wrBox') && D.rocks.some(r => r.title.includes('병원 예약') && r.due === addDays(today(), 2)) && D.rocks.some(r => r.title === '우유 사기' && !r.due)));
   await ev(() => { openWrite(); document.getElementById('wrIn').value = '수업 아이디어 하나'; saveWrite('memo'); });
   C('적기: 메모로 둔다', await ev(() => (D.memos || []).some(m => m.text === '수업 아이디어 하나')));
+  // 계획 초안
+  await ev(() => { window._pl0 = [D.plans.length, D.rocks.length, (dayOf(today()).picks || []).length]; openPlan('new'); });
+  C('새 계획: 한 줄 적기 화면에 초안 받기·에이전트와 논의하기·직접 적기가 있다', await ev(() => { const t = document.getElementById('plan').innerText; return !!document.getElementById('plName') && !!document.getElementById('plState') && /비서에게 초안 받기/.test(t) && /내 에이전트와 논의하기/.test(t) && /내가 직접 적기/.test(t); }));
+  await ev(() => { document.getElementById('plName').value = '영어 회화. 3월 발표'; planKeep(); });
+  C('새 계획: 에이전트에게 넘길 요청문에 하고 싶은 것과 적는 방법이 들어간다', await ev(() => { const t = planTalkText(); return t.includes('영어 회화. 3월 발표') && t.includes('planner_add') && t.includes('오늘 칸에는 아무것도 올리지 마'); }));
+  await ev(() => { plAI = { goal: '3월 발표를 영어로', steps: [{ t: '원고 영어로 옮기기', due: addDays(today(), 20) }, { t: '뺄 단계', due: addDays(today(), 30) }], routine: { t: '말하기 20분', per: 3 } }; plMode = 'draft'; renderPlan(); });
+  C('계획 초안: 포스트잇에 목표·단계·루틴이 고칠 수 있게 나온다', await ev(() => !!document.getElementById('paGoal') && !!document.getElementById('paS1') && !!document.getElementById('paR') && /이대로 받기/.test(document.getElementById('plan').innerText)));
+  await ev(() => { plDrop(1); document.getElementById('paS0').value = '원고 영어로 옮기기 (고침)'; planTake(); });
+  C('계획 초안: 받으면 계획 한 장과 B 칸 할 일·루틴이 생기고 오늘 칸에는 안 올린다', await ev(() => { const p = D.plans[D.plans.length - 1], rs = D.rocks.filter(r => r.plan === p.id); return D.plans.length === window._pl0[0] + 1 && p.name === '영어 회화' && p.goal === '3월 발표를 영어로' && rs.length === 2 && rs[0].title === '원고 영어로 옮기기 (고침)' && rs[0].bucket === 'important' && rs[0].due === addDays(today(), 20) && rs[1].routine === 3 && (dayOf(today()).picks || []).length === window._pl0[2] && planView === p.id; }));
+  await ev(() => { const p = D.plans.pop(); D.rocks = D.rocks.filter(r => r.plan !== p.id); planView = 'new'; go('today'); });
   // 첫날: 비서 인사 한 장, 하나씩 권하기
   await ev(() => { window._D0 = JSON.stringify(D); D.rocks = []; D.days = {}; D.plans = []; D.guide = { done: {}, off: {} }; D.nlog = []; D.settings = Object.assign({}, D.settings, { calUrl: '', calNative: false }); D.agent = null; D.preview = ''; go('today'); });
   C('첫날: 맨 위에 비서 인사 한 장만 있고 하면 좋은 일은 없다', await ev(() => { const st = [...document.querySelectorAll('#today .sticky')]; const hs = st.filter(e => e.classList.contains('start')); return hs.length === 1 && /이번 주에 해야 할 일/.test(hs[0].textContent) && !!document.getElementById('dumpIn') && !st.some(e => /하면 좋은 일/.test(e.textContent)) && !(D.nlog || []).some(x => /하면 좋은/.test(x.label)); }));

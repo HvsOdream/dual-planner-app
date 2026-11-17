@@ -385,6 +385,43 @@ async function group(req, env, token) {
 }
 
 // ── 주간 리뷰: 앱이 보낸 한 주의 사실로 3~4문장 리뷰와 다음 주 B 후보를 쓴다 ──
+// 계획 초안: 잘하고 싶은 것 한 줄 → 목표 한 줄, 단계 2~5개(마감), 주 루틴 하나. 받을지는 사용자가 정한다
+async function planDraft(req, env, token) {
+  if (req.method !== 'POST') return json({ error: 'method' }, 405);
+  if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
+  const dk = 'p:' + token + ':' + new Date().toISOString().slice(0, 10), used = Number(await env.PLANNER.get(dk) || 0);
+  if (used >= 12) return json({ error: 'daily limit' }, 429);
+  let b; try { b = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const line = (x, n) => String(x || '').replace(/[\r\n]+/g, ' ').trim().slice(0, n);
+  const want = line(b.want, 200), state = line(b.state, 300), more = line(b.more, 200), isD = x => /^\d{4}-\d{2}-\d{2}$/.test(String(x || ''));
+  const td = isD(b.today) ? b.today : new Date().toISOString().slice(0, 10), due = isD(b.due) && b.due >= td ? b.due : '';
+  if (want.length < 2) return json({ error: 'empty' }, 400);
+  const busy = (Array.isArray(b.busy) ? b.busy : []).slice(0, 12).map(x => '- ' + line(x, 60));
+  const sys = [
+    '너는 종이 플래너를 함께 쓰는 비서다. 사용자가 잘하고 싶거나 해내고 싶은 것을 한 줄로 적으면, 그 사람이 받아서 바로 쓸 수 있는 계획 초안을 짠다.',
+    '초안은 목표 한 줄(goal), 단계 2~5개(steps), 주마다 되풀이할 루틴 0~1개(routine)다.',
+    'goal: 끝났을 때 무엇이 달라져 있는지 한 문장. 사용자가 적은 말을 넓히지 않는다.',
+    'steps: 눈에 보이는 결과물이 나오는 일로 적는다("공부하기"가 아니라 "기출 2회분 풀고 오답 정리"). 각 단계에 마감(due, YYYY-MM-DD)을 준다. 오늘 이후이고 순서대로 늦어지며, 전체 마감이 있으면 마지막 단계는 그날이거나 그 전이다. 전체 마감이 없으면 4~8주 안에 끝나게 짠다. 첫 단계는 2주 안에 끝낼 수 있는 작은 일로 한다.',
+    'routine: 반복이 실력을 만드는 일일 때만 넣는다(없으면 null). 한 번에 30분 안쪽, 주 2~5회. 지금 상황에 시간이 적혀 있으면 그 안에서 짠다.',
+    '사용자가 적지 않은 사실(이름, 장소, 점수, 교재)을 지어내지 않는다. 의학·법률·투자 판단은 넣지 않는다.',
+    '각 줄은 30자 안쪽의 한국어 명사형 문장. 사용자가 다른 언어로 적었으면 그 언어로 쓴다.',
+    '설명 없이 JSON 하나만 출력한다: {"goal":"...","steps":[{"t":"...","due":"YYYY-MM-DD"}],"routine":{"t":"...","per":3}}'
+  ].join('\n');
+  const user = `오늘: ${td}\n하고 싶은 것: ${want}\n언제까지: ${due || '정하지 않음'}\n지금 상황: ${state || '적지 않음'}` + (busy.length ? `\n이미 있는 일(겹치지 않게만 참고):\n${busy.join('\n')}` : '') + (more ? `\n다시 짤 때 바라는 점: ${more}` : '');
+  const msgs = [{ role: 'system', content: sys }, { role: 'user', content: user }], meter = { calls: [] };
+  let out;
+  try {
+    const main = env.ANTHROPIC_API_KEY ? (env.PLAN_MODEL || env.REVIEW_MODEL || 'claude-haiku-5-5') : '';
+    try { out = jsonIn(await llm(env, msgs, 700, main, meter)); } catch (e) { if (!main) throw e; }
+    if (!out || !Array.isArray(out.steps)) out = jsonIn(await llm(env, msgs, 700, '', meter));
+  } catch (e) { return json({ error: 'model failed', reason: String(e.message || e) }, 502); }
+  await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 }); await meterSave(env, 'plan', meter);
+  if (!out || !Array.isArray(out.steps)) return json({ error: 'bad draft' }, 502);
+  let last = td; const steps = out.steps.map(x => ({ t: line(x && x.t, 60), due: isD(x && x.due) ? x.due : '' })).filter(x => x.t).slice(0, 5).map(x => { if (x.due && x.due < last) x.due = last; if (due && x.due > due) x.due = due; if (x.due) last = x.due; return x; });
+  const rt = out.routine && line(out.routine.t, 60) ? { t: line(out.routine.t, 60), per: Math.min(7, Math.max(1, Number(out.routine.per) || 3)) } : null;
+  if (!steps.length && !rt) return json({ error: 'bad draft' }, 502);
+  return json({ goal: line(out.goal, 120), steps, routine: rt });
+}
 async function review(req, env, token) {
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
   if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
@@ -574,7 +611,7 @@ export default {
     const am = url.pathname.match(/^\/auth\/(config|google|apple|account)\/?$/);
     if (am) return auth(req, env, am[1]);
     if (url.pathname.replace(/\/$/, '') === '/admin/stats') return adminStats(req, env);
-    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group|cal|feedback|review)\/?$/);
+    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group|cal|feedback|review|plan)\/?$/);
     if (!m) return json({ ok: true, name: 'dual-planner-api', usage: '/u/:token/state | /u/:token/items | /u/:token/mcp | /auth/config | /auth/google | /auth/apple | /auth/account' });
     const token = m[1], kind = m[2], key = 'u:' + token;
     if (kind === 'mcp') return mcp(req, env, token);
@@ -582,6 +619,7 @@ export default {
     if (kind === 'cal') return cal(req, env, token);
     if (kind === 'feedback') return feedback(req, env, token);
     if (kind === 'review') return review(req, env, token);
+    if (kind === 'plan') return planDraft(req, env, token);
     const cur = Object.assign(empty(), JSON.parse(await env.PLANNER.get(key) || 'null') || {});
     if (kind === 'state') {
       if (req.method === 'GET') return json(cur);

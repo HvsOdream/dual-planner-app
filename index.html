@@ -2006,7 +2006,7 @@ function planSub(p) {
   if (p.due) parts.push(`${md(p.due)}까지`);
   return parts.join(' · ') || '아직 딸린 일이 없어요';
 }
-function planBanner() { return `<button class="pbanner" onclick="openPlan('new')"><span><b>새로운 계획이 있으신가요?</b><i>목표와 방법을 적어 두면 비서도 읽어요</i></span><span class="ch">›</span></button>`; }
+function planBanner() { return `<button class="pbanner" onclick="openPlan('new')"><span><b>새로운 계획이 있으신가요?</b><i>잘하고 싶은 것을 한 줄 적으면 비서가 초안을 짜 드려요</i></span><span class="ch">›</span></button>`; }
 function plansHtml() {
   const ps = openPlans(), closed = livePlans().filter(p => p.closedAt);
   const row = p => `<button class="prow ${p.closedAt ? 'closed' : ''}" onclick="openPlan('${p.id}')"><span class="pn"><b>${esc(p.name)}</b><i>${esc(p.closedAt ? md(p.closedAt) + ' 닫음' : planSub(p))}</i></span><span class="ch">›</span></button>`;
@@ -2015,9 +2015,55 @@ function plansHtml() {
   if (closed.length) h += `<div class="lbl"><span></span><button onclick="showClosed=!showClosed;renderWeek()">닫은 계획 ${closed.length} ${showClosed ? '접기' : '보기'}</button></div>` + (showClosed ? closed.map(row).join('') : '');
   return h ? h + `<div class="sp"></div>` : '';
 }
-function openPlan(v) { if (v === 'new' && !paid() && openPlans().length >= 1) { toast('구독 전에는 계획을 한 개까지 둘 수 있어요'); openSub(); return; } planView = v; plRoutine = false; if (v === 'new') planDraft = { name: '', goal: '', due: '', how: '' }; go('plan'); if (v === 'new') setTimeout(() => { const e = document.getElementById('plName'); if (e) e.focus(); }, 60); }
-function planKeep() { const g = id => (document.getElementById(id) || {}).value; if (document.getElementById('plName')) { planDraft.name = g('plName') || ''; planDraft.goal = g('plGoal') || ''; planDraft.how = g('plHow') || ''; } }
+function openPlan(v) { if (v === 'new' && !paid() && openPlans().length >= 1) { toast('구독 전에는 계획을 한 개까지 둘 수 있어요'); openSub(); return; } planView = v; plRoutine = false; if (v === 'new') { planDraft = { name: '', goal: '', due: '', how: '', state: '' }; plMode = 'ask'; plAI = null; plBusy = false; } go('plan'); if (v === 'new') setTimeout(() => { const e = document.getElementById('plName'); if (e) e.focus(); }, 60); }
+function planKeep() { const g = id => (document.getElementById(id) || {}).value, has = id => !!document.getElementById(id); if (has('plName')) planDraft.name = g('plName') || ''; if (has('plGoal')) planDraft.goal = g('plGoal') || ''; if (has('plHow')) planDraft.how = g('plHow') || ''; if (has('plState')) planDraft.state = g('plState') || ''; }
 function editPlan(id) { const p = planOf(id); if (!p) return; planDraft = { name: p.name, goal: p.goal || '', due: p.due || '', how: p.how || '' }; planView = 'edit:' + id; render(); }
+// ── 계획 초안: 한 줄 적으면 비서가 단계·루틴 초안을 낸다. 고치고 빼서 받으면 할 일 목록에만 놓인다(오늘 칸은 본인이 고른다) ──
+let plMode = 'ask', plAI = null, plBusy = false;
+async function planAsk(more) {
+  planKeep(); const want = (planDraft.name || '').trim(); if (!want) { toast('잘하고 싶은 것을 한 줄 적어 주세요'); const e = document.getElementById('plName'); if (e) e.focus(); return; }
+  if (!baseUrl() || !D.token) { toast('로그인하면 비서가 초안을 짜 드려요. 지금은 직접 적어 주세요'); plMode = 'manual'; renderPlan(); return; }
+  if (plBusy) return; plBusy = true; renderPlan();
+  try {
+    const busy = openItems().filter(r => r.due && !r.routine).sort((a, b) => a.due < b.due ? -1 : 1).slice(0, 10).map(r => `${shortT(r.title)} (${md(r.due)}까지)`);
+    const body = JSON.stringify({ want, due: planDraft.due || '', state: (planDraft.state || '').trim(), today: today(), busy, more: more || '' });
+    const req = () => fetch(baseUrl() + '/u/' + D.token + '/plan', { method: 'POST', headers: { 'content-type': 'application/json' }, body });
+    let r = await req(); if (r.status === 404) { await pushState(); r = await req(); }
+    if (r.status === 429) { toast('오늘은 초안을 많이 받았어요. 내일 다시 해 주세요'); return; }
+    const j = await r.json(); if (!r.ok || !Array.isArray(j.steps)) throw 0;
+    plAI = { goal: j.goal || '', steps: j.steps.map(x => ({ t: x.t, due: x.due || '' })), routine: j.routine ? { t: j.routine.t, per: j.routine.per || 3 } : null }; plMode = 'draft';
+  } catch(e) { toast('초안을 받지 못했어요. 연결을 확인하거나 직접 적어 주세요'); }
+  finally { plBusy = false; renderPlan(); window.scrollTo(0, 0); }
+}
+function plKeepAI() { if (!plAI) return; const v = id => (document.getElementById(id) || {}).value; const g = v('paGoal'); if (g != null) plAI.goal = g; plAI.steps.forEach((x, i) => { const t = v('paS' + i); if (t != null) x.t = t; }); if (plAI.routine) { const t = v('paR'); if (t != null) plAI.routine.t = t; const n = v('paN'); if (n) plAI.routine.per = Number(n) || 3; } }
+function plDrop(i) { plKeepAI(); if (i === 'r') plAI.routine = null; else plAI.steps.splice(i, 1); renderPlan(); }
+function plStepDue(i) { plKeepAI(); openDate(plAI.steps[i].due, { allowNone: true, title: '이 단계 마감' }, v => { plAI.steps[i].due = v; renderPlan(); }); }
+function planTake() {
+  plKeepAI(); planKeep(); const name = (planDraft.name || '').trim(), now = new Date().toISOString(); if (!name || !plAI) return;
+  const steps = plAI.steps.map(x => ({ t: (x.t || '').trim(), due: x.due })).filter(x => x.t), rt = plAI.routine && (plAI.routine.t || '').trim() ? plAI.routine : null;
+  if (!steps.length && !rt) { toast('남은 줄이 없어요. 다시 짜거나 직접 적어 주세요'); return; }
+  const p = { id: uid('p_'), at: now, u: now, name: (name.split(/[.。\n]/)[0].trim() || name).slice(0, 24), goal: (plAI.goal || '').trim() || name, due: planDraft.due || '', how: (planDraft.state || '').trim() }; D.plans.push(p);
+  const base = () => ({ id: uid(), week: weekKey(new Date()), bucket: 'important', role: '', done: false, carry: 0, checks: {}, plan: p.id, vol: (curVol() || {}).id, c: today() });
+  steps.forEach(x => D.rocks.push(Object.assign(base(), { title: x.t, due: x.due || '' })));
+  if (rt) D.rocks.push(Object.assign(base(), { title: rt.t.trim(), routine: Math.min(7, Math.max(1, Number(rt.per) || 3)) }));
+  plAI = null; plMode = 'ask'; planView = p.id; save(); render(); window.scrollTo(0, 0); toast(`계획을 받았어요 · 할 일 ${steps.length}개${rt ? ', 루틴 1개' : ''}`);
+}
+// 내 에이전트와 논의하기: 요청문을 복사하고(늘), 연결된 비서가 Claude면 Claude 앱의 새 대화에 채워서 연다. 보내기는 본인이 누른다
+function planTalkText() {
+  planKeep(); const want = (planDraft.name || '').trim(), L = [];
+  L.push('듀얼플래너에 새 계획을 하나 세우려고 해. 플래너 커넥터로 내 플래너를 먼저 읽고(planner_read), 나와 몇 번 묻고 답하면서 계획을 같이 짜 줘.');
+  L.push(`하고 싶은 것: ${want}`); if (planDraft.due) L.push(`언제까지: ${planDraft.due}`); if ((planDraft.state || '').trim()) L.push(`지금 상황: ${planDraft.state.trim()}`);
+  L.push('진행 방식: ① 내가 정말 바라는 결과와 쓸 수 있는 시간을 두세 가지만 물어봐. ② 기획 담당·일정 담당·반대 의견 담당 세 입장에서 짧게 따져 보고 한 가지 안으로 모아 줘. ③ 내가 좋다고 하면 플래너에 적어 줘(planner_add): 계획 한 장(kind=plan, goal·how·due), 단계는 B 칸 할 일(due 필수, plan=그 계획 id), 되풀이할 일은 루틴(routine=주당 횟수). 오늘 칸에는 아무것도 올리지 마. 내가 고를게.');
+  return L.join('\n');
+}
+async function planTalk() {
+  planKeep(); if (!(planDraft.name || '').trim()) { toast('잘하고 싶은 것을 한 줄 적어 주세요'); return; }
+  const t = planTalkText(), claude = !D.agent || /claude/i.test((D.agent && D.agent.name) || '');
+  await copyText(t, agentOn() ? '요청문을 복사했어요' : '요청문을 복사했어요. 비서를 연결하면 결과를 플래너에 바로 적어 줘요');
+  if (!claude) { toast('요청문을 복사했어요. 쓰는 비서 앱에 붙여 넣어 주세요'); return; }
+  const q = encodeURIComponent(t);
+  try { if (isNative()) { const n = nat(); if (n && n.openUrl) await n.openUrl({ url: 'claude://claude.ai/new?q=' + q }); else location.href = 'claude://claude.ai/new?q=' + q; } else window.open('https://claude.ai/new?q=' + q, '_blank'); } catch(e) {}
+}
 function savePlan() {
   planKeep(); const name = (planDraft.name || '').trim(); if (!name) { toast('어떤 계획인지 적어 주세요'); return; }
   const now = new Date().toISOString(), f = { name, goal: (planDraft.goal || '').trim(), due: planDraft.due || '', how: (planDraft.how || '').trim() };
@@ -2036,6 +2082,29 @@ function planAddItem(pid) {
 function renderPlan() {
   const el = document.getElementById('plan'); if (!el) return;
   const lbl = (t, x) => `<div class="lbl mg" style="padding-left:0"><span>${t}</span>${x || ''}</div>`;
+  if (planView === 'new' && plMode === 'draft' && plAI) {
+    const a = plAI;
+    el.innerHTML = `<div class="mpage"><div class="stickies" style="padding:8px 0 0"><div class="sticky wide" style="transform:none"><div class="who"><span>비서</span><span>초안 · 고칠 수 있어요</span></div>
+      <div class="lbl" style="padding-left:0;margin-top:2px">목표</div><textarea class="plf" id="paGoal" rows="1" data-min="1" aria-label="목표" style="font-size:15px;line-height:1.4;padding:6px 0;min-height:32px;resize:none" oninput="memoGrow(this)">${esc(a.goal)}</textarea>
+      <div class="lbl" style="padding-left:0;margin-top:10px">단계</div>
+      ${a.steps.map((x, i) => `<div class="shr" style="gap:6px"><textarea class="plf" id="paS${i}" rows="1" data-min="1" aria-label="단계 ${i + 1}" style="flex:1;min-width:0;font-size:15px;line-height:1.4;padding:6px 0;min-height:32px;resize:none" oninput="memoGrow(this)">${esc(x.t)}</textarea><button class="pill" style="color:inherit;flex:none" onclick="plStepDue(${i})">${x.due ? md(x.due) + '까지' : '날짜'}</button><button aria-label="단계 ${i + 1} 빼기" style="flex:none;width:32px;height:32px;color:inherit;opacity:.6" onclick="plDrop(${i})">✕</button></div>`).join('') || '<div class="bev" style="white-space:normal;opacity:.7">단계를 모두 뺐어요</div>'}
+      ${a.routine ? `<div class="lbl" style="padding-left:0;margin-top:10px">루틴</div><div class="shr" style="gap:6px"><input class="plf" id="paR" value="${esc(a.routine.t)}" aria-label="루틴" style="flex:1;min-width:0;font-size:15px"><select id="paN" aria-label="주 몇 회" style="flex:none;font:inherit;font-size:13px;background:transparent;border:1px solid currentColor;border-radius:14px;padding:2px 6px;color:inherit">${[2, 3, 4, 5, 7].map(n => `<option value="${n}" ${n === a.routine.per ? 'selected' : ''}>${n === 7 ? '매일' : '주 ' + n + '회'}</option>`).join('')}</select><button aria-label="루틴 빼기" style="flex:none;width:32px;height:32px;color:inherit;opacity:.6" onclick="plDrop('r')">✕</button></div>` : ''}
+      <div class="bev" style="white-space:normal;opacity:.8;margin-top:8px">받으면 할 일 목록에만 놓여요. 오늘 할 것에는 직접 가져오세요</div>
+      <div class="act"><button onclick="planTake()">이대로 받기</button><button onclick="plKeepAI();planAsk(((document.getElementById('paMore')||{}).value||'').trim())">${plBusy ? '짜는 중…' : '다시 짜기'}</button><button onclick="plMode='ask';plAI=null;renderPlan()">취소</button></div>
+      <input class="plf" id="paMore" placeholder="다시 짤 때 한마디 (예: 루틴은 주 2회로)" style="font-size:14px;margin-top:4px" enterkeyhint="go" onkeydown="if(event.key==='Enter'){plKeepAI();planAsk(this.value.trim())}"></div></div></div>`;
+    el.querySelectorAll('textarea.plf').forEach(h => memoGrow(h));
+    return;
+  }
+  if (planView === 'new' && plMode === 'ask') {
+    const d = planDraft;
+    el.innerHTML = `<div class="mpage">${lbl('잘하고 싶은 것, 해내고 싶은 것')}<textarea class="plf nm" id="plName" rows="2" placeholder="예: 영어 회화. 3월 발표를 영어로 하기" oninput="memoGrow(this)">${esc(d.name)}</textarea>
+      ${lbl('언제까지 (비워도 돼요)')}<div style="min-height:44px;display:flex;align-items:center;border-bottom:1px solid var(--rule)">${dBtn(d.due, `planKeep();openDate(planDraft.due,{allowNone:true,title:'언제까지'},v=>{planDraft.due=v;renderPlan()})`)}</div>
+      ${lbl('지금 상황 (비워도 돼요)')}<textarea class="plf" id="plState" rows="2" placeholder="예: 평일 저녁 30분쯤 가능" oninput="memoGrow(this)">${esc(d.state || '')}</textarea>
+      <button style="margin:18px 0 0;width:100%;height:48px;border-radius:24px;background:var(--ink);color:var(--paper);font-size:16px;font-weight:700" onclick="planAsk()" ${plBusy ? 'disabled' : ''}>${plBusy ? '비서가 초안을 짜는 중…' : '비서에게 초안 받기'}</button>
+      <div class="pbtns" style="flex-wrap:wrap;row-gap:0"><button onclick="planTalk()">내 에이전트와 논의하기</button><button onclick="planKeep();plMode='manual';renderPlan()">내가 직접 적기</button><span class="sp1"></span><button onclick="go('week')">취소</button></div></div>`;
+    ['plName', 'plState'].forEach(id => { const h = document.getElementById(id); if (h) { h.dataset.min = 2; memoGrow(h); } });
+    return;
+  }
   if (planView === 'new' || planView.indexOf('edit:') === 0) {
     const d = planDraft, ed = planView !== 'new';
     el.innerHTML = `<div class="mpage">${lbl('어떤 계획인가요')}<input class="plf nm" id="plName" value="${esc(d.name)}" placeholder="예: 영어 회화" enterkeyhint="next">
