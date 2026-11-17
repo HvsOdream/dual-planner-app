@@ -741,6 +741,9 @@ function edgeCheck(force) {
   return on;
 }
 window.addEventListener('resize', () => edgeCheck());
+// 앱이 뜬 직후·접었다 편 직후에는 폰이 옆 여백을 0으로 알려 줄 때가 있다: 조금 뒤에 몇 번 다시 잰다
+function edgeSoon() { [300, 1000, 3000].forEach(ms => setTimeout(() => edgeCheck(), ms)); }
+window.addEventListener('orientationchange', edgeSoon); window.addEventListener('pageshow', edgeSoon);
 // 작은 화면에서 좌우로 끌면 오늘 ↔ 할 일 ↔ 메모 ↔ 달력 ↔ 메뉴
 const SWIPE_TABS = ['today', 'week', 'memo', 'review', 'more'];
 (function swipeTabs() {
@@ -801,7 +804,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.46'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.47'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -940,7 +943,7 @@ function renderToday() {
   const sugg = openItems().filter(r => !inPick(r.id) && !dueSoon.includes(r) && (r.bucket==='urgent' || (r.routine && checkedCount(r) < r.routine)));
   const back = ds === today() && backMode(), tp = tapped('morning');
   // 맨 위 포스트잇은 한 장만 펴 둔다(저녁엔 오늘 닫기, 아침엔 브리핑이 먼저). 나머지는 '몇 장 더'로 접는다
-  const tops = [ds === today() && _dump ? helloHtml() : '', tp && !back ? briefHtml(ds) : '', notifStickies(ds), ds === today() && !_dump ? sheetHtml() : '', back ? `<div class="stickies">${backHtml()}</div>` : '', back || tp ? '' : briefHtml(ds), ds === today() && !_dump && !back ? parkHtml() : '', ds === today() && !_dump ? helloHtml() : '', trialHtml(ds), back ? '' : niceHtml(ds)].filter(Boolean);
+  const tops = [ds === today() && _dump ? helloHtml() : '', tp && !back ? briefHtml(ds) : '', notifStickies(ds), ds === today() && !_dump ? sheetHtml() : '', back ? `<div class="stickies">${backHtml()}</div>` : '', back || tp ? '' : briefHtml(ds), ds === today() && !_dump ? helloHtml() : '', trialHtml(ds), back ? '' : niceHtml(ds)].filter(Boolean);
   const eveIds = tops.length && tops[0] === notifStickies(ds) && eveHtml(ds) ? eveRest(ds).map(r => r.id) : [];
   let h = `<div class="sp"></div>${tops[0] || ''}${tops.length > 1 ? `<button class="morenotes" onclick="_moreNotes=!_moreNotes;renderToday()">포스트잇 ${tops.length - 1}장 더 ${_moreNotes ? '접기' : '보기'}</button><div id="moreNotes" style="display:${_moreNotes ? 'block' : 'none'}">${tops.slice(1).join('')}</div>` : ''}
   ${calHtml(ds)}
@@ -1534,7 +1537,7 @@ async function setCalNative(on) {
 }
 // ── 알림(앱): 아침 · 저녁 · 일요일 ──
 const NOTIFY = [{ id: 101, k: 'morning', name: '오늘 브리핑', t: '08:00', title: '오늘', body: '오늘 할 것, 세 줄만' }, { id: 102, k: 'evening', name: '저녁', t: '21:30', title: '오늘 닫기', body: '체크하고 한 줄 일기' }, { id: 103, k: 'sunday', name: '일요일', t: '20:00', title: '한 주 돌아보기', body: '일요일 저녁 10분' }];
-function notifyCfg() { return Object.assign({ on: false, morning: '08:00', evening: '21:30', sunday: '20:00', off: {} }, (D.settings || {}).notify || {}); }
+function notifyCfg() { return Object.assign({ on: false, morning: '08:00', evening: '21:30', sunday: '20:00', off: { evening: true } }, (D.settings || {}).notify || {}); }
 // 비서가 쓰는 알림: 그날의 마감·오늘 칸·이번 주 숫자로 문구를 만든다(구독·체험 중일 때)
 // 빈 시간에 넣을 만한 일: 오늘 고른 것 중 시각이 없고 아직 안 한 것. 마감이 오늘이거나 지난 것, A, 고른 순
 function gapCands(ds) {
@@ -1791,12 +1794,12 @@ function notifText(k, ds) {
     if (on.length) parts.push(`오늘 있는 일: ${on.map(r => short(r.title)).join(', ')}.`);
     const rk = r => yn(r) ? 0 : r.due ? 1 : 2, top = b.picks.filter(r => !b.due.includes(r) && !r.appt).sort((x, y) => rk(x) - rk(y) || ((x.due || '9') < (y.due || '9') ? -1 : 1))[0];
     if (top && !(b.gap && b.gapTop)) parts.push(`${dl.length || on.length ? '그리고 ' : '오늘은 '}'${short(top.title)}'${top.due ? (top.due < ds ? ' (마감 지남)' : ` (D-${Math.round((new Date(top.due) - new Date(ds)) / 86400000)})`) : ''}${yn(top) ? ` — 어제 "${short(yn(top))}"까지 했어요.` : dl.length || on.length ? '.' : '부터.'}`);
-    else if (!b.due.length && b.soon.length) parts.push(`${short(b.soon[0].title)} D-${Math.round((new Date(b.soon[0].due) - new Date(ds)) / 86400000)}.`);
-    if (new Date(ds + 'T00:00').getDay() === 1 && parked().length) parts.push(`미뤄 둔 일 ${parked().length}개도 있어요.`);
+    { const dn = r => Math.round((new Date(r.due) - new Date(ds)) / 86400000), nx = open.filter(r => r !== top && !b.due.includes(r) && !r.routine && r.due && r.due > ds && (dn(r) === 3 || dn(r) === 1) && !(b.gap && b.gapTop === r)).sort((x, y) => (!!x.on - !!y.on) || (x.due < y.due ? -1 : 1))[0];
+      if (nx) parts.push(`다가오는 ${nx.on ? '일' : '마감'}: '${short(nx.title)}' D-${dn(nx)}.`); } // 다가오는 마감은 사흘 전과 전날, 두 번만 말한다(매일 세면 보채는 알림이 된다)
     // 빈 시간은 넣을 일이 있을 때만, 그 일과 함께 말한다
-    if (b.gap && b.gapTop) parts.push(`${fa && b.gap[1] <= fa.t ? '그 전에 ' : ''}${hm(b.gap[0])}~${hm(b.gap[1])}가 비어 있어요. 그 시간에 '${short(b.gapTop.title)}' 어때요?`);
+    let gp = 0; if (b.gap && b.gapTop) gp = parts.push(`${fa && b.gap[1] <= fa.t ? '그 전에 ' : ''}${hm(b.gap[0])}~${hm(b.gap[1])}가 비어 있어요. 그 시간에 '${short(b.gapTop.title)}' 어때요?`);
     else if (!parts.length && b.picks.length) parts.push(`오늘 할 것 ${b.picks.length}개가 기다려요.`);
-    if (parts.length) return { title: '오늘 브리핑', body: parts.join(' ') };
+    if (parts.length) return { title: '오늘 브리핑', body: (gp > 2 ? [parts[0], parts[gp - 1]] : parts.slice(0, 2)).join(' ') }; // 아침 알림은 두 마디까지만(빈 시간 제안은 남긴다)
   }
   if (k === 'morning') {
     const due = open.filter(r => r.due === ds);
@@ -2533,7 +2536,7 @@ function renderAccount() {
 
 // ── 시작 ──
 ensureVol();
-edgeCheck();
+edgeCheck(); edgeSoon();
 syncPages();
 listenNotifs();
 render();
@@ -2542,7 +2545,7 @@ showIntro();
 setTimeout(() => { loadCal(false); takePending(); scheduleNotifs(); }, 400);
 loadAuthConf().then(() => { if (!D.account && !D.skipLogin && hasProviders()) setTimeout(openLogin, 950); });
 pullState(false).then(() => { ensureVol(); render(); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { notifCatchUp(); pullState(false); loadCal(false); takePending(); rescheduleSoon(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { edgeCheck(); edgeSoon(); notifCatchUp(); pullState(false); loadCal(false); takePending(); rescheduleSoon(); } });
 // 같은 기기의 다른 창(미리보기의 접은/펼친 화면 등)에서 바뀌면 바로 반영
 window.addEventListener('storage', e => { if (e.key !== KEY) return; const a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return; D = load(); _sig = sigOf(); render(); });
 if (location.hash === '#week') go('week'); else if (location.hash === '#review') go('review');
