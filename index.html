@@ -677,13 +677,26 @@ function atOn(r, ds) { return r && r.at && r.at.slice(0, 10) === ds ? r.at.slice
 function apptsOn(ds) { return live().filter(r => !r.done && atOn(r, ds)).sort((a, b) => a.at < b.at ? -1 : 1); }
 function apptLead() { const v = notifyCfg().appt; return v === undefined || v === null || v === '' ? 10 : Number(v); }
 // "14:00 통화", "14시 통화", "오후 2시 30분 통화" → [시각, 나머지]
+// 적은 글에 '마감'이나 '까지'가 있으면 날짜(오늘·내일·모레, 요일, 11/20, 11월 20일)와 시각을 마감으로 읽는다. 제목은 그대로 둔다
+function parseDue(t) {
+  t = String(t || ''); if (!/(마감|까지)/.test(t)) return null;
+  const td = today(), p2 = x => String(x).padStart(2, '0'); let d = '', m;
+  if (/오늘/.test(t)) d = td; else if (/내일/.test(t)) d = addDays(td, 1); else if (/모레/.test(t)) d = addDays(td, 2);
+  else if ((m = t.match(/(\d{1,2})\s*(?:\/|월)\s*(\d{1,2})\s*일?/)) && Number(m[1]) >= 1 && Number(m[1]) <= 12 && Number(m[2]) >= 1 && Number(m[2]) <= 31) { const y = Number(td.slice(0, 4)); d = `${y}-${p2(m[1])}-${p2(m[2])}`; if (d < td) d = `${y + 1}-${p2(m[1])}-${p2(m[2])}`; }
+  else if ((m = t.match(/(?:^|[\s(,])(다음\s*주\s*)?(?:([월화수목금토])(?:요일)?|(일)요일)(?=[\s,)]|\d|까지|마감|$)/))) { const idx = '일월화수목금토'.indexOf(m[2] || m[3]), wd = new Date(td + 'T00:00').getDay(); d = addDays(td, m[1] ? ((idx + 6) % 7) - ((wd + 6) % 7) + 7 : (idx - wd + 7) % 7); }
+  let tm = ''; const c = t.match(/(\d{1,2}):(\d{2})/), k = t.match(/(오전|오후)?\s*(\d{1,2})\s*시(?:\s*(\d{1,2})\s*분|\s*(반))?/);
+  if (c && Number(c[1]) < 24) tm = p2(c[1]) + ':' + c[2];
+  else if (k) { let h = Number(k[2]); if (k[1] === '오후' && h < 12) h += 12; if (!k[1] && h >= 1 && h <= 7) h += 12; if (h < 24) tm = p2(h) + ':' + p2(k[3] ? Number(k[3]) : k[4] ? 30 : 0); }
+  if (!d && tm) d = td;
+  return d ? { due: d, t: tm } : null;
+}
 function parseTime(t) {
   let m = t.match(/^\s*(\d{1,2}):(\d{2})\s+(.+)$/); if (m) return [m[1].padStart(2, '0') + ':' + m[2], m[3]];
   m = t.match(/^\s*(오전|오후)?\s*(\d{1,2})시\s*(?:(\d{1,2})분|반)?\s+(.+)$/);
   if (m) { let h = Number(m[2]); const mi = m[3] ? Number(m[3]) : /반/.test(t.split(m[4])[0]) ? 30 : 0; if (m[1] === '오후' && h < 12) h += 12; if (!m[1] && h >= 1 && h <= 7) h += 12; return [String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0'), m[4]]; }
   return null;
 }
-function fmtDue(r) { const ad = r.at ? r.at.slice(0, 10) : ''; const at = r.at && ad >= today(); return (at ? (ad === today() ? '' : md(ad) + ' ') + r.at.slice(11, 16) + (r.block ? '부터' : ' 약속') + (r.due && r.due !== ad ? ' · ' : '') : '') + (waiting(r) ? '기다리는 중 · ' : '') + (r.routine ? ('주 '+r.routine+'회') : r.due && (r.due !== ad || !at) ? (md(r.due)+'까지만') : ''); }
+function fmtDue(r) { const ad = r.at ? r.at.slice(0, 10) : ''; const at = r.at && ad >= today(); return (at ? (ad === today() ? '' : md(ad) + ' ') + r.at.slice(11, 16) + (r.block ? '부터' : ' 약속') + (r.due && r.due !== ad ? ' · ' : '') : '') + (waiting(r) ? '기다리는 중 · ' : '') + (r.routine ? ('주 '+r.routine+'회') : r.due && (r.due !== ad || !at) ? (md(r.due) + (r.dueT ? ' ' + r.dueT : '') + '까지만') : ''); }
 function checkedCount(r) { const ks = Object.keys(r.checks||{}); if (!r.routine) return ks.length; const ds = weekDates(weekStart(new Date())); return ks.filter(k => ds.includes(k)).length; }
 function streak() { let n = 0; const d = new Date(); for (let i=0;i<400;i++) { const ds = dstr(d); const day = D.days[ds]; const did = day && (day.picks||[]).some(id => (rock(id)||{}).checks && rock(id).checks[ds]); if (did) n++; else if (i>0) break; d.setDate(d.getDate()-1); } return n; }
 function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('on'), m.length > 30 ? 5000 : 1600); }
@@ -775,7 +788,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.38'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.39'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -881,16 +894,19 @@ function itemHtml(r, ds, opts) {
 }
 function doneOn(ds) { return live().filter(r => (r.checks && r.checks[ds]) || r.doneAt === ds); }
 // 오늘 칸에 바로 적을 때 어느 칸(A·B·C)에 넣을지: 고른 것을 기억해 둔다(기본 A)
-let quickB = 'urgent', _qbTap = false; const QB_NAME = { urgent: '급함·중요', important: '중요 · 날짜를 물어요', light: '급함·가벼움' };
+let quickB = 'urgent', _qbTap = false; const QB_NAME = { urgent: '급함·중요', important: '중요 · 할 일 탭에 적어요', light: '급함·가벼움' };
 function setQuickB(b) { quickB = b; _qbTap = false; document.querySelectorAll('.qb button').forEach(x => x.classList.toggle('on', x.dataset.b === b)); const n = document.getElementById('qbName'); if (n) n.textContent = QB_NAME[b]; const e = document.getElementById('quickIn'); if (e) e.focus(); }
 // B는 언제까지만 할지 묻는다. 안 고르면 C에 적는다
-function askDue(r) { openDate('', { title: '언제까지만', cancel: () => { r.bucket = 'light'; r.u = new Date().toISOString(); save(); render(); toast('날짜가 없어 C에 적었어요'); } }, v => { r.due = v; r.u = new Date().toISOString(); save(); render(); }); }
+function askDue(r) { openDate('', { title: '언제까지만', cancel: () => { r.bucket = 'light'; r.u = new Date().toISOString(); const d = dayOf(today()); if (!d.picks.includes(r.id)) d.picks.push(r.id); save(); render(); toast('날짜가 없어 C에 적었어요'); } }, v => { r.due = v; r.u = new Date().toISOString(); save(); render(); toast(`할 일 탭 B에 적었어요 · ${fmtDue(r)}`); }); }
 function addToday(blur) {
   const el = document.getElementById('quickIn'); let t = (el.value||'').trim(); if (!t) return;
   const pt = parseTime(t); if (pt) t = pt[1];
   const r = { id: uid(), week: weekKey(new Date()), bucket: quickB, role: '', title: t, done: false, carry: 0, checks: {} };
   if (pt) { r.at = today() + 'T' + pt[0]; r.due = today(); r.appt = true; r.vol = (curVol() || {}).id; D.rocks.push(r); el.value = ''; save(); render(); apptToast(pt[0], today(), r.id); return; }
-  el.value = ''; D.rocks.push(r); dayOf(today()).picks.push(r.id); markStarted(); save(); render(); if (r.bucket === 'important') { quickB = 'urgent'; render(); askDue(r); return; } if (!blur) setTimeout(()=>{ const e=document.getElementById('quickIn'); if (e) e.focus(); }, 30);
+  const pd = parseDue(t); if (pd) { r.due = pd.due; if (pd.t) r.dueT = pd.t; }
+  el.value = ''; D.rocks.push(r); if (r.bucket !== 'important') dayOf(today()).picks.push(r.id); markStarted(); save(); render();
+  if (r.bucket === 'important') { quickB = 'urgent'; render(); if (r.due) toast(`할 일 탭 B에 적었어요 · ${fmtDue(r)}`); else askDue(r); return; }
+  if (pd) toast(`마감 ${fmtDue(r)}`); if (!blur) setTimeout(()=>{ const e=document.getElementById('quickIn'); if (e) e.focus(); }, 30);
 }
 function renderToday() {
   markAOpen();
@@ -1211,7 +1227,7 @@ function recordNotes(wk) {
     const notes = ds.filter(d => D.days[d] && D.days[d].note).length;
     const prom = live().filter(r => ds.includes(r.promotedAt || '')).length;
     const pt = ds.reduce((k, d) => k + partOn(d).length, 0);
-    if (done.length || notes || prom || pt) h += aNote({ label: '이번 주 숫자', text: `끝낸 일 ${done.length}개${pt ? `, 하다 만 일 ${pt}번` : ''}${top ? `, 가장 많이 한 역할은 ${top}(${by[top]})` : ''}. 한 줄 일기 ${notes}일.${prom ? ` B에서 A로 넘어간 일 ${prom}개, 다음엔 조금 일찍.` : ''}` });
+    if (done.length || notes || prom || pt) h += aNote({ label: '이번 주 숫자', text: `끝낸 일 ${done.length}개${pt ? `, 일부 진행 ${pt}번` : ''}${top ? `, 가장 많이 한 역할은 ${top}(${by[top]})` : ''}. 한 줄 일기 ${notes}일.${prom ? ` B에서 A로 넘어간 일 ${prom}개, 다음엔 조금 일찍.` : ''}` });
   }
   if (featOn('time') && rolesSet()) {
     const er = evRoles(), hrs = {}; let tot = 0, none = 0;
@@ -1396,7 +1412,7 @@ function calHtml(ds, ctx) {
   rows.sort((x, y) => x.k < y.k ? -1 : x.k > y.k ? 1 : 0);
   let h = `<div class="lbl"><span>일정</span>${canAdd ? `<button onclick="_evAdd=_evAdd==='${ctx}'?'':'${ctx}';render();setTimeout(()=>{const e=document.getElementById('evT${ctx}');if(e)e.focus()},50)">${open ? '닫기' : '+ 약속'}</button>` : ''}</div>`;
   h += rows.map(({ e, r, gap }) => gap
-    ? `<div class="ev ruled gap"><span class="tm">${evTm(gap[0], gap[1])}</span><span class="et">빈 시간</span><button class="gapb" onclick="_gapOpen=!_gapOpen;renderToday()">${_gapOpen ? '닫기' : '넣기'}</button></div>` + (_gapOpen ? gc.slice(0, 5).map(c => `<div class="ev ruled gapc"><span class="tm"></span><button class="et" onclick="placeGap('${c.id}')">${esc(c.title)}</button><button class="te" onclick="placeGap('${c.id}')">${gap[0]}에</button></div>`).join('') : '')
+    ? `<div class="ev ruled gap"><span class="tm">${evTm(gap[0], gap[1])}</span><span class="et">빈 시간</span><button class="gapb" onclick="_gapOpen=!_gapOpen;renderToday()">${_gapOpen ? '닫기' : '넣기'}</button></div>` + (_gapOpen ? (() => { const tm = x => { const [h, m] = x.split(':').map(Number); return h * 60 + m; }, len = tm(gap[1]) - tm(gap[0]), opts = [[60, '1시간'], [120, '2시간']].filter(o => o[0] < len).concat([[0, '전부']]); return opts.length > 1 ? `<div class="ev ruled gapc"><span class="tm"></span><span class="et qb" style="padding:0">${opts.map(([v, n]) => `<button type="button" class="${_gapLen === v ? 'on' : ''}" onclick="_gapLen=${v};renderToday()">${n}</button>`).join('')}</span></div>` : ''; })() : '') + (_gapOpen ? gc.slice(0, 5).map(c => `<div class="ev ruled gapc"><span class="tm"></span><button class="et" onclick="placeGap('${c.id}')">${esc(c.title)}</button><button class="te" onclick="placeGap('${c.id}')">${gap[0]}에</button></div>`).join('') : '')
     : e
     ? `<div class="ev ruled ${isToday && !e.allDay && e.end && e.end <= hm ? 'past' : ''}"><span class="tm">${e.allDay ? '종일' : evTm(e.start, e.end)}</span><span class="et">${esc(e.title)}</span></div>`
     : `<div class="ev ruled appt ${isToday && (r.atEnd || atOn(r, ds)) < hm ? 'past' : ''}"><span class="tm">${evTm(atOn(r, ds), r.atEnd)}</span><span class="et">${esc(r.title)}</span><span class="te">${apptClash(ds, atOn(r, ds), r.id) ? '겹침' : r.block ? '할 일' : '약속'}</span><button class="evx" aria-label="약속 지우기" onclick="dropAppt('${r.id}')">×</button></div>`).join('');
@@ -1443,23 +1459,23 @@ function notifyCfg() { return Object.assign({ on: false, morning: '08:00', eveni
 // 비서가 쓰는 알림: 그날의 마감·오늘 칸·이번 주 숫자로 문구를 만든다(구독·체험 중일 때)
 // 빈 시간에 넣을 만한 일: 오늘 고른 것 중 시각이 없고 아직 안 한 것. 마감이 오늘이거나 지난 것, A, 고른 순
 function gapCands(ds) {
-  const pc = (dayOf(ds).picks || []).map(rock).filter(r => r && !r._deleted && !r.done && !r.at && !r.appt && !(r.checks && r.checks[ds])), rank = r => (r.due && r.due <= ds ? 0 : r.bucket === 'urgent' ? 1 : 2);
+  const pc = (dayOf(ds).picks || []).map(rock).filter(r => r && !r._deleted && !r.done && !(r.at && r.at.slice(0, 10) >= ds) && !r.appt && !(r.checks && r.checks[ds])), rank = r => (r.due && r.due <= ds ? 0 : r.bucket === 'urgent' ? 1 : 2);
   return pc.slice().sort((x, y) => rank(x) - rank(y) || (rank(x) === 0 ? (x.due < y.due ? -1 : x.due > y.due ? 1 : 0) : 0) || pc.indexOf(x) - pc.indexOf(y));
 }
 // 오늘 남은 시간 중 첫 빈 칸(9~18시, 한 시간 이상, 점심 12~13시 제외). 시각 있는 일정·약속이 하나라도 있는 날만
-let _gapOpen = false;
+let _gapOpen = false, _gapLen = 0; // 넣을 길이(분). 0이면 빈 시간 전부
 function freeGap(ds) {
   const toM = x => { const [h, m] = x.split(':').map(Number); return h * 60 + m; }, fm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
   const bl = eventsOn(ds).filter(e => !e.allDay && e.start).map(e => [toM(e.start), e.end ? toM(e.end) : toM(e.start) + 60]).concat(apptsOn(ds).map(r => { const a = toM(atOn(r, ds)); return [a, r.atEnd && toM(r.atEnd) > a ? toM(r.atEnd) : a + 60]; }));
   if (!bl.length) return null;
   let cur = 9 * 60; if (ds === today()) cur = Math.max(cur, Math.ceil((toM(nowHM()) + 5) / 30) * 30);
-  for (const [a, z] of bl.concat([[12 * 60, 13 * 60]]).sort((x, y) => x[0] - y[0])) { if (a - cur >= 60 && a <= 18 * 60) return [fm(cur), fm(a)]; cur = Math.max(cur, z); }
+  for (const [a, z] of bl.concat([[12 * 60, 13 * 60]]).sort((x, y) => x[0] - y[0])) { const a2 = Math.min(a, 18 * 60); if (a2 - cur >= 60) return [fm(cur), fm(a2)]; cur = Math.max(cur, z); } // 다음 일정이 18시 뒤여도 그 앞의 빈 시간은 18시까지로 본다
   return 18 * 60 - cur >= 60 ? [fm(cur), fm(18 * 60)] : null;
 }
 function placeGap(id) {
   const r = rock(id), ds = today(), g = freeGap(ds); if (!r || !g) return;
-  const toM = x => { const [h, m] = x.split(':').map(Number); return h * 60 + m; }, e = toM(g[1]);
-  r.block = true; r.at = ds + 'T' + g[0]; r.atEnd = String(Math.floor(e / 60)).padStart(2, '0') + ':' + String(e % 60).padStart(2, '0'); r.u = new Date().toISOString(); _gapOpen = false; save(); render(); apptToast(g[0], ds, id);
+  const toM = x => { const [h, m] = x.split(':').map(Number); return h * 60 + m; }, e = _gapLen ? Math.min(toM(g[0]) + _gapLen, toM(g[1])) : toM(g[1]);
+  _gapLen = 0; r.block = true; r.at = ds + 'T' + g[0]; r.atEnd = String(Math.floor(e / 60)).padStart(2, '0') + ':' + String(e % 60).padStart(2, '0'); r.u = new Date().toISOString(); _gapOpen = false; save(); render(); apptToast(g[0], ds, id);
 }
 function briefOf(ds) {
   const ev = calEvents().filter(e => e.date === ds).sort((a, b) => (a.allDay ? '00' : a.start || '') < (b.allDay ? '00' : b.start || '') ? -1 : 1);
@@ -1471,7 +1487,7 @@ function briefOf(ds) {
   const wd = new Date(ds).getDay();
   if (wd >= 1 && wd <= 5 && timed.length) {
     const blocks = timed.map(e => { const a = toM(e.start); return [a, e.end ? toM(e.end) : a + 60]; }).concat([[12 * 60, 13 * 60]]).sort((x, y) => x[0] - y[0]);
-    blocks.forEach(([a, b]) => { if (!gap && a - cur >= 90 && a <= 18 * 60) gap = [cur, a]; cur = Math.max(cur, b); });
+    blocks.forEach(([a, b]) => { const a2 = Math.min(a, 18 * 60); if (!gap && a2 - cur >= 90) gap = [cur, a2]; cur = Math.max(cur, b); });
     if (!gap && 18 * 60 - cur >= 90) gap = [cur, 18 * 60];
   }
   const fm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
@@ -1524,7 +1540,8 @@ async function placeSlot(id, cal) {
   const r = rock(id); if (!r) return; const ds = today(), day = dayOf(ds);
   const st = (document.getElementById('slotT') || {}).value || freeFrom(ds), mins = Number((document.getElementById('slotL') || {}).value || 60);
   if (!day.picks.includes(id)) day.picks.push(id);
-  r.at = ds + 'T' + st; r.u = new Date().toISOString(); _slot = null; save();
+  { const [h, m] = st.split(':').map(Number), e = Math.min(h * 60 + m + mins, 23 * 60 + 59); r.atEnd = String(Math.floor(e / 60)).padStart(2, '0') + ':' + String(e % 60).padStart(2, '0'); }
+  r.block = true; r.at = ds + 'T' + st; r.u = new Date().toISOString(); _slot = null; save();
   const lead = apptLead();
   if (cal && nat() && (D.settings || {}).calNative) {
     try { const res = await nat().calendarAdd({ date: ds, start: st, minutes: mins, title: shortT(r.title), alarm: lead }); if (res && res.ok) { toast(`${st} 약속 · 캘린더에도 넣었어요`); loadCal(true); render(); return; } } catch(e) {}
@@ -1598,7 +1615,7 @@ function eveHtml(ds) {
   const day = dayOf(ds), all = (day.picks || []).map(rock).filter(r => r && !r._deleted), rest = eveRest(ds), done = all.length - rest.length;
   if (!rest.length && day.note) return '';
   let h = notifLine('evening', ds, '오늘 닫기');
-  h += rest.map(r => bRow(r, '남음', false, `<button onclick="finishRock('${r.id}')">끝</button><button onclick="partRock('${r.id}')">하다 맘</button><button onclick="toTomorrow('${r.id}')">내일로</button>`)).join('');
+  h += rest.map(r => bRow(r, '남음', false, `<button onclick="finishRock('${r.id}')">끝</button><button onclick="partRock('${r.id}')">일부 진행</button><button onclick="toTomorrow('${r.id}')">내일로</button>`)).join('');
   const tm = addDays(ds, 1), nx = eventsOn(tm).filter(e => !e.allDay).map(e => ({ k: e.start, t: e.title })).concat(apptsOn(tm).map(r => ({ k: atOn(r, tm), t: r.title }))).sort((x, y) => x.k < y.k ? -1 : 1), nAll = nx.length + eventsOn(tm).filter(e => e.allDay).length;
   if (nAll) h += `<div class="bev" style="white-space:normal">내일 일정 ${nAll}개${nx.length ? ` · 첫 일정 ${nx[0].k} ${esc(shortT(nx[0].t))}` : ''}</div>`;
   h += `<input class="evein" id="eveNote" placeholder="한 줄 일기: 오늘 어땠나요" value="${esc(day.note)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')this.blur()" onchange="eveNote(this.value)">`;
@@ -1606,9 +1623,9 @@ function eveHtml(ds) {
   return nSticky('오늘 닫기', md(ds), h, `<button onclick="dropNote('eve:${ds}')">떼기</button>`, flashCls('evening'));
 }
 function eveNote(v) { const ds = today(); dayOf(ds).note = v.trim(); save(); render(); if (v.trim() && !eveRest(ds).length) toast('오늘을 닫았어요'); }
-// 하다 맘: 오늘 한 만큼은 달력에 남기고, 일은 내일 칸으로 넘긴다
-function partRock(id) { const ds = today(), day = dayOf(ds), tm = dayOf(addDays(ds, 1)); day.part = day.part || []; if (!day.part.includes(id)) day.part.push(id); day.picks = (day.picks || []).filter(x => x !== id); tm.picks = tm.picks || []; if (!tm.picks.includes(id)) tm.picks.push(id); save(); render(); toast('하다 만 걸로 적고 내일 칸에 옮겼어요'); }
-const HALF = n => `<span aria-label="하다 맘" style="display:inline-block;width:${n}px;height:${n}px;border-radius:50%;border:1.5px solid var(--ink-2);background:linear-gradient(90deg,var(--ink-2) 50%,transparent 50%);vertical-align:middle"></span>`;
+// 일부 진행: 오늘 한 만큼은 달력에 남기고, 일은 내일 칸으로 넘긴다
+function partRock(id) { const ds = today(), day = dayOf(ds), tm = dayOf(addDays(ds, 1)); day.part = day.part || []; if (!day.part.includes(id)) day.part.push(id); day.picks = (day.picks || []).filter(x => x !== id); tm.picks = tm.picks || []; if (!tm.picks.includes(id)) tm.picks.push(id); save(); render(); toast('일부 진행으로 적고 내일 칸에 옮겼어요'); }
+const HALF = n => `<span aria-label="일부 진행" style="display:inline-block;width:${n}px;height:${n}px;border-radius:50%;border:1.5px solid var(--ink-2);background:linear-gradient(90deg,var(--ink-2) 50%,transparent 50%);vertical-align:middle"></span>`;
 function partOn(ds) { return ((D.days[ds] || {}).part || []).map(rock).filter(r => r && !r._deleted); }
 function toTomorrow(id) { const ds = today(), day = dayOf(ds), tm = dayOf(addDays(ds, 1)); day.picks = (day.picks || []).filter(x => x !== id); tm.picks = tm.picks || []; if (!tm.picks.includes(id)) tm.picks.push(id); save(); render(); toast('내일 칸에 옮겨 적었어요'); }
 // 알림을 누르고 들어오면 그 알림이 말한 곳을 맨 위에 보여 준다
@@ -1641,6 +1658,7 @@ function niceHtml(ds) {
   if (live().length < 3 || helloNext()) return ''; // 막 시작한 때(적은 게 거의 없거나 비서가 첫인사를 하는 중)에는 묻지 않는다
   const y = D.days[addDays(ds, -1)], base = y && typeof y.aOpen === 'number' ? y.aOpen : aOpenNow();
   if (base > 1) return '';
+  if (openItems().some(r => r.due && r.due <= addDays(ds, 3) && !r.routine)) return ''; // 사흘 안 마감이 있으면 한가한 날이 아니다
   const picks = dayOf(ds).picks || [];
   const cands = openItems().filter(r => r.bucket === 'nice' && !r.routine && !picks.includes(r.id) && !(r.niceSkip && r.niceSkip > addDays(ds, -7))).sort((a, b) => (a.parkedAt || a.week || '') < (b.parkedAt || b.week || '') ? -1 : 1);
   const drop = `<button onclick="niceDrop()">떼기</button>`;
@@ -1664,7 +1682,7 @@ function briefHtml(ds) {
   let h = firedText('morning', ds) || tp ? notifLine('morning', ds, '오늘 브리핑') : '';
   const ap = apptsOn(ds), all = b.timed.map(e => ({ t: e.start, n: e.title })).concat(ap.map(r => ({ t: atOn(r, ds), n: r.title }))).sort((x, y) => x.t < y.t ? -1 : 1), cnt = b.ev.length + ap.length;
   if (cnt && !h) { const f = all[0] || { t: '종일', n: b.ev[0].title }; h += `<div class="bev">일정 ${cnt}개${ap.filter(r => !r.block).length ? `(약속 ${ap.filter(r => !r.block).length})` : ''} · 첫 일정 <b>${f.t}</b> ${esc(shortT(f.n))}</div>`; }
-  h += rows.map(({ r, tag, hot, picked }) => `<div class="bf"><span class="bt ${hot ? 'hot' : ''}">${esc(tag)}</span><span class="bn ${_bnOpen[r.id] ? 'open' : ''}" onclick="_bnOpen['${r.id}']=!_bnOpen['${r.id}'];this.classList.toggle('open')"><span class="bshort">${esc(shortT(r.title))}</span><span class="bfull">${esc(r.title)}</span></span><span class="bb">${r.at && r.at.slice(0, 10) >= ds ? `<span class="bdone">${atOn(r, ds) ? '' : (r.at.slice(0, 10) === addDays(ds, 1) ? '내일 ' : md(r.at.slice(0, 10)) + ' ') + r.at.slice(11, 16) + ' '}${r.block ? '시간' : '약속'} ✓</span>` : picked ? `<span class="bdone">오늘 칸 ✓</span>` : `<button onclick="pickHere('${r.id}')">오늘로</button>`}${r.at && r.at.slice(0, 10) >= ds ? '' : `<button onclick="slotOpen('${r.id}')">시간</button>`}</span></div>` + (_slot === r.id ? `<div class="bslot"><input type="time" id="slotT" value="${tag.endsWith(' 빔') ? tag.slice(0, 5) : freeFrom(ds)}"><select id="slotL"><option value="30">30분</option><option value="60" selected>1시간</option><option value="90">1시간 30분</option><option value="120">2시간</option></select><button onclick="placeSlot('${r.id}')">약속으로</button>${nat() && (D.settings || {}).calNative ? `<button onclick="placeSlot('${r.id}', true)">캘린더에도</button>` : ''}</div>` : '')).join('');
+  h += rows.map(({ r, tag, hot, picked }) => `<div class="bf"><span class="bt ${hot ? 'hot' : ''}">${esc(tag)}</span><span class="bn ${_bnOpen[r.id] ? 'open' : ''}" onclick="_bnOpen['${r.id}']=!_bnOpen['${r.id}'];this.classList.toggle('open')"><span class="bshort">${esc(shortT(r.title))}</span><span class="bfull">${esc(r.title)}</span></span><span class="bb">${r.at && r.at.slice(0, 10) >= ds ? `<span class="bdone">${atOn(r, ds) ? '' : (r.at.slice(0, 10) === addDays(ds, 1) ? '내일 ' : md(r.at.slice(0, 10)) + ' ') + r.at.slice(11, 16) + ' '}${r.block ? '시간' : '약속'} ✓</span>` : picked ? `<span class="bdone">오늘 칸 ✓</span>` : `<button onclick="pickHere('${r.id}')">오늘로</button>`}${r.at && r.at.slice(0, 10) >= ds ? '' : `<button onclick="slotOpen('${r.id}')">시간</button>`}</span></div>` + (_slot === r.id ? `<div class="bslot"><input type="time" id="slotT" value="${tag.endsWith(' 빔') ? tag.slice(0, 5) : freeFrom(ds)}"><select id="slotL"><option value="30">30분</option><option value="60" selected>1시간</option><option value="90">1시간 30분</option><option value="120">2시간</option></select><button onclick="placeSlot('${r.id}')">이 시간에</button>${nat() && (D.settings || {}).calNative ? `<button onclick="placeSlot('${r.id}', true)">캘린더에도</button>` : ''}</div>` : '')).join('');
   if (!rows.length && b.picks.length) h += `<div class="bev">오늘 칸 ${b.picks.length}개가 기다려요</div>`;
   return `<div class="stickies">${aNote({ key: 'brief:' + ds, label: '오늘 브리핑', meta: md(ds), cls: 'wide brief' + flashCls('morning'), text: rows.map(x => shortT(x.r.title)).join(' / ') || '오늘 일정', html: h, acts: `<button onclick="dropNote('brief:${ds}')">떼기</button>` })}</div>`;
 }
@@ -2026,7 +2044,7 @@ function addRock(b) {
   const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: addRole || '', title, done: false, carry: 0, checks: {} };
   if (addPlan && planOf(addPlan)) r.plan = addPlan;
   if (addRoutine) r.routine = Number((document.getElementById('rockN')||{}).value||3);
-  else { const due = (document.getElementById('rockDue')||{}).value || ''; if (b==='important' && !due && !((document.getElementById('rockAt')||{}).value)) { addKeep(); openDate('', { title: '언제까지만', cancel: () => { addRock('light'); toast('날짜가 없어 C에 적었어요'); } }, v => { addKeepV.due = v; renderWeek(); addRock('important'); }); return; } if (due) r.due = due; const at = (document.getElementById('rockAt')||{}).value || ''; if (at) { r.due = r.due || today(); r.at = r.due + 'T' + at; } }
+  else { const pd = parseDue(title); if (pd && pd.t && !(document.getElementById('rockDue')||{}).value) r.dueT = pd.t; const due = (document.getElementById('rockDue')||{}).value || (pd ? pd.due : ''); if (b==='important' && !due && !((document.getElementById('rockAt')||{}).value)) { addKeep(); openDate('', { title: '언제까지만', cancel: () => { addRock('light'); toast('날짜가 없어 C에 적었어요'); } }, v => { addKeepV.due = v; renderWeek(); addRock('important'); }); return; } if (due) r.due = due; const at = (document.getElementById('rockAt')||{}).value || ''; if (at) { r.due = r.due || today(); r.at = r.due + 'T' + at; } }
   r.vol = (curVol()||{}).id; D.rocks.push(r); addOpen = false; addPrefill = ''; addKeepV = {}; save(); renderWeek(); renderCover(); toast('적었어요');
 }
 function finishRock(id) { const r = rock(id); if (!r) return; const td = today(); r.checks = r.checks || {}; if (r.done) { if (r.doneAt) delete r.checks[r.doneAt]; r.done = false; r.doneAt = null; } else { r.done = true; r.doneAt = td; r.checks[td] = true; if (navigator.vibrate) navigator.vibrate(12); } save(); render(); }
@@ -2113,7 +2131,7 @@ function calendarHtml() {
   if (photoUrl(calSel)) h += photoHtml(calSel);
   const part = partOn(calSel).filter(r => !done.includes(r));
   if (past && !done.length && !part.length) h += `<div class="line faint ruled" style="font-size:14px">체크한 일 없음</div>`;
-  part.forEach(r => { h += `<div class="item"><div class="mg">${HALF(14)}</div><div class="bd"><div class="t" style="font-size:15px"><span class="tx">${esc(r.title)}</span></div><div class="m"><span>${[esc(r.role), '하다 맘'].filter(Boolean).join(' · ')}</span></div></div></div>`; });
+  part.forEach(r => { h += `<div class="item"><div class="mg">${HALF(14)}</div><div class="bd"><div class="t" style="font-size:15px"><span class="tx">${esc(r.title)}</span></div><div class="m"><span>${[esc(r.role), '일부 진행'].filter(Boolean).join(' · ')}</span></div></div></div>`; });
   done.forEach(r => { h += `<div class="item"><div class="mg">${CHECK.replace('width="22" height="22"','width="18" height="18"')}</div><div class="bd"><div class="t" style="font-size:15px"><span class="tx">${esc(r.title)}</span></div><div class="m"><span>${[esc(r.role), r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'].filter(Boolean).join(' · ')}</span></div></div></div>`; });
   notes.forEach(x => { h += `<div class="line wrap ruled" style="font-size:13px;color:var(--ink-2)">* ${esc(x.text)}</div>`; });
   if (day.note) h += `<div class="line wrap ruled" style="font-size:14px;font-style:italic;color:var(--ink-2)">“${esc(day.note)}”</div>`;

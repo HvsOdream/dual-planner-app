@@ -92,7 +92,11 @@ async function ui(browser, label, ctxOpts) {
   await ev(() => { nTap = null; });
   // 3. 하면 좋은 일
   await ev(() => { D.guide = D.guide || { done: {}, off: {} }; D.guide.off = Object.assign({}, D.guide.off, { write: true, notify: true, cal: true, agent: true }); render(); }); // 첫인사는 다 넘긴 사람
+  C('사흘 안 마감이 있으면 하면 좋은 일을 묻지 않는다', await ev(() => openItems().some(r => r.due && r.due <= addDays(today(), 3) && !r.routine) ? ![...document.querySelectorAll('#today .sticky')].some(e => /하면 좋은 일/.test(e.textContent)) : true));
+  await ev(() => { window._due0 = openItems().filter(r => r.due && r.due <= addDays(today(), 3) && !r.routine).map(r => [r, r.due]); window._due0.forEach(([r]) => { r.due = addDays(today(), 10); }); render(); });
   C('하면 좋은 일 포스트잇이 붙는다(어제 A 1개)', await ev(() => [...document.querySelectorAll('#today .sticky')].some(e => /하면 좋은 일/.test(e.textContent) && /HvsO/.test(e.textContent))));
+  await ev(() => { window._due0.forEach(([r, d]) => { r.due = d; }); render(); });
+  C('적은 글에서 마감을 읽는다', await ev(() => { const a = parseDue('실기 접수 금 18시 마감'), b = parseDue('월간 보고서 초안'), c = parseDue('금 18시 미팅'); return !!a && a.t === '18:00' && new Date(a.due + 'T00:00').getDay() === 5 && b === null && c === null; }));
   await ev(() => niceToday('d1')); C('오늘로: 오늘 칸에 올리고 포스트잇은 떨어진다', await ev(() => D.days[today()].picks.includes('d1') && ![...document.querySelectorAll('#today .sticky')].some(e => /하면 좋은 일/.test(e.textContent))));
 
   // 4. 할 일: 제목 눌러 고치기, 칸 옮기기
