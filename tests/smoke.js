@@ -246,14 +246,22 @@ async function ui(browser, label, ctxOpts) {
   await pg.locator('.tabbar button[data-tab="review"]').click();
   C('옆면 인덱스: 눌러서 달력으로 간다', await ev(() => (spread() ? rightTab : tab) === 'review' && document.querySelector('.tabbar button[data-tab="review"]').classList.contains('on')));
   C('옆면 인덱스: 펼친 화면에서는 오늘 탭이 빠지고 표지 안 탭이 숨는다', await ev(() => !spread() || (getComputedStyle(document.querySelector('.tabbar button[data-tab="today"]')).display === 'none' && (!document.querySelector('#cover .right') || getComputedStyle(document.querySelector('#cover .right')).display === 'none'))));
-  C('옆면 인덱스: 기본은 띠지, 40px', await ev(() => !document.documentElement.dataset.edge && getComputedStyle(document.querySelector('.tabbar button[data-tab="week"]'), '::before').height === '40px'));
+  C('옆면 인덱스: 기본은 띠지, 52px', await ev(() => !document.documentElement.dataset.edge && getComputedStyle(document.querySelector('.tabbar button[data-tab="week"]'), '::before').height === '52px'));
   await ev(() => { go('more'); openSec('cover'); });
-  C('옆면 인덱스: 표지 화면에서 띠지/탭을 고른다', await ev(() => [...document.querySelectorAll('#coverBox .chips button')].map(b => b.textContent).join() === '띠지,탭'));
+  C('옆면 인덱스: 표지 화면에서 띠지/탭을 고른다', await ev(() => [...document.querySelectorAll('#coverBox .chips button')].map(b => b.textContent).join() === '띠지,탭,아래 메뉴'));
   await ev(() => setEdgeStyle('tab'));
   C('옆면 인덱스: 탭을 고르면 두툼한 탭 모양이 되고 저장된다', await ev(() => document.documentElement.dataset.edge === 'tab' && D.settings.edge === 'tab' && getComputedStyle(document.querySelector('.tabbar button[data-tab="week"]'), '::before').borderTopRightRadius === '8px' && document.querySelector('.tabbar button[data-tab="week"]').getBoundingClientRect().height >= 44));
   await ev(() => setEdgeStyle('flag'));
   await ev(() => { edgeCheck(0); go('today'); });
   C('띠가 없으면 아래 탭으로 돌아온다', await ev(() => !document.documentElement.classList.contains('edge-r') && (spread() || document.querySelector('.tabbar').getBoundingClientRect().width > innerWidth - 2)));
+  await ev(() => setEdgePick('on'));
+  C('옆면 인덱스: 여백이 없는 화면에서도 고르면 켜진다', await ev(() => document.documentElement.classList.contains('edge-r') && document.body.style.paddingRight === '44px'));
+  await ev(() => setEdgePick('off'));
+  C('옆면 인덱스: 아래 메뉴를 고르면 꺼진다', await ev(() => !document.documentElement.classList.contains('edge-r') && !document.body.style.paddingRight));
+  await ev(() => { localStorage.removeItem('dpa_edge'); edgeCheck(); openWrite(); document.getElementById('wrIn').value = '모레 병원 예약\n우유 사기'; saveWrite('todo'); });
+  C('적기: 줄마다 할 일로 놓고 날짜를 읽는다', await ev(() => !document.getElementById('wrBox') && D.rocks.some(r => r.title.includes('병원 예약') && r.due === addDays(today(), 2)) && D.rocks.some(r => r.title === '우유 사기' && !r.due)));
+  await ev(() => { openWrite(); document.getElementById('wrIn').value = '수업 아이디어 하나'; saveWrite('memo'); });
+  C('적기: 메모로 둔다', await ev(() => (D.memos || []).some(m => m.text === '수업 아이디어 하나')));
   // 첫날: 비서 인사 한 장, 하나씩 권하기
   await ev(() => { window._D0 = JSON.stringify(D); D.rocks = []; D.days = {}; D.plans = []; D.guide = { done: {}, off: {} }; D.nlog = []; D.settings = Object.assign({}, D.settings, { calUrl: '', calNative: false }); D.agent = null; D.preview = ''; go('today'); });
   C('첫날: 맨 위에 비서 인사 한 장만 있고 하면 좋은 일은 없다', await ev(() => { const st = [...document.querySelectorAll('#today .sticky')]; const hs = st.filter(e => e.classList.contains('start')); return hs.length === 1 && /이번 주에 해야 할 일/.test(hs[0].textContent) && !!document.getElementById('dumpIn') && !st.some(e => /하면 좋은 일/.test(e.textContent)) && !(D.nlog || []).some(x => /하면 좋은/.test(x.label)); }));

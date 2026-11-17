@@ -1,4 +1,5 @@
 // 홈·잠금 화면 위젯: 오늘 할 것 몇 줄과 체크칸. 체크는 위젯에서 바로(앱이 열릴 때 반영)
+// 「적기」를 누르면 앱이 적는 칸으로 열린다(dualplanner://write)
 import WidgetKit
 import SwiftUI
 import AppIntents
@@ -31,6 +32,19 @@ let navy = Color(red: 0x1E/255, green: 0x2F/255, blue: 0x4F/255)
 let paper = Color(red: 0xFC/255, green: 0xFB/255, blue: 0xF7/255)
 let checkRed = Color(red: 0xD7/255, green: 0x45/255, blue: 0x2E/255)
 let rule = Color(red: 0xC8/255, green: 0xD6/255, blue: 0xE6/255)
+let writeURL = URL(string: "dualplanner://write")!
+
+struct WriteLabel: View {
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "square.and.pencil").font(.system(size: 11, weight: .bold))
+            Text("적기").font(.system(size: 12, weight: .heavy))
+        }
+        .foregroundColor(paper)
+        .padding(.horizontal, 10).padding(.vertical, 4)
+        .background(Capsule().fill(navy))
+    }
+}
 
 struct Row: View {
     let item: SharedStore.Item
@@ -59,18 +73,26 @@ struct DualWidgetView: View {
     }
     var body: some View {
         switch family {
+        case .accessoryCircular:
+            ZStack {
+                AccessoryWidgetBackground()
+                Image(systemName: "square.and.pencil").font(.system(size: 20, weight: .semibold))
+            }.widgetURL(writeURL)
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 1) {
                 Text("오늘 \(items.filter { $0.done }.count)/\(items.count)").font(.system(size: 12, weight: .bold))
                 ForEach(items.prefix(2), id: \.id) { i in Text((i.done ? "✓ " : "□ ") + i.title).font(.system(size: 12)).lineLimit(1) }
             }
         default:
-            let n = family == .systemSmall ? 4 : 5
+            let small = family == .systemSmall
+            let n = small ? 4 : 5
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Text("오늘").font(.system(size: 12, weight: .heavy)).foregroundColor(navy)
-                    Spacer()
                     Text("\(items.filter { $0.done }.count)/\(items.count)").font(.system(size: 11, weight: .semibold).monospacedDigit()).foregroundColor(navy.opacity(0.5))
+                    Spacer()
+                    // 작은 위젯은 빈 곳 어디를 눌러도 적기로 열린다(작은 위젯에는 따로 누르는 링크를 둘 수 없다)
+                    if small { WriteLabel() } else { Link(destination: writeURL) { WriteLabel() } }
                 }.padding(.bottom, 6)
                 if items.isEmpty {
                     Text(entry.today?.first.flatMap { $0.isEmpty ? nil : $0 } ?? "앱에서 오늘 할 것 적기").font(.system(size: 13)).foregroundColor(navy.opacity(0.5))
@@ -81,7 +103,7 @@ struct DualWidgetView: View {
                     }
                 }
                 Spacer(minLength: 0)
-            }
+            }.widgetURL(small ? writeURL : nil)
         }
     }
 }
@@ -93,7 +115,7 @@ struct DualWidget: Widget {
             DualWidgetView(entry: e).containerBackground(for: .widget) { paper }
         }
         .configurationDisplayName("DUAL 오늘")
-        .description("오늘 할 것과 체크칸")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+        .description("오늘 할 것과 체크칸, 떠오른 것 바로 적기")
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular])
     }
 }

@@ -43,6 +43,13 @@ set_plist NSCalendarsFullAccessUsageDescription string "오늘 일정을 플래�
 set_plist NSCalendarsUsageDescription string "오늘 일정을 플래너 맨 위 일정 칸에 보여 줘요"
 set_plist NSCameraUsageDescription string "오늘 사진 한 장을 찍어 그날 기록에 붙여요"
 set_plist NSPhotoLibraryUsageDescription string "앨범에서 고른 사진을 그날 기록에 붙여요"
+# 위젯의 「적기」가 앱을 여는 주소(dualplanner://write)
+$PB "Delete :CFBundleURLTypes" "$PLIST" 2>/dev/null || true
+$PB "Add :CFBundleURLTypes array" "$PLIST"
+$PB "Add :CFBundleURLTypes:0 dict" "$PLIST"
+$PB "Add :CFBundleURLTypes:0:CFBundleURLName string com.hvsodream.dualplanner" "$PLIST"
+$PB "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$PLIST"
+$PB "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string dualplanner" "$PLIST"
 
 # 앱 아이콘: 레포의 1024 아이콘(테라코타 천 + 접힌 D)
 ICON_DIR=ios/App/App/Assets.xcassets/AppIcon.appiconset

@@ -345,11 +345,11 @@ html.native .npop { padding-left: calc(18px + env(safe-area-inset-left)); paddin
 html.edge-r body::after { content: ''; position: fixed; top: 0; right: 0; bottom: 0; width: var(--sar); background: var(--paper-2); box-shadow: inset 9px 0 10px -8px rgba(40,30,15,.28); z-index: 55; pointer-events: none; }
 html.edge-r .tabbar { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; left: auto; right: 0; top: 250px; bottom: calc(30px + env(safe-area-inset-bottom)); width: var(--sar); padding: 0; background: none; border: 0; overflow: visible; }
 html.edge-r body.spread .tabbar { top: 120px; }
-/* 인덱스 플래그: 종이 끝에 붙여 둔 포스트잇 띠지. 띠는 40px, 손으로 붙인 것처럼 하나씩 조금 삐뚤게 */
-html.edge-r .tabbar button { position: relative; flex: none; display: block; width: 100%; height: 52px; padding: 0; background: none; border: 0; text-align: left; font-size: 13px; font-weight: 700; letter-spacing: .2px; color: rgba(40,30,15,.82); }
-html.edge-r .tabbar button::before { content: ''; position: absolute; left: -10px; top: 6px; height: 40px; width: calc(100% + 14px); background: linear-gradient(90deg, rgba(255,255,255,.55) 0 10px, var(--tc) 10px); opacity: .9; box-shadow: 1px 1px 2px rgba(40,30,15,.2); border-radius: 1px; transform: rotate(var(--rot, 0deg)); transform-origin: 100% 50%; transition: left .16s ease, width .16s ease; }
+/* 인덱스 플래그: 종이 끝에 붙여 둔 포스트잇 띠지. 띠는 52px, 손으로 붙인 것처럼 하나씩 조금 삐뚤게 */
+html.edge-r .tabbar button { position: relative; flex: none; display: block; width: 100%; height: 64px; padding: 0; background: none; border: 0; text-align: left; font-size: 13px; font-weight: 700; letter-spacing: .2px; color: rgba(40,30,15,.82); }
+html.edge-r .tabbar button::before { content: ''; position: absolute; left: -10px; top: 6px; height: 52px; width: calc(100% + 14px); background: linear-gradient(90deg, rgba(255,255,255,.55) 0 10px, var(--tc) 10px); opacity: .9; box-shadow: 1px 1px 2px rgba(40,30,15,.2); border-radius: 1px; transform: rotate(var(--rot, 0deg)); transform-origin: 100% 50%; transition: left .16s ease, width .16s ease; }
 html.edge-r .tabbar button:nth-child(1) { --rot: -2.4deg; } html.edge-r .tabbar button:nth-child(2) { --rot: 1.8deg; } html.edge-r .tabbar button:nth-child(3) { --rot: -1.2deg; } html.edge-r .tabbar button:nth-child(4) { --rot: 2.6deg; } html.edge-r .tabbar button:nth-child(5) { --rot: -1.9deg; }
-html.edge-r .tabbar button span { position: relative; display: block; line-height: 52px; padding-left: 9px; white-space: nowrap; transform: rotate(var(--rot, 0deg)); transform-origin: 100% 50%; }
+html.edge-r .tabbar button span { position: relative; display: block; line-height: 64px; padding-left: 9px; white-space: nowrap; transform: rotate(var(--rot, 0deg)); transform-origin: 100% 50%; }
 html.edge-r .tabbar button.on { color: #1F1810; font-size: 14px; font-weight: 800; } html.edge-r .tabbar button.on::before { left: -24px; width: calc(100% + 28px); opacity: 1; box-shadow: 2px 2px 4px rgba(40,30,15,.28); } html.edge-r .tabbar button.on span { padding-left: 2px; }
 html.edge-r .tabbar button[data-tab="today"] { --tc: #F4907A; } html.edge-r .tabbar button[data-tab="week"] { --tc: #F6CF52; } html.edge-r .tabbar button[data-tab="memo"] { --tc: #A9D56E; } html.edge-r .tabbar button[data-tab="review"] { --tc: #7CCBE0; } html.edge-r .tabbar button[data-tab="more"] { --tc: #C9A6E4; }
 html.edge-r .tabbar button i { display: none; }
@@ -735,7 +735,10 @@ function go(t) {
 SPREAD_MQ.addEventListener('change', () => { edgeCheck(); syncPages(); render(); });
 // 오른쪽 안전 영역이 넓으면(44px 이상) 옆면 인덱스를 켠다. 좁거나 없으면 평소대로 아래 탭
 function edgeCheck(force) {
-  const pr = document.getElementById('saProbe'), w = typeof force === 'number' ? force : (pr ? parseFloat(getComputedStyle(pr).paddingRight) || 0 : 0), on = w >= 44;
+  const pr = document.getElementById('saProbe'), m = pr ? parseFloat(getComputedStyle(pr).paddingRight) || 0 : 0, pick = typeof force === 'number' ? '' : edgePick();
+  // 메뉴 › 표지에서 고르면 이 기기에서는 그대로 따른다(옆 여백이 없는 화면은 44px을 내어 준다). 안 골랐으면 여백이 넓을 때만 켠다
+  if (pick === 'on' && m < 44) force = 44; if (pick !== 'on' && typeof force !== 'number') document.body.style.paddingRight = '';
+  const w = pick === 'off' ? 0 : typeof force === 'number' ? force : m, on = w >= 44;
   document.documentElement.classList.toggle('edge-r', on); document.documentElement.style.setProperty('--sar', on ? w + 'px' : '0px');
   if (typeof force === 'number') document.body.style.paddingRight = on ? w + 'px' : '';
   return on;
@@ -804,7 +807,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.47'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.48'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1903,12 +1906,14 @@ function notifyPreview() {
 const COVERS = [['navy', '네이비', '#1E2F4F', '#F3F1EA'], ['terra', '테라코타', '#A9503A', '#FBF1E4'], ['cream', '크림', '#E4DCC6', '#2B2925'], ['leather', '가죽', '#6B4E36', '#F2E6D0']];
 function curTheme() { return new URLSearchParams(location.search).get('theme') || (D.settings && D.settings.theme) || 'navy'; }
 function applyTheme() { const t = curTheme(); if (document.documentElement.dataset.theme !== t) document.documentElement.dataset.theme = t; const e = edgeStyle(); if (e === 'tab') document.documentElement.dataset.edge = 'tab'; else delete document.documentElement.dataset.edge; }
+function edgePick() { try { return localStorage.getItem('dpa_edge') || ''; } catch(e) { return ''; } }
+function setEdgePick(v) { try { localStorage.setItem('dpa_edge', v); } catch(e) {} if (v === 'off') document.body.style.paddingRight = ''; edgeCheck(); render(); renderCoverBox(); }
 function edgeStyle() { return (D.settings && D.settings.edge) === 'tab' ? 'tab' : 'flag'; }
 function setEdgeStyle(v) { D.settings = Object.assign({}, D.settings, { edge: v === 'tab' ? 'tab' : 'flag', u: new Date().toISOString() }); D._modified = D.settings.u; _save0(); if (baseUrl()) pushState(); applyTheme(); renderCoverBox(); }
 function setCover(t) { D.settings = Object.assign({}, D.settings, { theme: t, u: new Date().toISOString() }); D._modified = D.settings.u; _save0(); if (baseUrl()) pushState(); applyTheme(); renderCoverBox(); }
 function renderCoverBox() {
   const el = document.getElementById('coverBox'); if (!el) return; const t = curTheme();
-  el.innerHTML = `<div class="lbl" style="padding-left:0">표지</div><div class="covers">${COVERS.map(([k, n, bg, ink]) => `<button class="${k === t ? 'on' : ''}" onclick="setCover('${k}')" aria-label="${n} 표지"><i style="background:${bg};color:${ink}"><svg viewBox="0 0 100 100"><rect x="16" y="16" width="26" height="68" rx="5" fill="currentColor"/><path d="M48 16 H55 A34 34 0 0 1 55 84 H48 Z" fill="currentColor"/></svg></i><span>${n}</span></button>`).join('')}</div>` + (document.documentElement.classList.contains('edge-r') ? `<div class="lbl" style="padding-left:0">옆면 인덱스</div><div class="chips" style="margin:4px 0 14px">${[['flag', '띠지'], ['tab', '탭']].map(([k, n]) => `<button class="${edgeStyle() === k ? 'on' : ''}" onclick="setEdgeStyle('${k}')">${n}</button>`).join('')}</div>` : '');
+  el.innerHTML = `<div class="lbl" style="padding-left:0">표지</div><div class="covers">${COVERS.map(([k, n, bg, ink]) => `<button class="${k === t ? 'on' : ''}" onclick="setCover('${k}')" aria-label="${n} 표지"><i style="background:${bg};color:${ink}"><svg viewBox="0 0 100 100"><rect x="16" y="16" width="26" height="68" rx="5" fill="currentColor"/><path d="M48 16 H55 A34 34 0 0 1 55 84 H48 Z" fill="currentColor"/></svg></i><span>${n}</span></button>`).join('')}</div>` + `<div class="lbl" style="padding-left:0">옆면 인덱스</div><div class="chips" style="margin:4px 0 14px">${(e => [['flag', '띠지'], ['tab', '탭'], ['off', '아래 메뉴']].map(([k, n]) => `<button class="${(e ? edgeStyle() : 'off') === k ? 'on' : ''}" onclick="${k === 'off' ? "setEdgePick('off')" : `setEdgeStyle('${k}');setEdgePick('on')`}">${n}</button>`).join(''))(document.documentElement.classList.contains('edge-r'))}</div>`;
 }
 // ── 위젯·공유·시리(앱) ──
 function widgetSync() {
@@ -1916,6 +1921,25 @@ function widgetSync() {
   const items = (d.picks || []).map(id => rock(id)).filter(r => r && !r._deleted).map(r => ({ id: r.id, title: r.title, done: !!(r.checks && r.checks[ds]) || !!r.done }));
   clearTimeout(widgetSync._t); widgetSync._t = setTimeout(() => nat().widgetSave({ date: ds, items, first: d.first || '' }).catch(() => {}), 300);
 }
+// ── 위젯·잠금 화면의 「적기」: 앱이 적는 칸으로 바로 열린다. 떠오른 것을 줄마다 적고, 할 일로 놓거나 메모로 둔다 ──
+function openWrite() {
+  if (document.getElementById('wrBox')) { const t = document.getElementById('wrIn'); if (t) t.focus(); return; }
+  const el = document.createElement('div'); el.id = 'wrBox';
+  el.style.cssText = 'position:fixed;inset:0;z-index:90;background:rgba(31,24,16,.38);display:flex;align-items:flex-start;justify-content:center;padding:calc(64px + env(safe-area-inset-top)) 16px 0';
+  el.onclick = e => { if (e.target === el) closeWrite(); };
+  el.innerHTML = `<div class="sticky wide" style="width:100%;max-width:440px;transform:none"><div class="who"><span>적기</span><span>${md(today())}</span></div>
+    <textarea id="wrIn" rows="4" aria-label="적기" placeholder="지금 떠오른 것, 적어 둘 것\n한 줄에 하나씩" style="width:100%;box-sizing:border-box;border:0;background:rgba(255,255,255,.55);border-radius:6px;padding:10px;font:inherit;font-size:16px;line-height:1.5;resize:none;color:inherit"></textarea>
+    <div class="act"><button onclick="saveWrite('todo')">할 일로</button><button onclick="saveWrite('memo')">메모로</button><button onclick="closeWrite()">닫기</button></div></div>`;
+  document.body.appendChild(el); setTimeout(() => { const t = document.getElementById('wrIn'); if (t) t.focus(); }, 60);
+}
+function closeWrite() { const el = document.getElementById('wrBox'); if (el) el.remove(); }
+function saveWrite(kind) {
+  const el = document.getElementById('wrIn'), v = ((el && el.value) || '').trim(); if (!v) { if (el) el.focus(); return; }
+  if (kind === 'memo') { const now = new Date().toISOString(); D.memos = D.memos || []; D.memos.push({ id: uid('m_'), text: v, at: now, u: now }); closeWrite(); save(); render(); toast('메모에 적었어요'); return; }
+  const rs = v.split(/\n+/).map(putLine).filter(Boolean); closeWrite(); save(); render();
+  const r = rs[0]; toast(rs.length > 1 ? `${rs.length}개 적었어요` : r && r.due && r.due !== today() ? `${md(r.due)}${r.on ? ' 칸에 놓았어요' : '까지로 적었어요'}` : '할 일에 적었어요');
+}
+window.dualWrite = openWrite;
 async function takePending() {
   if (!nat()) return; let p; try { p = await nat().takePending(); } catch(e) { return; }
   const ds = today(); let n = 0;
