@@ -168,6 +168,7 @@ a { color: inherit; }
 .dd { color: var(--check); font-weight: 800; margin-left: 2px; }
 .rq { font-size: 18px; font-weight: 800; margin: 6px 0 4px; } .rh { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
 .qb { display: flex; align-items: center; gap: 6px; padding: 2px 0 8px 12px; } .qb button { min-width: 34px; height: 26px; border: 1.5px solid var(--rule); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--ink-2); } .qb button.on { background: var(--ink); border-color: var(--ink); color: var(--paper); } .qb span { margin-left: 4px; font-size: 12px; color: var(--muted); }
+.morenotes { display: block; margin: 2px 0 6px 52px; font-size: 12px; color: var(--muted); text-decoration: underline; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; } .chips button { padding: 8px 14px; border: 1.5px solid var(--rule); border-radius: 18px; font-size: 14px; color: var(--ink-2); }
 .chips button.on { border-color: var(--accent); background: var(--accent); color: var(--paper); font-weight: 700; }
 .ritem { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--rule); font-size: 14px; } .ritem span { flex: 1; min-width: 0; } .ritem select { flex: none; max-width: 40%; font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); }
@@ -788,7 +789,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.39'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.40'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -890,7 +891,7 @@ function itemHtml(r, ds, opts) {
   return `<div class="item ${on?'done':''}">
     <div class="mg"><button class="chk ${on?'on':''}" aria-label="완료" onclick="toggleCheck('${r.id}','${ds}')">${CHECK}</button></div>
     <div class="bd"><div class="t" ${opts.big?'style="font-size:18px;font-weight:600"':''}><span class="tx" ${ed ? `data-ed onclick="todayOpen=todayOpen==='${r.id}'?null:'${r.id}';renderToday()"` : ''}>${esc(r.title)}</span>${right}</div>
-    <div class="m"><span>${[ed ? `<b class="bk">${bucketName(r.bucket).split(' ')[0]}</b>` : '', esc(r.role), esc(fmtDue(r))].filter(Boolean).join(' · ')}</span>${r.carry?`<span class="mono" style="color:var(--check)">⟳${r.carry}</span>`:''}<span class="sp1"></span>${opts.meta||''}</div>${ed && todayOpen === r.id ? rowEdit(r) : ''}</div></div>`;
+    <div class="m"><span>${[ed ? `<b class="bk">${bucketName(r.bucket).split(' ')[0]}</b>` : '', esc(r.role), ed ? partNote(r, ds) : '', esc(fmtDue(r))].filter(Boolean).join(' · ')}</span>${r.carry?`<span class="mono" style="color:var(--check)">⟳${r.carry}</span>`:''}<span class="sp1"></span>${opts.meta||''}</div>${ed && todayOpen === r.id ? rowEdit(r) : ''}</div></div>`;
 }
 function doneOn(ds) { return live().filter(r => (r.checks && r.checks[ds]) || r.doneAt === ds); }
 // 오늘 칸에 바로 적을 때 어느 칸(A·B·C)에 넣을지: 고른 것을 기억해 둔다(기본 A)
@@ -908,6 +909,7 @@ function addToday(blur) {
   if (r.bucket === 'important') { quickB = 'urgent'; render(); if (r.due) toast(`할 일 탭 B에 적었어요 · ${fmtDue(r)}`); else askDue(r); return; }
   if (pd) toast(`마감 ${fmtDue(r)}`); if (!blur) setTimeout(()=>{ const e=document.getElementById('quickIn'); if (e) e.focus(); }, 30);
 }
+let _moreNotes = false, _retro = null; // 접어 둔 포스트잇 / 오늘의 회고(null이면 저녁 알림 시각 뒤에 펼친다)
 function renderToday() {
   markAOpen();
   const ds = today(), day = dayOf(ds);
@@ -916,39 +918,37 @@ function renderToday() {
   const doneN = picks.filter(r=>r.checks&&r.checks[ds]).length;
   // 오늘 고를 만한 것: A 전부 + 3일 안에 끝나는 B (아직 안 고른 것)
   const soon = dstr(new Date(Date.now()+3*86400000));
-  const inBrief = new Set(briefHtml(ds) ? briefRows(ds).rows.map(x => x.r.id) : []);
-  const sugg = openItems().filter(r => !(day.picks||[]).includes(r.id) && !inBrief.has(r.id) && (r.bucket==='urgent' || (r.bucket==='important' && r.due && r.due <= soon) || (r.routine && checkedCount(r) < r.routine)));
-  const cv = curVol(); const full = false; // 속지 닫기 화면은 당분간 숨김
-  let h = `${full ? `<button class="banner" onclick="go('close')"><span>${volName(cv)} 속지가 다 찼어요. 1년을 돌아보고 새 속지를 끼울 시간이에요</span><b>속지 닫기 ›</b></button>` : ''}<div class="sp"></div>
-  ${tapped('morning') && !(ds === today() && backMode()) ? briefHtml(ds) : ''}
-  ${notifStickies(ds)}
-  ${ds === today() ? helloHtml() : ''}
-  ${firstHtml(ds)}
-  ${trialHtml(ds)}
-  ${ds === today() && backMode() ? `<div class="stickies">${backHtml()}</div>` : ''}
-  ${(ds === today() && backMode()) || tapped('morning') ? '' : briefHtml(ds)}
-  ${ds === today() && backMode() ? '' : niceHtml(ds)}
+  const inPick = id => (day.picks||[]).includes(id);
+  const dueSoon = openItems().filter(r => !inPick(r.id) && !r.routine && r.due && r.due <= soon).sort((x, y) => (x.due + (x.dueT || '99')) < (y.due + (y.dueT || '99')) ? -1 : 1);
+  const sugg = openItems().filter(r => !inPick(r.id) && !dueSoon.includes(r) && (r.bucket==='urgent' || (r.routine && checkedCount(r) < r.routine)));
+  const back = ds === today() && backMode(), tp = tapped('morning');
+  // 맨 위 포스트잇은 한 장만 펴 둔다(저녁엔 오늘 닫기, 아침엔 브리핑이 먼저). 나머지는 '몇 장 더'로 접는다
+  const tops = [tp && !back ? briefHtml(ds) : '', notifStickies(ds), back ? `<div class="stickies">${backHtml()}</div>` : '', back || tp ? '' : briefHtml(ds), ds === today() ? helloHtml() : '', trialHtml(ds), back ? '' : niceHtml(ds)].filter(Boolean);
+  let h = `<div class="sp"></div>${tops[0] || ''}${tops.length > 1 ? `<button class="morenotes" onclick="_moreNotes=!_moreNotes;renderToday()">포스트잇 ${tops.length - 1}장 더 ${_moreNotes ? '접기' : '보기'}</button><div id="moreNotes" style="display:${_moreNotes ? 'block' : 'none'}">${tops.slice(1).join('')}</div>` : ''}
   ${calHtml(ds)}
-  <div class="lbl">의도</div>
-  <input class="wr" style="font-size:18px;font-weight:600" placeholder="" value="${esc(day.intent)}" onchange="dayOf('${ds}').intent=this.value;save()">
   <div class="sp"></div>
   <div class="lbl"><span>오늘 할 것 <span style="font-weight:400;color:var(--muted)">${picks.length ? doneN+'/'+picks.length : ''}</span></span><button onclick="const e=document.getElementById('quickIn');if(e){e.scrollIntoView({block:'center'});e.focus()}">+ 추가</button></div>`;
-  picks.sort((x, y) => (atOn(x, ds) || '99') < (atOn(y, ds) || '99') ? -1 : 1).forEach(r => { const tm = atOn(r, ds); h += itemHtml(r, ds, { meta: `<button onclick="${tm ? `clearAt('${r.id}')` : `unpick('${r.id}')`}">${tm ? '시각 빼기' : '빼기'}</button>`, big: true, ed: true }); });
+  picks.sort((x, y) => (atOn(x, ds) || '99') < (atOn(y, ds) || '99') ? -1 : 1).forEach(r => { const tm = atOn(r, ds); h += itemHtml(r, ds, { meta: todayOpen === r.id ? `<button onclick="${tm ? `clearAt('${r.id}')` : `unpick('${r.id}')`}">${tm ? '시각 빼기' : '빼기'}</button>` : '', big: true, ed: true }); });
+  h += firstLine(ds);
   h += `<div class="item"><div class="mg"><span class="chk" style="border-style:dashed"></span></div><div class="bd"><input class="wr" id="quickIn" style="padding-left:12px;font-size:17px" placeholder="급한 일 바로 적기" aria-label="오늘 할 것" enterkeyhint="done" onkeydown="if(event.key==='Enter'){if(this.value.trim())addToday();else this.blur()}" onblur="if(this.value.trim()&&!_qbTap)addToday(true)"><div class="qb" role="group" aria-label="어느 칸에 적을지">${[['urgent', 'A'], ['important', 'B'], ['light', 'C']].map(([k, n]) => `<button type="button" data-b="${k}" class="${quickB === k ? 'on' : ''}" aria-label="${n} 칸" onpointerdown="_qbTap=true;setTimeout(()=>{_qbTap=false},600)" onclick="setQuickB('${k}')">${n}</button>`).join('')}<span id="qbName">${QB_NAME[quickB]}</span></div></div></div>`;
+  const srow = (r, right) => `<div class="row ruled" style="padding-left:52px;gap:8px;font-size:14px;color:var(--ink-2)"><span class="tag" style="font-size:10px;height:18px;line-height:16px">${r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</span>${right}<button style="font-size:12px;color:var(--muted);text-decoration:underline" onclick="pick('${r.id}')">오늘로</button></div>`;
+  if (dueSoon.length) {
+    h += `<div class="sp"></div><div class="lbl"><span>곧 마감</span><button onclick="go('week')">할 일 ›</button></div>`;
+    dueSoon.slice(0, 5).forEach(r => { const dl = dleft(r.due); h += srow(r, `<span style="font-size:12px;white-space:nowrap;color:${dl <= 1 ? 'var(--check)' : 'var(--muted)'}">${md(r.due)}${r.dueT ? ' ' + r.dueT : ''} · ${dl < 0 ? '지남' : dl === 0 ? '오늘' : 'D-' + dl}</span>`); });
+  }
   if (sugg.length) {
     h += `<div class="sp"></div><div class="lbl"><span>가져올 것</span><button onclick="go('week')">할 일 ›</button></div>`;
-    sugg.slice(0,5).forEach(r => { h += `<div class="row ruled" style="padding-left:52px;gap:8px;font-size:14px;color:var(--ink-2)"><span class="tag" style="font-size:10px;height:18px;line-height:16px">${r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</span><button style="font-size:12px;color:var(--muted);text-decoration:underline" onclick="pick('${r.id}')">오늘로</button></div>`; });
+    sugg.slice(0,5).forEach(r => { h += srow(r, ''); });
   }
-  const gs = guidesNow();
+  const gs = guidesNow(), eveOn = !!eveHtml(ds), tmd = addDays(ds, 1), tfirst = (D.days[tmd] || {}).first || '';
+  const retro = _retro === null ? nowHM() >= eveTime() : _retro, marks = [day.note ? '일기 ✓' : '', photoUrl(ds) ? '사진 ✓' : '', tfirst ? '내일 첫 줄 ✓' : ''].filter(Boolean).join(' · ');
   h += `${inbox.length || gs.length || groupHtml() ? '<div class="sp"></div>' : ''}
   ${stickiesHtml(inbox, gs)}
   <div class="sp"></div>
-  <div class="lbl">한 줄 일기</div>
-  <input class="wr" placeholder="" value="${esc(day.note)}" onchange="dayOf('${ds}').note=this.value;save()">
+  <div class="lbl"><span>오늘의 회고 <span style="font-weight:400;color:var(--muted)">${marks}</span></span><button onclick="_retro=${!retro};renderToday()">${retro ? '접기' : '펼치기'}</button></div>
+  ${retro ? `${eveOn ? '' : `<input class="wr" placeholder="한 줄 일기: 오늘 어땠나요" aria-label="한 줄 일기" value="${esc(day.note)}" onchange="dayOf('${ds}').note=this.value;save()">`}
   ${photoHtml(ds)}
-  <div class="sp"></div>
-  <div class="lbl"><span>내일 첫 줄 <span style="font-weight:400;color:var(--muted)">${md(addDays(ds, 1))}</span></span></div>
-  <input class="wr" placeholder="내일 아침 가장 먼저" value="${esc((D.days[addDays(ds, 1)] || {}).first || '')}" onchange="setFirst('${addDays(ds, 1)}', this.value)">
+  <input class="wr" placeholder="내일 아침 가장 먼저" aria-label="내일 첫 줄" value="${esc(tfirst)}" onchange="setFirst('${tmd}', this.value)">` : ''}
   <div class="sp"></div>`;
   document.getElementById('today').innerHTML = h;
 }
@@ -981,7 +981,7 @@ const HELLO = [
 function helloNext() {
   D.guide = D.guide || { done: {}, off: {} }; const sk = D.guide.skip || {};
   if (Object.values(sk).includes(today())) return null; // 오늘 「나중에」를 눌렀으면 더 권하지 않는다
-  return HELLO.find(x => !(x.native && !isNative()) && !D.guide.off[x.id] && !x.done()) || null;
+  return HELLO.find(x => !(x.native && !isNative()) && !D.guide.off[x.id] && !(sk[x.id] && sk[x.id] > addDays(today(), -3)) && !x.done()) || null;
 }
 function helloSkip(id) {
   D.guide = D.guide || { done: {}, off: {} }; D.guide.skip = Object.assign({}, D.guide.skip, { [id]: today() });
@@ -1135,7 +1135,7 @@ function roleFinder() {
   const g = D.groupSug;
   const what = `할 일 ${items.length}개${evn ? `와 일정 ${evn}개` : ''}`;
   // 처음 한 번: 보내기 전에 묻는다. 하는 일 한 줄을 같이 받으면 직함이 정확해진다
-  if (!aiAsked()) return `<div class="sticky wide">${head('내 역할')}<div class="tx">${what}를 보고 비서가 내 역할을 찾아 드릴까요?<div class="ppl"><b>하는 일</b><span><input class="inp" id="meIn" maxlength="40" value="${esc(meLine())}" placeholder="예: 영업 과장, 프리랜서 디자이너, 대학원생" onkeydown="if(event.key==='Enter')setAi(true,this.value)"></span></div><div class="hint" style="opacity:.8;margin-top:8px">한 줄 적어 주면 더 정확해요(안 적어도 돼요). 할 일·일정 제목과 이 한 줄이 AI 서버로 전송돼요. 이름·이메일은 보내지 않아요 <a href="#" onclick="openPrivacy();return false" style="text-decoration:underline">자세히</a></div></div>
+  if (!aiAsked()) return `<div class="sticky wide">${head('내 역할')}<div class="tx">${what}를 보고 비서가 내 역할을 찾아 드릴까요?<div class="hint" style="opacity:.8">역할을 찾아 두면 한 주 동안 어디에 시간을 썼는지 보여 드려요</div><div class="ppl"><b>하는 일</b><span><input class="inp" id="meIn" maxlength="40" value="${esc(meLine())}" placeholder="예: 영업 과장, 프리랜서 디자이너, 대학원생" onkeydown="if(event.key==='Enter')setAi(true,this.value)"></span></div><div class="hint" style="opacity:.8;margin-top:8px">한 줄 적어 주면 더 정확해요(안 적어도 돼요). 할 일·일정 제목과 이 한 줄이 AI 서버로 전송돼요. 이름·이메일은 보내지 않아요 <a href="#" onclick="openPrivacy();return false" style="text-decoration:underline">자세히</a></div></div>
     <div class="act"><button onclick="setAi(false)">직접 정할게요</button><button onclick="setAi(true,document.getElementById('meIn').value)">찾아 주세요</button></div></div>`;
   if (!aiOk()) return `<div class="sticky guide"><div class="who"><span>DUAL</span><span>내 역할</span></div><div class="tx">역할을 직접 정해 보세요<div class="hint">비서에게 맡기려면 메뉴 › 내 정보가 가는 곳에서 켜요</div></div><div class="act"><button onclick="openRoles()">정하기</button></div></div>`;
   if (!g || !g.groups) return `<div class="sticky wide">${head('내 역할')}<div class="tx">${what}를 읽는 중이에요</div></div>`;
@@ -1615,7 +1615,7 @@ function eveHtml(ds) {
   const day = dayOf(ds), all = (day.picks || []).map(rock).filter(r => r && !r._deleted), rest = eveRest(ds), done = all.length - rest.length;
   if (!rest.length && day.note) return '';
   let h = notifLine('evening', ds, '오늘 닫기');
-  h += rest.map(r => bRow(r, '남음', false, `<button onclick="finishRock('${r.id}')">끝</button><button onclick="partRock('${r.id}')">일부 진행</button><button onclick="toTomorrow('${r.id}')">내일로</button>`)).join('');
+  h += rest.map(r => `<div class="bf"><button aria-label="끝냄" onclick="finishRock('${r.id}')" style="flex:none;width:18px;height:18px;margin-right:8px;border:1.5px solid currentColor;border-radius:4px;opacity:.7"></button><span class="bn ${_bnOpen[r.id] ? 'open' : ''}" onclick="_bnOpen['${r.id}']=!_bnOpen['${r.id}'];this.classList.toggle('open')"><span class="bshort">${esc(shortT(r.title))}</span><span class="bfull">${esc(r.title)}</span></span><span class="bb"><button onclick="partRock('${r.id}')">일부 진행</button><button onclick="toTomorrow('${r.id}')">내일로</button></span></div>`).join('');
   const tm = addDays(ds, 1), nx = eventsOn(tm).filter(e => !e.allDay).map(e => ({ k: e.start, t: e.title })).concat(apptsOn(tm).map(r => ({ k: atOn(r, tm), t: r.title }))).sort((x, y) => x.k < y.k ? -1 : 1), nAll = nx.length + eventsOn(tm).filter(e => e.allDay).length;
   if (nAll) h += `<div class="bev" style="white-space:normal">내일 일정 ${nAll}개${nx.length ? ` · 첫 일정 ${nx[0].k} ${esc(shortT(nx[0].t))}` : ''}</div>`;
   h += `<input class="evein" id="eveNote" placeholder="한 줄 일기: 오늘 어땠나요" value="${esc(day.note)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')this.blur()" onchange="eveNote(this.value)">`;
@@ -1626,6 +1626,7 @@ function eveNote(v) { const ds = today(); dayOf(ds).note = v.trim(); save(); ren
 // 일부 진행: 오늘 한 만큼은 달력에 남기고, 일은 내일 칸으로 넘긴다
 function partRock(id) { const ds = today(), day = dayOf(ds), tm = dayOf(addDays(ds, 1)); day.part = day.part || []; if (!day.part.includes(id)) day.part.push(id); day.picks = (day.picks || []).filter(x => x !== id); tm.picks = tm.picks || []; if (!tm.picks.includes(id)) tm.picks.push(id); save(); render(); toast('일부 진행으로 적고 내일 칸에 옮겼어요'); }
 const HALF = n => `<span aria-label="일부 진행" style="display:inline-block;width:${n}px;height:${n}px;border-radius:50%;border:1.5px solid var(--ink-2);background:linear-gradient(90deg,var(--ink-2) 50%,transparent 50%);vertical-align:middle"></span>`;
+function partNote(r, ds) { const d = Object.keys(D.days).filter(k => k < ds && ((D.days[k] || {}).part || []).includes(r.id)).sort().pop(); return d ? (d === addDays(ds, -1) ? '어제' : md(d)) + ' 일부 진행' : ''; }
 function partOn(ds) { return ((D.days[ds] || {}).part || []).map(rock).filter(r => r && !r._deleted); }
 function toTomorrow(id) { const ds = today(), day = dayOf(ds), tm = dayOf(addDays(ds, 1)); day.picks = (day.picks || []).filter(x => x !== id); tm.picks = tm.picks || []; if (!tm.picks.includes(id)) tm.picks.push(id); save(); render(); toast('내일 칸에 옮겨 적었어요'); }
 // 알림을 누르고 들어오면 그 알림이 말한 곳을 맨 위에 보여 준다
@@ -1682,10 +1683,12 @@ function briefHtml(ds) {
   let h = firedText('morning', ds) || tp ? notifLine('morning', ds, '오늘 브리핑') : '';
   const ap = apptsOn(ds), all = b.timed.map(e => ({ t: e.start, n: e.title })).concat(ap.map(r => ({ t: atOn(r, ds), n: r.title }))).sort((x, y) => x.t < y.t ? -1 : 1), cnt = b.ev.length + ap.length;
   if (cnt && !h) { const f = all[0] || { t: '종일', n: b.ev[0].title }; h += `<div class="bev">일정 ${cnt}개${ap.filter(r => !r.block).length ? `(약속 ${ap.filter(r => !r.block).length})` : ''} · 첫 일정 <b>${f.t}</b> ${esc(shortT(f.n))}</div>`; }
-  h += rows.map(({ r, tag, hot, picked }) => `<div class="bf"><span class="bt ${hot ? 'hot' : ''}">${esc(tag)}</span><span class="bn ${_bnOpen[r.id] ? 'open' : ''}" onclick="_bnOpen['${r.id}']=!_bnOpen['${r.id}'];this.classList.toggle('open')"><span class="bshort">${esc(shortT(r.title))}</span><span class="bfull">${esc(r.title)}</span></span><span class="bb">${r.at && r.at.slice(0, 10) >= ds ? `<span class="bdone">${atOn(r, ds) ? '' : (r.at.slice(0, 10) === addDays(ds, 1) ? '내일 ' : md(r.at.slice(0, 10)) + ' ') + r.at.slice(11, 16) + ' '}${r.block ? '시간' : '약속'} ✓</span>` : picked ? `<span class="bdone">오늘 칸 ✓</span>` : `<button onclick="pickHere('${r.id}')">오늘로</button>`}${r.at && r.at.slice(0, 10) >= ds ? '' : `<button onclick="slotOpen('${r.id}')">시간</button>`}</span></div>` + (_slot === r.id ? `<div class="bslot"><input type="time" id="slotT" value="${tag.endsWith(' 빔') ? tag.slice(0, 5) : freeFrom(ds)}"><select id="slotL"><option value="30">30분</option><option value="60" selected>1시간</option><option value="90">1시간 30분</option><option value="120">2시간</option></select><button onclick="placeSlot('${r.id}')">이 시간에</button>${nat() && (D.settings || {}).calNative ? `<button onclick="placeSlot('${r.id}', true)">캘린더에도</button>` : ''}</div>` : '')).join('');
-  if (!rows.length && b.picks.length) h += `<div class="bev">오늘 칸 ${b.picks.length}개가 기다려요</div>`;
-  return `<div class="stickies">${aNote({ key: 'brief:' + ds, label: '오늘 브리핑', meta: md(ds), cls: 'wide brief' + flashCls('morning'), text: rows.map(x => shortT(x.r.title)).join(' / ') || '오늘 일정', html: h, acts: `<button onclick="dropNote('brief:${ds}')">떼기</button>` })}</div>`;
+  if (b.gap && b.gapTop) { const g = b.gapTop, tm = addDays(ds, 1), dw = g.due ? (g.due === ds ? '오늘' : g.due === tm ? '내일' : md(g.due)) + (g.dueT ? ' ' + g.dueT : '') + '까지인 ' : '';
+    h += `<div class="bev" style="white-space:normal">${b.gap[0]}–${b.gap[1]}이 비어 있어요. ${dw}'${esc(shortT(g.title))}' 어때요</div><div class="bf"><span class="bn"></span><span class="bb"><button onclick="briefPlace('${g.id}','${b.gap[0]}','${b.gap[1]}')">이 시간에</button></span></div>`; }
+  if (!h) return '';
+  return `<div class="stickies">${aNote({ key: 'brief:' + ds, label: '오늘 브리핑', meta: md(ds), cls: 'wide brief' + flashCls('morning'), text: '오늘 일정', html: h, acts: `<button onclick="dropNote('brief:${ds}')">떼기</button>` })}</div>`;
 }
+function briefPlace(id, a, z) { const r = rock(id), ds = today(), day = dayOf(ds); if (!r) return; if (!day.picks.includes(id)) day.picks.push(id); r.block = true; r.at = ds + 'T' + a; r.atEnd = z; r.u = new Date().toISOString(); save(); render(); apptToast(a, ds, id); } // 브리핑이 말한 그 시간에 그대로 놓는다
 function smartNotify() { return paid() && featOn('notify'); }
 function plusDays(ds, n) { const x = new Date(ds); x.setDate(x.getDate() + n); return dstr(x); }
 function notifText(k, ds) {
@@ -1716,7 +1719,7 @@ function notifText(k, ds) {
     const pre = tmr.length ? `내일까지: ${short(tmr[0].title)}${tmr.length > 1 ? ` 외 ${tmr.length - 1}개` : ''}. ` : '';
     if (ds === td) {
       const picks = (dayOf(ds).picks || []).map(rock).filter(Boolean), done = picks.filter(r => r.done || (r.checks && r.checks[ds])).length;
-      if (picks.length) return { title: `오늘 ${picks.length}개 중 ${done}개 끝`, body: pre + (done < picks.length ? '남은 건 내일로 넘길까요. 한 줄 일기도' : '한 줄 일기만 남았어요') };
+      const pn = partOn(ds).length; if (picks.length || pn) return { title: pn ? `오늘 ${picks.length + pn}개 중 끝 ${done} · 일부 진행 ${pn}` : `오늘 ${picks.length}개 중 ${done}개 끝`, body: pre + (done < picks.length ? '남은 건 내일로 넘길까요. 한 줄 일기도' : '한 줄 일기만 남았어요') };
     }
     if (pre) return { title: '오늘 닫기', body: pre + '한 줄 일기도 잊지 말고요' };
   }
@@ -1848,14 +1851,11 @@ async function addPhoto(ds, file) {
 async function dropPhoto(ds) { try { await fetch(baseUrl() + '/u/' + D.token + '/photo/' + ds, { method: 'DELETE' }); } catch(e) {} const d = dayOf(ds); delete d.photo; save(); render(); }
 function addDays(ds, n) { const d = new Date(ds + 'T00:00:00'); d.setDate(d.getDate() + n); return dstr(d); }
 function setFirst(ds, v) { const d = dayOf(ds); d.first = v.trim(); d.firstOff = false; save(); if (v.trim()) toast('내일 아침 맨 위에 붙여 둘게요'); }
-function firstHtml(ds) {
+function firstLine(ds) {
   const d = D.days[ds]; if (!d || !d.first || d.firstOff) return '';
-  const nz = x => String(x || '').replace(/\s+/g, ''), f = nz(d.first), same = (d.picks || []).map(rock).filter(r => r && !r._deleted).find(r => { const t = nz(r.title); if (!t || !f) return false; if (t.includes(f) || f.includes(t)) return true; for (let i = 0; i + 5 <= f.length; i++) if (t.includes(f.slice(i, i + 5))) return true; return false; });
-  return `<div class="stickies" style="padding-top:12px"><div class="sticky mine"><div class="who"><span>어제 적어 둔 첫 줄</span><span></span></div>
-    <div class="tx" style="font-weight:600">${esc(d.first)}</div>
-    ${same ? `<div class="hint">오늘 칸의 '${esc(shortT(same.title))}'와 같은 일 같아요</div>` : ''}<div class="act">${same ? '' : `<button onclick="firstToPick('${ds}')">오늘 할 것으로</button>`}<button onclick="dayOf('${ds}').firstOff=true;save();render()">떼기</button></div></div></div>`;
+  return `<div class="row ruled" style="padding-left:52px;gap:8px;font-size:14px;color:var(--muted)"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">+ ${esc(d.first)} <span style="font-size:11px">어제 적어 둔 첫 줄</span></span><button style="font-size:12px;text-decoration:underline" onclick="firstToPick('${ds}')">넣기</button><button style="font-size:12px" aria-label="첫 줄 지우기" onclick="dayOf('${ds}').firstOff=true;save();render()">✕</button></div>`;
 }
-function firstToPick(ds) { const d = dayOf(ds); const r = { id: uid(), week: '', bucket: 'light', role: '', title: d.first, done: false, carry: 0, checks: {} }; D.rocks.push(r); d.picks.push(r.id); d.firstOff = true; markStarted(); save(); render(); }
+function firstToPick(ds) { const d = dayOf(ds); const r = { id: uid(), week: '', bucket: 'urgent', role: '', title: d.first, done: false, carry: 0, checks: {} }; D.rocks.push(r); d.picks.push(r.id); d.firstOff = true; markStarted(); save(); render(); }
 // 비서 메모를 메모장에 둘지는 내가 정한다: 「메모로」를 누른 것만 메모 탭에 그날 날짜로 남는다
 function noteToMemo(id) { const x = findNote(id); if (!x) return; x.memo = true; x.hid = false; x.moved = true; x.dropped = true; save(); render(); toast('메모에 옮겼어요'); }
 function dropInbox(id) { const x = findNote(id); if (!x) return; x.moved = true; x.dropped = true; save(); render(); }
@@ -2127,7 +2127,7 @@ function calendarHtml() {
   h += `<div class="sp"></div><div class="lbl">${dd.getMonth()+1}월 ${dd.getDate()}일 ${DOW[(dd.getDay()+6)%7]}요일</div>`;
   h += calHtml(calSel, 'c');
   const past = calSel <= td; // 앞날은 일정만, 지난 날과 오늘은 한 일까지
-  if (past) h += `<div class="lbl"><span>한 일</span></div><div class="line wrap ruled" style="font-size:15px;${day.intent?'':'color:var(--faint);font-weight:400'}">${esc(day.intent || '의도 없음')}</div>`;
+  if (past) h += `<div class="lbl"><span>한 일</span></div>${day.intent ? `<div class="line wrap ruled" style="font-size:15px">${esc(day.intent)}</div>` : ''}`;
   if (photoUrl(calSel)) h += photoHtml(calSel);
   const part = partOn(calSel).filter(r => !done.includes(r));
   if (past && !done.length && !part.length) h += `<div class="line faint ruled" style="font-size:14px">체크한 일 없음</div>`;

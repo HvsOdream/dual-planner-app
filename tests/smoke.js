@@ -44,7 +44,7 @@ async function ui(browser, label, ctxOpts) {
   await pg.goto(PAGE); await pg.waitForTimeout(1200);
   const ev = (fn, arg) => pg.evaluate(fn, arg);
   const C = (name, ok, detail) => check(`[${label}] ${name}`, ok, detail);
-  await ev(() => { document.querySelectorAll('.intro,.login').forEach(e => e.remove()); go('today'); });
+  await ev(() => { document.querySelectorAll('.intro,.login').forEach(e => e.remove()); _moreNotes = true; _retro = true; go('today'); }); // 접어 둔 포스트잇과 오늘의 회고는 펼쳐 놓고 점검한다
   // 실패했을 때 원인을 보려고, 화면을 다시 그린 최근 호출을 적어 둔다
   await ev(() => { window.__r = []; for (const nm of ['render', 'renderReview', 'renderWeek']) { const r0 = window[nm]; window[nm] = function () { window.__r.push(Math.round(performance.now()) + ' ' + nm + ' ← ' + new Error().stack.split('\n').slice(2, 4).map(x => x.trim().replace(/\(?file:\S+index\.html/, '(')).join(' ← ')); if (window.__r.length > 8) window.__r.shift(); return r0.apply(this, arguments); }; } });
   // 글이 칸 밖으로 넘쳐 아래와 겹치는지(달력 날짜 상세에서 났던 사고)
@@ -241,10 +241,16 @@ async function ui(browser, label, ctxOpts) {
   await pg.locator('#today .sticky.start button', { hasText: '나중에' }).click();
   C('나중에를 누르면 그날은 더 권하지 않는다', await ev(() => !document.querySelector('#today .sticky.start')));
   await ev(() => { D.guide.skip.cal = addDays(today(), -1); render(); });
-  C('나중에: 다음 날 같은 것을 다시 묻는다', await ev(() => { const e = document.querySelector('#today .sticky.start'); return !!e && /캘린더/.test(e.textContent); }));
+  C('나중에: 다음 날에는 그 항목 말고 다음 항목을 권한다', await ev(() => { const e = document.querySelector('#today .sticky.start'); return !!e && !/캘린더/.test(e.textContent); }));
+  await ev(() => { D.guide.skip.cal = addDays(today(), -3); render(); });
+  C('나중에: 사흘 뒤 같은 것을 다시 묻는다', await ev(() => { const e = document.querySelector('#today .sticky.start'); return !!e && /캘린더/.test(e.textContent); }));
   await pg.locator('#today .sticky.start button', { hasText: '다시 보지 않기' }).click();
   C('다시 보지 않기: 그 항목은 끝나고 다음 항목을 권한다', await ev(() => { const e = document.querySelector('#today .sticky.start'); return D.guide.off.cal === true && !!e && !/캘린더/.test(e.textContent) && /AI/.test(e.textContent); }));
   { const o = await overflow(); C('첫인사 한 장에 넘치는 줄이 없다', !o.length, o.slice(0, 4)); }
+  await ev(() => { _moreNotes = false; renderToday(); });
+  C('맨 위 포스트잇은 한 장만 펴 있고 나머지는 접힌다', await ev(() => { const vis = [...document.querySelectorAll('#today > .stickies')].filter(e => e.offsetParent && !e.closest('#moreNotes')); const more = document.getElementById('moreNotes'); return vis.length <= 2 && (!more || getComputedStyle(more).display === 'none'); }));
+  C('의도 칸이 없고 오늘의 회고로 묶였다', await ev(() => !/의도/.test(document.getElementById('today').textContent) && /오늘의 회고/.test(document.getElementById('today').textContent)));
+  await ev(() => { _moreNotes = true; renderToday(); });
   await ev(() => { D = JSON.parse(window._D0); save(); go('today'); });
   C('화면 오류가 없다', !errs.length, errs.slice(0, 3));
   await ctx.close();
@@ -287,7 +293,7 @@ async function server() {
     await ui(browser, '접은 화면', devices['iPhone 14']);
     await ui(browser, '펼친 화면', { viewport: { width: 1100, height: 800 } });
     await server();
-  } catch (e) { fails.push('점검이 중간에 멈춤 → ' + (e && e.message || e).toString().split('\n')[0]); }
+  } catch (e) { fails.push('점검이 중간에 멈춤 → ' + (e && e.message || e).toString().split('\n').slice(0, 3).join(' ') + ' / 마지막 통과: ' + passed[passed.length - 1]); }
   await browser.close();
   console.log(`통과 ${passed.length} · 실패 ${fails.length}`); fails.forEach(f => console.log('  ✗ ' + f));
   process.exit(fails.length ? 1 : 0);
