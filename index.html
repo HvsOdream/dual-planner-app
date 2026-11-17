@@ -191,6 +191,7 @@ a { color: inherit; }
 .evein { display: block; width: 100%; height: 34px; margin-top: 4px; padding: 0 2px; font: inherit; font-size: 15px; font-weight: 600; color: inherit; background: transparent; border: none; border-top: 1px dashed rgba(74,42,51,.2); border-bottom: 1px solid rgba(74,42,51,.35); border-radius: 0; outline: none; }
 .evein::placeholder { color: inherit; opacity: .45; font-weight: 400; }
 .bb { flex: none; display: flex; gap: 8px; margin-left: auto; } .bb button, .pill, .sticky .act button, .ev .gapb { flex: none; font-size: 13px; font-weight: 600; text-decoration: none !important; border: 1.5px solid currentColor; border-radius: 15px; padding: 0 12px !important; height: 30px; line-height: 27px; white-space: nowrap; } .pill { color: var(--ink-2); font-size: 12px; height: 26px; line-height: 23px; padding: 0 10px !important; }
+.partask { flex: 1 1 100%; display: flex; gap: 8px; align-items: center; } .partask .evein { flex: 1; min-width: 0; margin: 0; } .partask .pill { color: inherit; }
 .bf.eve { flex-wrap: wrap; } .bf.eve .bn { flex: 1 1 60%; } .du { color: var(--ink); font-weight: 600; font-size: 13px; } .bhint { font-size: 11px; color: var(--muted); padding: 2px 0 6px; white-space: normal; line-height: 1.5; }
 .item .m button { border: 1px solid currentColor; border-radius: 11px; padding: 0 8px !important; height: 22px; line-height: 20px; text-decoration: none !important; } .bdone { font-size: 12px; opacity: .7; }
 .rowed { display: block; width: 100%; height: 30px; margin: 2px 0 4px; padding: 0 2px; font: inherit; font-size: 15px; font-weight: 600; color: var(--ink); background: transparent; border: none; border-bottom: 1px solid var(--rule, rgba(0,0,0,.2)); border-radius: 0; outline: none; }
@@ -230,7 +231,7 @@ body.kb .tabbar { display: none; }
 .cal.dpc { padding-left: 0; } .cal.dpc .cd { height: 42px; justify-content: center; padding-top: 0; } .cal.dpc .cd.td span { margin-top: 0; }
 .dpf { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; } .dpf button { height: 44px; padding: 0 6px; font-size: 15px; text-decoration: underline; text-underline-offset: 3px; color: var(--ink-2); } .dpf .go { font-weight: 700; color: var(--ink); }
 .dbtn { text-align: left; min-width: 84px; } .dbtn.none { color: var(--muted); }
-.memogo { display: flex; justify-content: flex-end; padding: 4px 16px 0 52px; } .memogo button { height: 40px; font-size: 14px; font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.memogo { display: flex; justify-content: flex-end; padding: 4px 16px 0 52px; } .memogo button { height: 44px; min-width: 96px; padding: 0 22px; border-radius: 22px; font-size: 16px; font-weight: 700; color: var(--paper); background: var(--ink); } .memogo button.off { background: transparent; color: var(--muted); border: 1.5px solid var(--rule); }
 .npop { position: fixed; inset: 0; z-index: 125; background: rgba(31,24,16,.46); display: flex; align-items: center; justify-content: center; padding: 20px 18px calc(20px + env(safe-area-inset-bottom)); }
 .npbox { width: 100%; max-width: 440px; max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; animation: npin .22s ease-out 1; }
 .npbox .stickies { margin: 0; padding: 6px 4px; grid-template-columns: minmax(0,1fr); } .npbox .sticky { box-shadow: 0 18px 40px rgba(0,0,0,.34); }
@@ -798,7 +799,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.42'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.43'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -945,7 +946,7 @@ function renderToday() {
   if (eveIds.length) h += `<div class="row ruled" style="padding-left:52px;font-size:13px;color:var(--muted)">남은 ${eveIds.length}개는 위 「오늘 닫기」에서 정리해요</div>`;
   else if (picks.length && !(D.guide && D.guide.rowTap)) h += `<div class="row ruled" style="padding-left:52px;font-size:12px;color:var(--faint)">줄을 누르면 칸·마감을 고칠 수 있어요</div>`;
   h += firstLine(ds);
-  h += `<div class="item"><div class="mg"><span aria-hidden="true" style="font-size:20px;line-height:1;color:var(--faint)">+</span></div><div class="bd"><input class="wr" id="quickIn" style="padding-left:12px;font-size:17px" placeholder="${QB_PH[quickB]}" aria-label="오늘 할 것" enterkeyhint="done" onkeydown="if(event.key==='Enter'){if(this.value.trim())addToday();else this.blur()}" onblur="if(this.value.trim()&&!_qbTap)addToday(true)"><div class="qb" role="group" aria-label="어느 칸에 적을지">${[['urgent', 'A'], ['important', 'B'], ['light', 'C']].map(([k, n]) => `<button type="button" data-b="${k}" class="${quickB === k ? 'on' : ''}" aria-label="${n} 칸" onpointerdown="_qbTap=true;setTimeout(()=>{_qbTap=false},600)" onclick="setQuickB('${k}')">${n}</button>`).join('')}<span id="qbName">${QB_NAME[quickB]}</span></div></div></div>`;
+  h += `<div class="item"><div class="mg"><span aria-hidden="true" style="font-size:20px;line-height:1;color:var(--faint)">+</span></div><div class="bd"><input class="wr" id="quickIn" style="padding-left:12px;font-size:17px" placeholder="${QB_PH[quickB]}" aria-label="오늘 할 것" enterkeyhint="done" onkeydown="if(event.key==='Enter'){if(this.value.trim())addToday();else this.blur()}" onblur="if(this.value.trim()&&!_qbTap)addToday(true)"><div class="qb" role="group" aria-label="어느 칸에 적을지" style="${live().filter(r => !r.appt).length >= 5 || quickB !== 'urgent' ? '' : 'display:none'}">${[['urgent', 'A'], ['important', 'B'], ['light', 'C']].map(([k, n]) => `<button type="button" data-b="${k}" class="${quickB === k ? 'on' : ''}" aria-label="${n} 칸" onpointerdown="_qbTap=true;setTimeout(()=>{_qbTap=false},600)" onclick="setQuickB('${k}')">${n}</button>`).join('')}<span id="qbName">${QB_NAME[quickB]}</span></div></div></div>`;
   const srow = (r, right, hot) => `<div class="row ruled" style="padding-left:52px;gap:8px;font-size:${hot ? 16 : 14}px;${hot ? 'font-weight:600;color:var(--ink)' : 'color:var(--ink-2)'}"><span class="tag" style="font-size:10px;height:18px;line-height:16px">${r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</span>${right}<button class="pill" onclick="pick('${r.id}')">오늘로</button></div>`;
   if (dueSoon.length) {
     h += `<div class="sp"></div><div class="lbl"><span>곧 마감</span><button onclick="go('week')">할 일 ›</button></div>`;
@@ -1146,7 +1147,7 @@ function roleFinder() {
       <div class="act"><button onclick="syncRoles();openRoles()">고치기</button><button onclick="confirmRoles()">맞아요</button></div></div>`;
   }
   const evn = evTitles().length, total = items.length + evn;
-  if (total < 5) return `<div class="sticky guide"><div class="who"><span>DUAL</span><span>${total}/5</span></div><div class="tx">할 일을 다섯 개쯤 적어 보세요<div class="hint">적어 둔 할 일과 캘린더 일정을 보고 비서가 내 역할을 찾아 줘요</div></div></div>`;
+  if (items.length < 5) return `<div class="sticky guide"><div class="who"><span>DUAL</span><span>${items.length}/5</span></div><div class="tx">할 일을 다섯 개쯤 적어 보세요<div class="hint">적어 둔 할 일과 캘린더 일정을 보고 비서가 내 역할을 찾아 줘요</div></div></div>`;
   const g = D.groupSug;
   const what = `할 일 ${items.length}개${evn ? `와 일정 ${evn}개` : ''}`;
   // 처음 한 번: 보내기 전에 묻는다. 하는 일 한 줄을 같이 받으면 직함이 정확해진다
@@ -1626,7 +1627,7 @@ function eveHtml(ds) {
   const day = dayOf(ds), all = (day.picks || []).map(rock).filter(r => r && !r._deleted), rest = eveRest(ds), done = all.length - rest.length;
   if (!rest.length && day.note) return '';
   let h = notifLine('evening', ds, '오늘 닫기');
-  h += rest.map(r => `<div class="bf eve"><button aria-label="끝냄" onclick="finishRock('${r.id}')" style="flex:none;width:20px;height:20px;margin-right:6px;border:1.5px solid currentColor;border-radius:4px;opacity:.7"></button><span class="bn open" style="cursor:default">${esc(r.title)}${r.due && !r.routine ? ` <span style="font-weight:400;font-size:12px;opacity:.75;white-space:nowrap">${md(r.due)}까지 · ${dleft(r.due) <= 0 ? '오늘' : 'D-' + dleft(r.due)}</span>` : ''}</span><span class="bb"><button onclick="partRock('${r.id}')">일부 진행</button><button onclick="toTomorrow('${r.id}')">내일로</button></span></div>`).join('');
+  h += rest.map(r => `<div class="bf eve"><button aria-label="끝냄" onclick="finishRock('${r.id}')" style="flex:none;width:20px;height:20px;margin-right:6px;border:1.5px solid currentColor;border-radius:4px;opacity:.7"></button><span class="bn open" style="cursor:default">${esc(r.title)}${r.due && !r.routine ? ` <span style="font-weight:400;font-size:12px;opacity:.75;white-space:nowrap">${md(r.due)}까지 · ${dleft(r.due) <= 0 ? '오늘' : 'D-' + dleft(r.due)}</span>` : ''}</span><span class="bb"><button onclick="_partAsk=_partAsk==='${r.id}'?null:'${r.id}';render();setTimeout(()=>{const e=document.getElementById('partIn');if(e)e.focus()},40)">일부 진행</button><button onclick="toTomorrow('${r.id}')">내일로</button></span>${_partAsk === r.id ? `<div class="partask"><input class="evein" id="partIn" placeholder="어디까지 했나요 (안 적어도 돼요)" enterkeyhint="done" onkeydown="if(event.key==='Enter')partRock('${r.id}',this.value)"><button class="pill" onclick="partRock('${r.id}',document.getElementById('partIn').value)">내일로 넘기기</button></div>` : ''}</div>`).join('');
   const tm = addDays(ds, 1), nx = eventsOn(tm).filter(e => !e.allDay).map(e => ({ k: e.start, t: e.title })).concat(apptsOn(tm).map(r => ({ k: atOn(r, tm), t: r.title }))).sort((x, y) => x.k < y.k ? -1 : 1), nAll = nx.length + eventsOn(tm).filter(e => e.allDay).length;
   if (nAll) h += `<div class="bev" style="white-space:normal">내일 일정 ${nAll}개${nx.length ? ` · 첫 일정 ${nx[0].k} ${esc(shortT(nx[0].t))}` : ''}</div>`;
   h += `<input class="evein" id="eveNote" placeholder="한 줄 일기: 오늘 어땠나요" value="${esc(day.note)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')this.blur()" onchange="eveNote(this.value)">`;
@@ -1635,9 +1636,10 @@ function eveHtml(ds) {
 }
 function eveNote(v) { const ds = today(); dayOf(ds).note = v.trim(); save(); render(); if (v.trim() && !eveRest(ds).length) toast('오늘을 닫았어요'); }
 // 일부 진행: 오늘 한 만큼은 달력에 남기고, 일은 내일 칸으로 넘긴다
-function partRock(id) { const ds = today(), day = dayOf(ds), tm = dayOf(addDays(ds, 1)); day.part = day.part || []; if (!day.part.includes(id)) day.part.push(id); day.picks = (day.picks || []).filter(x => x !== id); tm.picks = tm.picks || []; if (!tm.picks.includes(id)) tm.picks.push(id); save(); render(); toast('일부 진행으로 적고 내일 칸에 옮겼어요'); }
+let _partAsk = null;
+function partRock(id, note) { const ds = today(), day = dayOf(ds), tm = dayOf(addDays(ds, 1)); _partAsk = null; day.part = day.part || []; if (!day.part.includes(id)) day.part.push(id); note = String(note || '').trim(); if (note) { day.partNote = day.partNote || {}; day.partNote[id] = note; } day.picks = (day.picks || []).filter(x => x !== id); tm.picks = tm.picks || []; if (!tm.picks.includes(id)) tm.picks.push(id); save(); render(); toast('일부 진행으로 적고 내일 칸에 옮겼어요'); }
 const HALF = n => `<span aria-label="일부 진행" style="display:inline-block;width:${n}px;height:${n}px;border-radius:50%;border:1.5px solid var(--ink-2);background:linear-gradient(90deg,var(--ink-2) 50%,transparent 50%);vertical-align:middle"></span>`;
-function partNote(r, ds) { const d = Object.keys(D.days).filter(k => k < ds && ((D.days[k] || {}).part || []).includes(r.id)).sort().pop(); return d ? (d === addDays(ds, -1) ? '어제' : md(d)) + ' 일부 진행' : ''; }
+function partNote(r, ds) { const d = Object.keys(D.days).filter(k => k < ds && ((D.days[k] || {}).part || []).includes(r.id)).sort().pop(); const n = d && ((D.days[d] || {}).partNote || {})[r.id], w = d ? (d === addDays(ds, -1) ? '어제' : md(d)) : ''; return d ? (n ? w + ': ' + esc(n) : w + ' 일부 진행') : ''; }
 function partOn(ds) { return ((D.days[ds] || {}).part || []).map(rock).filter(r => r && !r._deleted); }
 function toTomorrow(id) { const ds = today(), day = dayOf(ds), tm = dayOf(addDays(ds, 1)); day.picks = (day.picks || []).filter(x => x !== id); tm.picks = tm.picks || []; if (!tm.picks.includes(id)) tm.picks.push(id); save(); render(); toast('내일 칸에 옮겨 적었어요'); }
 // 알림을 누르고 들어오면 그 알림이 말한 곳을 맨 위에 보여 준다
@@ -2022,8 +2024,8 @@ function itemRow(r, n) {
 function renderWeek() {
   const items = openItems();
   const gh = roleFinder() + weekNotes() + groupHtml() + guidesNow('week').map(guideHtml).join('');
-  const early = live().length < 3 && !livePlans().length; // 처음에는 '할 일부터 적기'가 먼저다
-  let h = (early ? '' : planBanner()) + (gh ? `<div class="stickies" style="padding-top:12px">${gh}</div>` : `<div class="sp"></div>`) + (early ? planBanner() : '');
+  const early = live().length < 5 && !livePlans().length; // 처음에는 '할 일부터 적기'만: 계획 배너는 다섯 개쯤 쌓인 뒤에
+  let h = (early ? '' : planBanner()) + (gh ? `<div class="stickies" style="padding-top:12px">${gh}</div>` : `<div class="sp"></div>`);
   h += plansHtml();
   let n = 0;
   BUCKETS.forEach(([b, name]) => {
@@ -2086,8 +2088,8 @@ function memoDay(ds) { const td = today(), w = DOW[(new Date(ds + 'T00:00').getD
 function renderMemo() {
   const list = memoEntries();
   let h = `<div class="sp"></div><div class="lbl"><span>적어 두기</span></div>
-  <textarea class="memoin" id="memoIn" rows="2" placeholder="생각나는 것, 나중에 볼 것" oninput="memoDraft=this.value;memoGrow(this);document.getElementById('memoGo').style.visibility=this.value.trim()?'visible':'hidden'">${esc(memoDraft)}</textarea><div class="line ruled" style="height:0"></div>
-  <div class="memogo"><button id="memoGo" style="visibility:${memoDraft.trim() ? 'visible' : 'hidden'}" onclick="addMemo()">적기</button></div>`;
+  <textarea class="memoin" id="memoIn" rows="2" placeholder="생각나는 것, 나중에 볼 것" oninput="memoDraft=this.value;memoGrow(this);document.getElementById('memoGo').classList.toggle('off',!this.value.trim())">${esc(memoDraft)}</textarea><div class="line ruled" style="height:0"></div>
+  <div class="memogo"><button id="memoGo" class="${memoDraft.trim() ? '' : 'off'}" onclick="if(document.getElementById('memoIn').value.trim())addMemo();else document.getElementById('memoIn').focus()">적기</button></div>`;
   let cur = '';
   list.forEach(e => {
     if (e.ds !== cur) { cur = e.ds; h += `<div class="lbl"><span>${memoDay(e.ds)}</span></div>`; }
@@ -2146,7 +2148,7 @@ function calendarHtml() {
   if (photoUrl(calSel)) h += photoHtml(calSel);
   const part = partOn(calSel).filter(r => !done.includes(r));
   if (past && !done.length && !part.length) h += `<div class="line faint ruled" style="font-size:14px">체크한 일 없음</div>`;
-  part.forEach(r => { h += `<div class="item"><div class="mg">${HALF(14)}</div><div class="bd"><div class="t" style="font-size:15px"><span class="tx">${esc(r.title)}</span></div><div class="m"><span>${[esc(r.role), '일부 진행'].filter(Boolean).join(' · ')}</span></div></div></div>`; });
+  part.forEach(r => { h += `<div class="item"><div class="mg">${HALF(14)}</div><div class="bd"><div class="t" style="font-size:15px"><span class="tx">${esc(r.title)}</span></div><div class="m"><span>${[esc(r.role), ((D.days[calSel] || {}).partNote || {})[r.id] ? '일부 진행: ' + esc(D.days[calSel].partNote[r.id]) : '일부 진행'].filter(Boolean).join(' · ')}</span></div></div></div>`; });
   done.forEach(r => { h += `<div class="item"><div class="mg">${CHECK.replace('width="22" height="22"','width="18" height="18"')}</div><div class="bd"><div class="t" style="font-size:15px"><span class="tx">${esc(r.title)}</span></div><div class="m"><span>${[esc(r.role), r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'].filter(Boolean).join(' · ')}</span></div></div></div>`; });
   notes.forEach(x => { h += `<div class="line wrap ruled" style="font-size:13px;color:var(--ink-2)">* ${esc(x.text)}</div>`; });
   if (day.note) h += `<div class="line wrap ruled" style="font-size:14px;font-style:italic;color:var(--ink-2)">“${esc(day.note)}”</div>`;
