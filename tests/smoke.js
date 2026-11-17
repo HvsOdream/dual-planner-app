@@ -287,6 +287,11 @@ async function ui(browser, label, ctxOpts) {
   await ev(() => { delete dayOf(today()).pickAt; dayOf(today()).picks.push('pk_kept'); _pk = null; renderToday(); });
   C('오늘 고르기: 어제 남은 일에 [끝냄]이 있고, 누르면 끝낸 일로 적혀 장에서 빠진다', await ev(() => { const st = [...document.querySelectorAll('#today .sticky.wide')].find(x => /오늘 고르기/.test(x.textContent)); const b = st && [...st.querySelectorAll('button.pill')].find(x => x.textContent === '끝냄' && /고르기 어제 남은 일/.test(x.parentElement.textContent)); if (!b) return false; b.click(); const st2 = [...document.querySelectorAll('#today .sticky.wide')].find(x => /오늘 고르기/.test(x.textContent)); return rock('pk_kept').done === true && !!st2 && !/고르기 어제 남은 일/.test(st2.innerText); }));
   await ev(() => { toggleCheck('pk_kept', today()); dayOf(today()).picks = dayOf(today()).picks.filter(x => x !== 'pk_kept'); pickGo(1); });
+  await ev(() => { delete dayOf(today()).pickAt; const td = today(); window._pkK = JSON.stringify(D.rocks); D.rocks = D.rocks.filter(r => ['pk_fix', 'pk_kept', 'pk_far'].includes(r.id)); D.plans = []; dayOf(td).picks = ['pk_fix', 'pk_kept']; _pk = null; renderToday(); });
+  C('오늘 고르기: 이미 고른 일만 있는 날은 다시 묻지 않는다', await ev(() => !/오늘 고르기/.test(document.getElementById('today').innerText)));
+  await ev(() => { rock('pk_fix').due = addDays(today(), -1); renderToday(); });
+  C('오늘 고르기: 지난 마감이 있으면 "끝났나요?"로 묻고 [끝냄]이 있다', await ev(() => { const st = [...document.querySelectorAll('#today .sticky.wide')].find(x => /오늘 고르기/.test(x.textContent)); return !!st && /지난 마감 · 끝났나요\?/.test(st.innerText) && [...st.querySelectorAll('button.pill')].some(b => b.textContent === '끝냄' && /고르기 오늘 마감/.test(b.parentElement.textContent)); }));
+  await ev(() => { const o = JSON.parse(window._pkK); D.rocks = o; D.plans = [{ id: 'pk_p', name: '고르기 계획', goal: '', due: '', how: '', at: new Date().toISOString() }]; dayOf(today()).picks = ['pk_fix', 'pk_soon', 'pk_step']; _pk = null; renderToday(); pickGo(1); });
   C('오늘 고르기: 나중에를 누르면 아무것도 안 바꾸고 그날은 다시 안 뜬다', await ev(() => dayOf(today()).pickAt === 'skip' && dayOf(today()).picks.length === 3 && !/오늘 고르기/.test(document.getElementById('today').innerText)));
   await ev(() => { const o = JSON.parse(window._pkS); D.rocks = o.r; D.days = o.d; D.plans = o.p; D.guide = o.g; D.carried = o.c; _pk = null; go('today'); });
   await ev(() => { _dump = 'more'; go('today'); });

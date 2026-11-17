@@ -193,6 +193,7 @@ a { color: inherit; }
 .bb { flex: none; display: flex; gap: 8px; margin-left: auto; } .bb button, .pill, .sticky .act button, .ev .gapb { flex: none; font-size: 13px; font-weight: 600; text-decoration: none !important; border: 1.5px solid currentColor; border-radius: 15px; padding: 0 12px !important; height: 30px; line-height: 27px; white-space: nowrap; } .pill { color: var(--ink-2); font-size: 12px; height: 26px; line-height: 23px; padding: 0 10px !important; }
 .partask { flex: 1 1 100%; display: flex; gap: 8px; align-items: center; } .partask .evein { flex: 1; min-width: 0; margin: 0; } .partask .pill { color: inherit; }
 .dump { width: 100%; box-sizing: border-box; margin: 8px 0 2px; padding: 8px 10px; font: inherit; font-size: 15px; line-height: 1.6; color: inherit; background: rgba(255,255,255,.55); border: 1px dashed rgba(0,0,0,.25); border-radius: 6px; resize: vertical; } .dump::placeholder { color: rgba(0,0,0,.35); }
+.pkt { flex: none; min-width: 34px; height: 22px; padding: 0 6px; border: 1.5px dashed currentColor; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; opacity: .55; margin-top: 0; } .pkt.on { border-style: solid; background: var(--ink); border-color: var(--ink); color: var(--paper); opacity: 1; }
 .pkc { flex: none; width: 20px; height: 20px; border: 1.5px solid currentColor; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; margin-top: 1px; opacity: .8; } .pkc.on { background: var(--ink); border-color: var(--ink); color: var(--paper); opacity: 1; }
 .shd { font-size: 11px; font-weight: 700; letter-spacing: .02em; opacity: .7; margin-top: 8px; } .shr { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 14px; } .shr .sht { flex: 1; min-width: 0; } .shr .shm { flex: none; font-size: 12px; opacity: .75; white-space: nowrap; }
 .bf.eve { flex-wrap: wrap; } .bf.eve .bn { flex: 1 1 60%; } .du { color: var(--ink); font-weight: 600; font-size: 13px; } .bhint { font-size: 11px; color: var(--muted); padding: 2px 0 6px; white-space: normal; line-height: 1.5; }
@@ -1078,11 +1079,12 @@ function sheetHtml() {
   const sh = D.guide && D.guide.sheet; if (!sh || sh.d !== today()) return ''; const td = today(), rs = (sh.ids || []).map(rock).filter(r => r && !r._deleted); if (!rs.length) return '';
   const dayOfR = r => { if (r.appt && r.at) return r.at.slice(0, 10); for (const d of Object.keys(D.days).sort()) if (d >= td && (D.days[d].picks || []).includes(r.id)) return d; return ''; };
   const by = {}; rs.forEach(r => { const d = dayOfR(r); (by[d] = by[d] || []).push(r); });
+  const offer = isNative() && !notifyCfg().on && rs.some(r => r.due); // 마감이 생긴 바로 이때 알림을 권한다(켤 계기가 없어 끝까지 안 켜는 사람이 많았다)
   const lab = d => !d ? '할 일 목록에 (필요한 날 오늘로)' : d === td ? '오늘' : `${md(d)} ${'일월화수목금토'[new Date(d + 'T00:00').getDay()]}`;
   const rows = Object.keys(by).sort((a, b) => !a ? 1 : !b ? -1 : a < b ? -1 : 1).map(d => `<div class="shd">${lab(d)}</div>` + by[d].map(r => `<div class="shr"><span class="sht">${esc(r.title)}</span>${r.due ? `<span class="shm">${r.due === d ? (r.on ? (r.dueT || '') : (r.dueT ? r.dueT + ' ' : '') + '마감') : md(r.due) + (r.dueT ? ' ' + r.dueT : '') + '까지'}</span>` : ''}${!d ? `<button class="pill" style="color:inherit" onclick="pick('${r.id}')">오늘로</button>` : ''}</div>`).join('')).join('');
   return `<div class="stickies" style="padding-top:12px"><div class="sticky wide"><div class="who"><span>비서</span><span>이렇게 놓았어요 · ${rs.length}개</span></div>${rows}
-    <div class="bev" style="white-space:normal;opacity:.8;margin-top:6px">그날 아침에 알려 드리고, 남은 일은 다음 날로 넘겨 둘게요</div>
-    <div class="act"><button onclick="_dump='more';render()">더 적기</button><button onclick="D.guide.sheet=null;_save0();render()">떼기</button></div></div></div>`;
+    <div class="bev" style="white-space:normal;opacity:.8;margin-top:6px">${offer ? '알림을 켜면 마감 사흘 전과 전날, 그날 아침에 알려 드려요. 안 열어도 챙길 수 있게요' : '그날 아침에 알려 드리고, 남은 일은 다음 날로 넘겨 둘게요'}</div>
+    <div class="act">${offer ? `<button class="go" onclick="enableNotifs()">알림 켜기</button>` : ''}<button onclick="_dump='more';render()">더 적기</button><button onclick="D.guide.sheet=null;_save0();render()">떼기</button></div></div></div>`;
 }
 // ── 아침 「오늘 고르기」: 그날 처음 열면 한 장. 종이에 아침마다 오늘 할 일을 옮겨 적던 일을, 누르기만 하게 ──
 // 오늘 마감·어제 남은 일은 켜진 채로, 곧 마감·계획의 다음 단계·루틴은 꺼진 채로 나온다. 고르는 건 본인이고, 빼도 목록에 남는다
@@ -1098,7 +1100,9 @@ function pickCands() {
     const ro = it.filter(r => r.routine && checkedCount(r) < r.routine)[0]; if (ro) rout.push({ r: ro, p }); });
   return { fix, kept, soon, plan: plan.slice(0, 2), rout: rout.slice(0, 2) };
 }
-function pickShow() { const td = today(), d = D.days[td] || {}; if (d.pickAt || _dump || backMode() || (D.guide && D.guide.sheet && D.guide.sheet.d === td) || !featOn('brief')) return false; const c = pickCands(); return live().length >= 3 && (c.kept.length + c.soon.length + c.plan.length + c.rout.length) > 0; }
+function pickShow() { const td = today(), d = D.days[td] || {}; if (d.pickAt || _dump || backMode() || (D.guide && D.guide.sheet && D.guide.sheet.d === td) || !featOn('brief')) return false; const c = pickCands();
+  // 새로 고를 것(곧 마감·계획)이나 끝났는지 물을 것(지난 마감)이 있을 때만 뜬다. 어제 이미 고른 일만 있는 날은 다시 묻지 않는다
+  return live().length >= 3 && (c.soon.length + c.plan.length + c.rout.length + c.fix.filter(r => r.due < td).length) > 0; }
 function pickTog(id, base) { _pk = _pk || { on: {}, off: {} }; const k = base ? 'off' : 'on'; if (_pk[k][id]) delete _pk[k][id]; else _pk[k][id] = true; renderToday(); }
 function pickGo(skip) {
   const td = today(), day = dayOf(td); day.picks = day.picks || []; const s = _pk || { on: {}, off: {} };
@@ -1111,11 +1115,15 @@ function pickHtml() {
   if (!pickShow()) return ''; const c = pickCands(), s = _pk || { on: {}, off: {} }, td = today();
   const dl = r => { const n = dleft(r.due); return n <= 0 ? '오늘' : 'D-' + n; };
   const fin = r => `<button class="pill" style="color:inherit;flex:none;margin-left:6px" onclick="pickDone('${r.id}')">끝냄</button>`;
-  const row = (r, base, meta, lead) => { const on = base ? !s.off[r.id] : !!s.on[r.id]; return `<div style="display:flex;align-items:flex-start"><button class="shr pkr" role="checkbox" aria-checked="${on}" onclick="pickTog('${r.id}',${base ? 1 : 0})" style="flex:1;min-width:0;text-align:left;align-items:flex-start;padding:6px 0;color:inherit"><span class="pkc ${on ? 'on' : ''}" aria-hidden="true">${on ? '✓' : ''}</span><span class="sht">${lead ? `<i style="font-style:normal;opacity:.7">${lead} </i>` : ''}${esc(r.title)}</span>${meta ? `<span class="shm">${meta}</span>` : ''}</button>${base ? fin(r) : ''}</div>`; };
-  let h = '';
-  if (c.fix.length) h += `<div class="shd">오늘 마감 · 이미 오늘 칸에</div>` + c.fix.map(r => `<div class="shr" style="align-items:flex-start;padding:6px 0"><span class="pkc on" aria-hidden="true">✓</span><span class="sht">${esc(r.title)}</span><span class="shm" style="color:var(--check);opacity:1;font-weight:700">${r.due < td ? '지남' : '오늘'}</span>${r.due < td ? fin(r) : ''}</div>`).join('');
-  if (c.kept.length) h += `<div class="shd">어제 남은 일 · 누르면 빼요, 이미 했으면 끝냄</div>` + c.kept.map(r => row(r, true, r.due ? dl(r) : '')).join('');
-  if (c.soon.length) h += `<div class="shd">곧 마감</div>` + c.soon.map(r => row(r, false, `<b style="color:var(--check)">${dl(r)}</b>`)).join('');
+  // 완료 체크칸과 헷갈리지 않게: 켜진 줄은 「오늘」 딱지, 꺼진 줄은 ＋
+  const mark = on => `<span class="pkt ${on ? 'on' : ''}" aria-hidden="true">${on ? '오늘' : '＋'}</span>`;
+  const row = (r, base, meta, lead) => { const on = base ? !s.off[r.id] : !!s.on[r.id]; return `<div style="display:flex;align-items:flex-start"><button class="shr pkr" role="switch" aria-checked="${on}" onclick="pickTog('${r.id}',${base ? 1 : 0})" style="flex:1;min-width:0;text-align:left;align-items:flex-start;padding:6px 0;color:inherit">${mark(on)}<span class="sht">${lead ? `<i style="font-style:normal;opacity:.7">${lead} </i>` : ''}${esc(r.title)}</span>${meta ? `<span class="shm">${meta}</span>` : ''}</button>${base ? fin(r) : ''}</div>`; };
+  const fixed = (r, meta, btn) => `<div class="shr" style="align-items:flex-start;padding:6px 0">${mark(true)}<span class="sht">${esc(r.title)}</span><span class="shm" style="color:var(--check);opacity:1;font-weight:700">${meta}</span>${btn || ''}</div>`;
+  let h = ''; const late = c.fix.filter(r => r.due < td), due0 = c.fix.filter(r => r.due >= td);
+  if (late.length) h += `<div class="shd">지난 마감 · 끝났나요?</div>` + late.map(r => fixed(r, '지남', fin(r))).join('');
+  if (due0.length) h += `<div class="shd">오늘 마감</div>` + due0.map(r => fixed(r, r.dueT || '오늘')).join('');
+  if (c.kept.length) h += `<div class="shd">어제 남은 일 · 누르면 오늘에서 빼요, 했으면 끝냄</div>` + c.kept.map(r => row(r, true, r.due ? dl(r) : '')).join('');
+  if (c.soon.length) h += `<div class="shd">곧 마감 · 누르면 오늘로</div>` + c.soon.map(r => row(r, false, `<b style="color:var(--check)">${dl(r)}</b>`)).join('');
   if (c.plan.length || c.rout.length) h += `<div class="shd">계획</div>` + c.plan.map(x => row(x.r, false, x.r.due ? md(x.r.due) + '까지' : esc(x.p.name), '다음 단계:')).join('') + c.rout.map(x => row(x.r, false, `이번 주 ${Math.min(checkedCount(x.r), x.r.routine)}/${x.r.routine}`, '루틴:')).join('');
   const n = c.fix.length + c.kept.filter(r => !s.off[r.id]).length + Object.keys(s.on).length;
   return `<div class="stickies" style="padding-top:12px"><div class="sticky wide"><div class="who"><span>비서</span><span>오늘 고르기 · ${md(td)}</span></div>${h}
@@ -1137,12 +1145,13 @@ function picksFor(ds) {
   return out;
 }
 // 못 한 일은 다음에 연 날의 오늘 칸으로 넘긴다(종이 플래너의 화살표). 하루에 한 번. 날짜가 지난 '그날의 일'은 넘기지 않고 「곧 마감」에서 끝났는지 묻는다
+// 마감이 사흘 넘게 지난 일은 더 넘기지 않고 조용히 접는다(목록에는 '지남'으로 남는다)
 function carryIn() {
   const td = today(); if (D.carried === td || backMode()) return; D.carried = td; const tdp = dayOf(td); tdp.picks = tdp.picks || []; let n = 0;
   // 뒤의 날로 잡아 둔 일은 넘기지 않는다. 다만 마감 날 칸에 놓여 있는 것(쏟아 적기가 놓은 자리)은 '뒤로 미룬 것'이 아니라서, 오늘로 가져왔다 못 한 일은 넘긴다
   const later = id => { const r = rock(id); return Object.keys(D.days).some(d => d > td && (D.days[d].picks || []).includes(id) && !(r && !r.on && r.due === d)); };
   for (let i = 1; i <= 14; i++) { const d = addDays(td, -i), day = D.days[d]; if (!day || !day.picks) continue;
-    for (const id of day.picks) { const r = rock(id); if (!r || r._deleted || r.done || r.appt || r.routine || r.bucket === 'important' || (r.on && r.due && r.due < td) || (r.checks && r.checks[d]) || tdp.picks.includes(id) || later(id)) continue; tdp.picks.push(id); r.carry = (r.carry || 0) + 1; n++; } }
+    for (const id of day.picks) { const r = rock(id); if (!r || r._deleted || r.done || r.appt || r.routine || r.bucket === 'important' || (r.on && r.due && r.due < td) || (r.due && dleft(r.due) <= -3) || (r.checks && r.checks[d]) || tdp.picks.includes(id) || later(id)) continue; tdp.picks.push(id); r.carry = (r.carry || 0) + 1; n++; } }
   D.carriedN = n; _save0();
 }
 function helloHtml() {
@@ -1950,7 +1959,7 @@ function rescheduleSoon() { if (!isNative()) return; clearTimeout(_nsT); _nsT = 
 async function enableNotifs() {
   const LN = isNative() && capPlugin('LocalNotifications'); if (!LN) return;
   const p = await LN.requestPermissions(); if (p.display !== 'granted') { toast('아이폰 설정 › 알림에서 허용해 주세요'); return; }
-  setNotify({ on: true }); toast('아침 8시 브리핑 · 저녁 9:30 · 일요일 8시');
+  setNotify({ on: true }); { const c = notifyCfg(); toast(`아침 ${c.morning} 브리핑${c.off && c.off.evening ? '' : ' · 저녁 ' + c.evening}${c.off && c.off.sunday ? '' : ' · 일요일 ' + c.sunday}`); }
 }
 function setNotify(patch) { const c = notifyCfg(); Object.assign(c, patch); D.settings = Object.assign({}, D.settings, { notify: c, u: new Date().toISOString() }); D._modified = D.settings.u; _save0(); if (baseUrl()) pushState(); scheduleNotifs(); renderNotifyBox(); render(); }
 function renderNotifyBox() {
