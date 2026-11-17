@@ -317,6 +317,9 @@ async function server() {
   await call('items', 'POST', { items: [{ id: ap.id, op: 'update', at: '' }] }); S = await call('state', 'GET');
   C('약속 시각을 빼면 끝 시각도 빠진다', !S.rocks.find(r => r.id === ap.id).at && !S.rocks.find(r => r.id === ap.id).atEnd);
   const mcp = async (method, params) => (await (await w.fetch(new Request(`https://x/u/${T}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) }), env)).text());
+  { const T2 = 'zz' + T.slice(2), m2 = async (method, params) => JSON.parse(await (await w.fetch(new Request(`https://x/u/${T2}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) }), env)).text());
+    const i2 = await m2('initialize', { clientInfo: { name: 'claude-ai' } }), r2 = await m2('tools/call', { name: 'planner_read', arguments: {} });
+    C('없는 주소로 온 비서: 빈 플래너를 만들지 않고 주소를 다시 넣으라고 알린다', !!(i2.result && i2.result.serverInfo) && r2.result && r2.result.isError === true && /연결 주소를 다시 복사/.test(r2.result.content[0].text) && !(await env.PLANNER.get('u:' + T2)), JSON.stringify(r2).slice(0, 200)); }
   await call('items', 'POST', { src: 'mcp', items: [{ text: '영어 회화', kind: 'plan', goal: '질의응답을 영어로', how: '리얼클래스', due: '2026-12-31' }] });
   S = await call('state', 'GET'); const sp = (S.plans || [])[0];
   C('비서가 계획을 적는다(kind=plan)', !!sp && sp.name === '영어 회화' && sp.goal === '질의응답을 영어로' && sp.due === '2026-12-31', S.plans);

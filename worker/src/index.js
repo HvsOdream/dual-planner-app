@@ -129,14 +129,18 @@ async function mcp(req, env, token) {
   if (req.method === 'DELETE') return new Response(null, { status: 204, headers: CORS });
   let msg; try { msg = await req.json(); } catch { return json({ jsonrpc: '2.0', error: { code: -32700, message: 'parse error' }, id: null }, 400); }
   const batch = Array.isArray(msg) ? msg : [msg]; const out = [];
+  // 없는 주소(계정을 지웠거나 주소가 바뀐 경우)에는 빈 플래너를 만들지 않는다. 연결은 받아 주되, 읽기·쓰기를 부르면 사용자에게 알리라는 말을 돌려준다(조용히 엉뚱한 곳에 적히지 않게)
+  const known = !!(await env.PLANNER.get('u:' + token));
+  const GONE = '이 주소의 플래너가 없어요(계정을 지웠거나 연결 주소가 바뀌었어요). 아무것도 읽거나 적지 못했어요. 듀얼플래너 앱 › 메뉴 › 비서 연결에서 연결 주소를 다시 복사해 커넥터 주소를 바꿔 달라고 사용자에게 알려 주세요.';
   for (const m of batch) {
     if (!m || m.id === undefined) continue; // notifications
     const reply = r => out.push({ jsonrpc: '2.0', id: m.id, result: r });
     try {
-      if (m.method === 'initialize') { const ci = (m.params && m.params.clientInfo) || {}; const S0 = Object.assign(empty(), JSON.parse(await env.PLANNER.get('u:' + token) || 'null') || {}); S0.agent = { name: ci.name || 'agent', version: ci.version || '', at: new Date().toISOString(), via: 'mcp' }; await env.PLANNER.put('u:' + token, JSON.stringify(S0)); }
+      if (m.method === 'initialize' && known) { const ci = (m.params && m.params.clientInfo) || {}; const S0 = Object.assign(empty(), JSON.parse(await env.PLANNER.get('u:' + token) || 'null') || {}); S0.agent = { name: ci.name || 'agent', version: ci.version || '', at: new Date().toISOString(), via: 'mcp' }; await env.PLANNER.put('u:' + token, JSON.stringify(S0)); }
       if (m.method === 'initialize') reply({ protocolVersion: m.params && m.params.protocolVersion || '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'dual-planner', version: '0.2' }, instructions: INSTRUCTIONS });
       else if (m.method === 'ping') reply({});
       else if (m.method === 'tools/list') reply({ tools: TOOLS });
+      else if (m.method === 'tools/call' && !known) reply({ content: [{ type: 'text', text: GONE }], isError: true });
       else if (m.method === 'tools/call') {
         const name = m.params && m.params.name, args = (m.params && m.params.arguments) || {};
         const S = Object.assign(empty(), JSON.parse(await env.PLANNER.get('u:' + token) || 'null') || {});
