@@ -84,8 +84,9 @@ async function ui(browser, label, ctxOpts) {
   C('팝업에서 떼기: 닫히고 떼어진다', await ev(() => !document.getElementById('npop') && !!noteOff('brief:' + today())));
   await ev(() => { nTap = null; dayOf(today()).note = ''; D.rocks.push({ id: 'ev1', week: today(), bucket: 'urgent', role: '', title: '저녁 점검용', done: false, carry: 0, checks: {} }); dayOf(today()).picks.push('ev1'); onNotifTap(2001); });
   C('저녁 알림: 오늘 닫기가 팝업으로 뜬다', await ev(() => !!document.querySelector('#npop #eveNote') && document.querySelectorAll('#eveNote').length === 1));
-  await pg.locator('#npop .bb button', { hasText: '내일로' }).first().click(); await pg.fill('#npop #eveNote', '팝업에서 쓴 일기'); await ev(() => document.querySelector('#npop #eveNote').blur()); await pg.waitForTimeout(150);
-  C('팝업 안에서 내일로·일기까지 하면 팝업이 닫힌다', await ev(() => !document.getElementById('npop') && dayOf(today()).note === '팝업에서 쓴 일기' && dayOf(addDays(today(), 1)).picks.includes('ev1')));
+  C('오늘 닫기 줄에는 [진행 적기]만 있고 [내일로]는 없다', await ev(() => { const b = [...document.querySelectorAll('#npop .bb button')].map(e => e.textContent); return b.includes('진행 적기') && !b.includes('내일로'); }));
+  await pg.fill('#npop #eveNote', '팝업에서 쓴 일기'); await ev(() => document.querySelector('#npop #eveNote').blur()); await pg.waitForTimeout(150);
+  C('팝업 안에서 일기를 적으면 팝업이 닫히고, 남은 일은 다음 날 넘어올 일로 잡힌다', await ev(() => !document.getElementById('npop') && dayOf(today()).note === '팝업에서 쓴 일기' && picksFor(addDays(today(), 1)).some(r => r.id === 'ev1')));
   await ev(() => { nTap = null; dropNote('brief:' + today()); });
   await ev(() => { isNative = () => true; const ds = today(); D.nLast = ''; dayOf(ds).note = ''; D.noteOff['eve:' + ds] = ds; D._sched = [{ k: 'eve:' + ds, label: '오늘 닫기', text: '오늘 닫기 · 놓친 알림', tab: 'today', at: Date.now() - 120000 }]; D.nlog = (D.nlog || []).filter(x => x.via !== 'n' && x.k !== 'eve:' + ds); go('memo'); notifCatchUp(); isNative = () => false; });
   C('알림 뒤 10분 안에 열면 팝업 없이 맨 위에 붙는다', await ev(() => !!nTap && nTap.k === 'evening' && !!document.querySelector('#today #eveNote') && !document.getElementById('npop')), await ev(() => ({ nTap, last: D.nLast, log: (D.nlog || []).filter(x => /^eve/.test(x.k)), sched: D._sched, tab, eve: !!document.getElementById('eveNote') })));
