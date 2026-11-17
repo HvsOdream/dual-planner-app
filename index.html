@@ -954,7 +954,7 @@ function renderToday() {
   <div class="lbl"><span>오늘 할 것 <span style="font-weight:400;color:var(--muted)">${picks.length ? doneN+'/'+picks.length : ''}</span></span><button onclick="const e=document.getElementById('quickIn');if(e){e.scrollIntoView({block:'center'});e.focus()}">+ 추가</button></div>`;
   picks.sort((x, y) => (atOn(x, ds) || '99') < (atOn(y, ds) || '99') ? -1 : 1).filter(r => !eveIds.includes(r.id)).forEach(r => { const tm = atOn(r, ds); h += itemHtml(r, ds, { meta: todayOpen === r.id ? `<button onclick="${tm ? `clearAt('${r.id}')` : `unpick('${r.id}')`}">${tm ? '시각 빼기' : '빼기'}</button>` : '', big: true, ed: true }); });
   if (eveIds.length) h += `<div class="row ruled" style="padding-left:52px;font-size:13px;color:var(--muted)">남은 ${eveIds.length}개는 위 「오늘 닫기」에서 정리해요</div>`;
-  if (D.carriedN && D.carried === ds && !eveIds.length) h += `<div class="row ruled" style="padding-left:52px;font-size:12px;color:var(--muted)">못 한 일 ${D.carriedN}개를 오늘 칸으로 넘겨 뒀어요</div>`;
+  if (D.carriedN && D.carried === ds && !eveIds.length) h += `<div class="row ruled" style="padding-left:52px;font-size:12px;color:var(--muted)">어제 남은 일 ${D.carriedN}개를 오늘 칸으로 넘겨 뒀어요</div>`;
   else if (picks.length && !(D.guide && D.guide.rowTap)) h += `<div class="row ruled" style="padding-left:52px;font-size:12px;color:var(--faint)">줄을 누르면 칸·마감을 고칠 수 있어요</div>`;
   h += firstLine(ds);
   h += `<div class="item"><div class="mg"><span aria-hidden="true" style="font-size:20px;line-height:1;color:var(--faint)">+</span></div><div class="bd"><input class="wr" id="quickIn" style="padding-left:12px;font-size:17px" placeholder="${QB_PH[quickB]}" aria-label="오늘 할 것" enterkeyhint="done" onkeydown="if(event.key==='Enter'){if(this.value.trim())addToday();else this.blur()}" onblur="if(this.value.trim()&&!_qbTap)addToday(true)"><div class="qb" role="group" aria-label="어느 칸에 적을지" style="${live().filter(r => !r.appt).length >= 5 || quickB !== 'urgent' ? '' : 'display:none'}">${[['urgent', 'A'], ['important', 'B'], ['light', 'C']].map(([k, n]) => `<button type="button" data-b="${k}" class="${quickB === k ? 'on' : ''}" aria-label="${n} 칸" onpointerdown="_qbTap=true;setTimeout(()=>{_qbTap=false},600)" onclick="setQuickB('${k}')">${n}</button>`).join('')}<span id="qbName">${QB_NAME[quickB]}</span></div></div></div>`;
@@ -1030,7 +1030,10 @@ function putLine(t) {
   const td = today(), r = { id: uid(), week: weekKey(new Date()), bucket: 'urgent', role: '', title: t, due: '', done: false, carry: 0, checks: {}, c: td };
   const pd = parseDue(t), lo = pd ? null : parseDue(t, true), g = pd || lo;
   if (g) { r.due = g.due; if (g.t) r.dueT = g.t; if (pd && pd.cut) r.title = pd.cut; if (g.due > td) r.title = r.title.replace(/(^|\s)(내일|모레)(?=\s|$)/, (m, a, w) => g.due === addDays(td, w === '내일' ? 1 : 2) ? a + md(g.due) : m); }
-  const day = pd ? (dleft(pd.due) <= 6 ? td : '') : lo ? lo.due : ''; // 이번 주 안의 마감('까지')은 오늘부터 할 일, 날짜만 적힌 일은 그날 할 일, 먼 마감·날짜 없는 일은 목록에만
+  // 오늘 칸은 본인이 고른다: '오늘'이라고 적은 일과 오늘이 마감인 일만 오늘에. 이번 주 안의 마감('까지')은 마감 날 칸에 놓고 그 전에는 「곧 마감」에서 보인다. 날짜만 적힌 일은 그날, 먼 마감·날짜 없는 일은 목록에만
+  const tdy = !g && /^오늘(?:은|엔|에)?\s+\S/.test(t); if (tdy) r.title = t.replace(/^오늘(?:은|엔|에)?\s+/, '');
+  if (pd) { const lead = r.title.replace(/^(?:오늘|내일|모레|(?:다음\s*주\s*)?[월화수목금토일](?:요일)?|\d{1,2}\s*(?:\/|월)\s*\d{1,2}\s*일?)\s*(?:까지|전까지)\s+/, ''); if (lead.length >= 2) r.title = lead; } // 제목 앞머리의 '수요일까지'는 마감 칸에 있으니 덜어 낸다
+  const day = tdy ? td : pd ? (dleft(pd.due) <= 6 ? pd.due : '') : lo ? lo.due : '';
   if (lo) r.on = 1; // 그날 하는 일(마감이 아니라 그날의 일)
   D.rocks.push(r); if (day) { const d = dayOf(day); d.picks = d.picks || []; d.picks.push(r.id); }
   return r;
@@ -1045,9 +1048,9 @@ function sheetHtml() {
   const dayOfR = r => { for (const d of Object.keys(D.days).sort()) if (d >= td && (D.days[d].picks || []).includes(r.id)) return d; return ''; };
   const by = {}; rs.forEach(r => { const d = dayOfR(r); (by[d] = by[d] || []).push(r); });
   const lab = d => !d ? '할 일 목록에 (필요한 날 오늘로)' : d === td ? '오늘' : `${md(d)} ${'일월화수목금토'[new Date(d + 'T00:00').getDay()]}`;
-  const rows = Object.keys(by).sort((a, b) => !a ? 1 : !b ? -1 : a < b ? -1 : 1).map(d => `<div class="shd">${lab(d)}</div>` + by[d].map(r => `<div class="shr"><span class="sht">${esc(r.title)}</span>${r.due ? `<span class="shm">${r.due === d ? (r.dueT || '') : md(r.due) + (r.dueT ? ' ' + r.dueT : '') + '까지'}</span>` : ''}${!d ? `<button class="pill" style="color:inherit" onclick="pick('${r.id}')">오늘로</button>` : ''}</div>`).join('')).join('');
+  const rows = Object.keys(by).sort((a, b) => !a ? 1 : !b ? -1 : a < b ? -1 : 1).map(d => `<div class="shd">${lab(d)}</div>` + by[d].map(r => `<div class="shr"><span class="sht">${esc(r.title)}</span>${r.due ? `<span class="shm">${r.due === d ? (r.on ? (r.dueT || '') : (r.dueT ? r.dueT + ' ' : '') + '마감') : md(r.due) + (r.dueT ? ' ' + r.dueT : '') + '까지'}</span>` : ''}${!d ? `<button class="pill" style="color:inherit" onclick="pick('${r.id}')">오늘로</button>` : ''}</div>`).join('')).join('');
   return `<div class="stickies" style="padding-top:12px"><div class="sticky wide"><div class="who"><span>비서</span><span>이렇게 놓았어요 · ${rs.length}개</span></div>${rows}
-    <div class="bev" style="white-space:normal;opacity:.8;margin-top:6px">그날 아침에 알려 드리고, 못 한 일은 다음 날로 넘겨 둘게요</div>
+    <div class="bev" style="white-space:normal;opacity:.8;margin-top:6px">그날 아침에 알려 드리고, 남은 일은 다음 날로 넘겨 둘게요</div>
     <div class="act"><button onclick="_dump='more';render()">더 적기</button><button onclick="D.guide.sheet=null;_save0();render()">떼기</button></div></div></div>`;
 }
 function parked() { const td = today(); const sched = id => Object.keys(D.days).some(d => d >= td && (D.days[d].picks || []).includes(id)); return openItems().filter(r => !r.due && !r.routine && !r.appt && r.bucket !== 'nice' && !sched(r.id) && !waiting(r) && (!r.c || r.c <= addDays(td, -3))); }
