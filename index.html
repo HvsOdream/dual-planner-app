@@ -811,7 +811,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.55'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.56'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
