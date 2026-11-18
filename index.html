@@ -2253,7 +2253,8 @@ document.addEventListener('focusout', () => setTimeout(() => { const a = documen
 // 할 일 줄을 누르면 그 아래에서 제목·칸·마감을 고친다
 let rowOpen = null, todayOpen = null;
 function rowEdit(r) {
-  return `<input class="rowed" value="${esc(r.title)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')this.blur()" onchange="rowTitle('${r.id}',this.value)">
+  // 고치는 칸은 '또 하나의 할 일'처럼 보이지 않게: 이름표를 달고 입력칸 모양으로
+  return `<div class="bhint" style="margin:10px 0 4px">이름 고치기</div><input class="rowed" style="border:1px dashed var(--faint);border-radius:8px;padding:8px 10px;background:rgba(255,255,255,.5);font-size:16px;font-weight:500;box-sizing:border-box;width:100%" aria-label="이름 고치기" value="${esc(r.title)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')this.blur()" onchange="rowTitle('${r.id}',this.value)">
   <div class="bslot rowsl">${r.routine ? '' : `<button type="button" class="pill dbtn dbtn2" onclick="openDate('${r.due || ''}',{allowNone:${r.bucket !== 'important'},title:'${r.bucket === 'important' ? '언제까지' : '마감'}'},v=>rowDue('${r.id}',v))">${r.due ? '마감 ' + dLabel(r.due) : '마감 정하기'}</button>${r.due ? `<input type="time" class="dueT" aria-label="마감 시각" value="${r.dueT || ''}" onchange="rowDueT('${r.id}',this.value)">` : ''}`}<span class="bks">${BUCKETS.map(([b, n]) => `<button class="${r.bucket === b ? 'on' : ''}" onclick="rowBucket('${r.id}','${b}')">${n.split(' ')[0]}</button>`).join('')}</span><span style="flex:1"></span><button onclick="rowOpen=null;todayOpen=null;render()">닫기</button></div><div class="bhint">A 급함·중요 · B 중요(할 일 탭, 날짜 필요) · C 급함·가벼움 · D 나중에</div>${openPlans().length ? `<div class="bslot"><span>계획</span>${openPlans().map(q => `<button class="${r.plan === q.id ? 'on' : ''}" onclick="rowPlan('${r.id}','${q.id}')">${esc(q.name)}</button>`).join('')}</div>` : ''}`;
 }
 function rowPlan(id, pid) { const r = rock(id); if (!r) return; if (r.plan === pid) delete r.plan; else r.plan = pid; save(); render(); }
