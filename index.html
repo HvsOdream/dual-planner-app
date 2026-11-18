@@ -198,6 +198,7 @@ a { color: inherit; }
 .shd { font-size: 11px; font-weight: 700; letter-spacing: .02em; opacity: .7; margin-top: 8px; } .shr { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 14px; } .shr .sht { flex: 1; min-width: 0; } .shr .shm { flex: none; font-size: 12px; opacity: .75; white-space: nowrap; }
 .bf.eve { flex-wrap: wrap; } .bf.eve .bn { flex: 1 1 60%; } .du { color: var(--ink); font-weight: 600; font-size: 13px; } .bhint { font-size: 11px; color: var(--muted); padding: 2px 0 6px; white-space: normal; line-height: 1.5; }
 .item .m button { border: 1px solid currentColor; border-radius: 11px; padding: 0 8px !important; height: 22px; line-height: 20px; text-decoration: none !important; } .bdone { font-size: 12px; opacity: .7; }
+.txed { flex: 1; min-width: 0; border-bottom: 1.5px dashed var(--faint); outline: none; cursor: text; padding-bottom: 1px; -webkit-user-select: text; user-select: text; } .txed:focus { border-bottom-color: var(--ink); border-bottom-style: solid; }
 .rowed { display: block; width: 100%; height: 30px; margin: 2px 0 4px; padding: 0 2px; font: inherit; font-size: 15px; font-weight: 600; color: var(--ink); background: transparent; border: none; border-bottom: 1px solid var(--rule, rgba(0,0,0,.2)); border-radius: 0; outline: none; }
 .rowsl .dueT { width: 92px; height: 26px; padding: 0 4px; font-size: 12px; } .rowsl .bks { display: inline-flex; gap: 4px; } .rowsl .bks button { text-decoration: none; min-width: 26px; height: 24px; border: 1.5px solid var(--rule); border-radius: 12px; padding: 0 7px; } .rowsl .bks button.on { border-color: var(--ink); } .rowsl .dbtn2 { min-width: 0; text-align: center; color: var(--ink); border-color: var(--ink); font-weight: 700; }
 .item .bslot { padding-left: 0; } .item .bslot button.on { text-decoration: none; background: var(--ink); color: var(--paper, #fff); border-radius: 999px; padding: 1px 9px; }
@@ -911,7 +912,7 @@ function itemHtml(r, ds, opts) {
   const ed = !!opts.ed && !r.appt && !r.done; // 오늘에서도 제목을 누르면 칸(A·B·C·D)·마감을 바로 고친다
   return `<div class="item ${on?'done':''}">
     <div class="mg"><button class="chk ${on?'on':''}" aria-label="완료" onclick="toggleCheck('${r.id}','${ds}')">${CHECK}</button></div>
-    <div class="bd"><div class="t" ${opts.big?'style="font-size:18px;font-weight:600"':''}><span class="tx" ${ed ? `data-ed onclick="todayOpen=todayOpen==='${r.id}'?null:'${r.id}';if(!(D.guide&&D.guide.rowTap)){D.guide=Object.assign({},D.guide,{rowTap:1});_save0()}renderToday()"` : ''}>${esc(r.title)}</span>${right}</div>
+    <div class="bd"><div class="t" ${opts.big?'style="font-size:18px;font-weight:600"':''}>${ed && todayOpen === r.id ? titleEd(r) : `<span class="tx" ${ed ? `data-ed onclick="todayOpen=todayOpen==='${r.id}'?null:'${r.id}';if(!(D.guide&&D.guide.rowTap)){D.guide=Object.assign({},D.guide,{rowTap:1});_save0()}renderToday()"` : ''}>${esc(r.title)}</span>`}${right}</div>
     <div class="m"><span class="mt" ${ed ? `onclick="todayOpen=todayOpen==='${r.id}'?null:'${r.id}';renderToday()"` : ''}>${[ed ? `<b class="bk">${bucketName(r.bucket).split(' ')[0]}</b>` : '', esc(r.role), (() => { const f = esc(fmtDue(r)), dl = ed && r.due && !r.routine ? dleft(r.due) : null; return f && dl !== null && dl <= 3 ? `<span class="du">${f}</span><b class="dd">${dl < 0 ? '지남' : dl ? 'D-' + dl : '오늘'}</b>` : f; })(), ed ? partNote(r, ds) : ''].filter(Boolean).join(' · ')}</span>${r.carry && r.due && !r.plan ?`<span class="mono" style="color:var(--check)">⟳${r.carry}</span>`:''}<span class="sp1"></span>${opts.meta||''}</div>${ed && todayOpen === r.id ? rowEdit(r) : ''}</div></div>`;
 }
 function doneOn(ds) { return live().filter(r => (r.checks && r.checks[ds]) || r.doneAt === ds); }
@@ -2252,9 +2253,10 @@ document.addEventListener('focusout', () => setTimeout(() => { const a = documen
 })();
 // 할 일 줄을 누르면 그 아래에서 제목·칸·마감을 고친다
 let rowOpen = null, todayOpen = null;
+// 줄이 펼쳐져 있으면 큰 제목 자체가 고치는 칸이다(같은 글씨, 점선 밑줄). 한 번 더 누르면 커서가 들어간다
+function titleEd(r) { return `<span class="tx txed" contenteditable="plaintext-only" role="textbox" aria-label="할 일 이름" enterkeyhint="done" spellcheck="false" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}" onblur="rowTitle('${r.id}',this.textContent)">${esc(r.title)}</span>`; }
 function rowEdit(r) {
-  // 고치는 칸은 '또 하나의 할 일'처럼 보이지 않게: 이름표를 달고 입력칸 모양으로
-  return `<div class="bhint" style="margin:10px 0 4px">이름 고치기</div><input class="rowed" style="border:1px dashed var(--faint);border-radius:8px;padding:8px 10px;background:rgba(255,255,255,.5);font-size:16px;font-weight:500;box-sizing:border-box;width:100%" aria-label="이름 고치기" value="${esc(r.title)}" enterkeyhint="done" onkeydown="if(event.key==='Enter')this.blur()" onchange="rowTitle('${r.id}',this.value)">
+  return `
   <div class="bslot rowsl">${r.routine ? '' : `<button type="button" class="pill dbtn dbtn2" onclick="openDate('${r.due || ''}',{allowNone:${r.bucket !== 'important'},title:'${r.bucket === 'important' ? '언제까지' : '마감'}'},v=>rowDue('${r.id}',v))">${r.due ? '마감 ' + dLabel(r.due) : '마감 정하기'}</button>${r.due ? `<input type="time" class="dueT" aria-label="마감 시각" value="${r.dueT || ''}" onchange="rowDueT('${r.id}',this.value)">` : ''}`}<span class="bks">${BUCKETS.map(([b, n]) => `<button class="${r.bucket === b ? 'on' : ''}" onclick="rowBucket('${r.id}','${b}')">${n.split(' ')[0]}</button>`).join('')}</span><span style="flex:1"></span><button onclick="rowOpen=null;todayOpen=null;render()">닫기</button></div><div class="bhint">A 급함·중요 · B 중요(할 일 탭, 날짜 필요) · C 급함·가벼움 · D 나중에</div>${openPlans().length ? `<div class="bslot"><span>계획</span>${openPlans().map(q => `<button class="${r.plan === q.id ? 'on' : ''}" onclick="rowPlan('${r.id}','${q.id}')">${esc(q.name)}</button>`).join('')}</div>` : ''}`;
 }
 function rowPlan(id, pid) { const r = rock(id); if (!r) return; if (r.plan === pid) delete r.plan; else r.plan = pid; save(); render(); }
@@ -2280,7 +2282,7 @@ function itemRow(r, n) {
   const prog = r.routine ? `<span class="dots">${Array.from({length:r.routine},(_,i)=>`<i class="${i<checkedCount(r)?'on':''}"></i>`).join('')}</span>` : '';
   return `<div class="item ${r.done?'done':''}">
     <div class="mg">${r.routine?`<span class="num">${n}</span>`:`<button class="chk ${r.done?'on':''}" aria-label="완료" onclick="finishRock('${r.id}')">${CHECK}</button>`}</div>
-    <div class="bd"><div class="t"><span class="tx" data-ed onclick="rowOpen=rowOpen==='${r.id}'?null:'${r.id}';renderWeek()">${esc(r.title)}</span>${r.carry && r.due && !r.plan ?`<span class="mono" style="color:var(--check);font-size:12px">⟳${r.carry}</span>`:''}</div>
+    <div class="bd"><div class="t">${rowOpen === r.id && !r.done ? titleEd(r) : `<span class="tx" data-ed onclick="rowOpen=rowOpen==='${r.id}'?null:'${r.id}';renderWeek()">${esc(r.title)}</span>`}${r.carry && r.due && !r.plan ?`<span class="mono" style="color:var(--check);font-size:12px">⟳${r.carry}</span>`:''}</div>
     <div class="m"><span>${meta}</span>${prog}<span class="sp1"></span>
       ${r.done?`<span style="color:var(--check)">완료</span>`:(r.routine && r.checks && r.checks[td])?`<span style="color:var(--check)">오늘 했음 ✓</span>`:(picked?`<span style="color:var(--check)">오늘 칸 ✓</span>`:`<button onclick="pick('${r.id}')">오늘로</button>`)}
       <button onclick="delRock('${r.id}')">✕</button></div>${rowOpen === r.id && !r.done ? rowEdit(r) : ''}</div></div>`;

@@ -103,7 +103,9 @@ async function ui(browser, label, ctxOpts) {
   // 4. 할 일: 제목 눌러 고치기, 칸 옮기기
   await ev(() => go('week'));
   await pg.locator('#week .item .tx[data-ed]', { hasText: '중랑구' }).first().click();
-  C('할 일 제목을 누르면 고치는 줄이 펼쳐진다', await ev(() => !!document.querySelector('#week .rowed')));
+  C('할 일 제목을 누르면 고치는 줄이 펼쳐지고, 큰 제목이 그 자리에서 고치는 칸이 된다(따로 생기는 이름 칸 없음)', await ev(() => { const e = document.querySelector('#week .txed'); return !!e && e.isContentEditable && /중랑구/.test(e.textContent) && !document.querySelector('#week .rowed') && !!document.querySelector('#week .bslot'); }));
+  await ev(() => { const e = document.querySelector('#week .txed'); e.focus(); e.textContent = '중랑구 제목 고쳐 봄'; e.blur(); });
+  C('큰 제목을 고치고 나가면 이름이 바뀐다', await ev(() => rock('a1').title === '중랑구 제목 고쳐 봄'));
   await pg.locator('#week .item .bslot button', { hasText: /^D$/ }).first().click();
   C('칸 옮기기 A→D', await ev(() => rock('a1').bucket === 'nice'));
   await ev(() => { rowBucket('a1', 'important'); rowTitle('a1', '고친 제목'); });
