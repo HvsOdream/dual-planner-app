@@ -297,7 +297,20 @@ async function ui(browser, label, ctxOpts) {
   C('오늘 고르기: 나중에를 누르면 아무것도 안 바꾸고 그날은 다시 안 뜬다', await ev(() => dayOf(today()).pickAt === 'skip' && dayOf(today()).picks.length === 3 && !/오늘 고르기/.test(document.getElementById('today').innerText)));
   await ev(() => { const o = JSON.parse(window._pkS); D.rocks = o.r; D.days = o.d; D.plans = o.p; D.guide = o.g; D.carried = o.c; _pk = null; go('today'); });
   await ev(() => { _dump = 'more'; go('today'); });
-  C('쏟아 적기에 [종이 찍기]가 있다(사진을 고르는 칸)', await ev(() => { const l = document.querySelector('#today .scanb'); return !!l && /종이 찍기/.test(l.textContent) && !!l.querySelector('input[type=file][accept="image/*"]'); }));
+  C('쏟아 적기에 [사진 불러오기]가 있고 누르면 찍기·보관함이 나온다', await ev(() => { const l = document.querySelector('#today .scanb'); if (!l || !/사진 불러오기/.test(l.textContent)) return false; l.click(); const m = document.querySelector('#today .scanm'); const ok = !!m && m.querySelectorAll('input[type=file][accept="image/*"]').length === 2 && m.querySelectorAll('input[capture]').length === 1; l.click(); return ok && !document.querySelector('.scanm'); }));
+  C('줄 앞의 A·B·C가 칸이 된다(B는 날짜 칸에 놓지 않고, 날짜 없으면 묻는다)', await ev(() => { const a = putLine('A 점검가 하나'), b = putLine('B 점검나 둘 ' + md(addDays(today(), 3)) + '까지'), c = putLine('C. 점검다 셋'), n = putLine('점검라 넷'), b2 = putLine('B 점검마 다섯');
+    const ok = a.bucket === 'urgent' && a.title === '점검가 하나' && b.bucket === 'important' && !!b.due && !Object.values(D.days).some(d => (d.picks || []).includes(b.id)) && c.bucket === 'light' && c.title === '점검다 셋' && n.bucket === 'urgent';
+    askDues([a, b, b2]); const asked = !!document.getElementById('dpick'); closeDate(true); const fell = b2.bucket === 'light';
+    [a, b, c, n, b2].forEach(r => { r._deleted = true; }); return ok && asked && fell; }));
+  C('같은 계획의 할 일은 계획 이름 아래로 묶이고, 접으면 한 줄만 보인다', await ev(() => { const now = new Date().toISOString(), pid = 'pl_grp'; D.plans = D.plans || []; D.plans.push({ id: pid, at: now, name: '묶음 점검 계획', goal: '', due: '', how: '', u: now });
+    const mk = (t, d) => { const r = { id: uid(), week: weekKey(new Date()), bucket: 'important', role: '', title: t, due: addDays(today(), d), done: false, carry: 0, checks: {}, c: today(), plan: pid }; D.rocks.push(r); return r; }; const rs = [mk('묶음하나', 20), mk('묶음둘', 21), mk('묶음셋', 22)]; const lo = mk('묶음낱개', 19); delete lo.plan; rs.push(lo);
+    grpOpen = {}; renderWeek(); const hd = [...document.querySelectorAll('#week .grph')].find(x => /묶음 점검 계획/.test(x.textContent)), tx = () => document.getElementById('week').textContent;
+    const etc = [...document.querySelectorAll('#week .grph')].some(x => /^그 밖/.test(x.textContent)); const folded = etc && !!hd && /3개/.test(hd.textContent) && /묶음하나/.test(tx()) && !/묶음둘/.test(tx()); hd && hd.click(); const opened = /묶음둘/.test(tx()) && /묶음셋/.test(tx());
+    rs.forEach(r => { r._deleted = true; }); D.plans.find(p => p.id === pid)._deleted = true; grpOpen = {}; renderWeek(); return folded && opened; }));
+  C('줄에서 [＋ 새 묶음]으로 이름만 있는 계획을 만들어 묶는다', await ev(() => { const r = putLine('새묶음 점검 줄'); rowOpen = r.id; go('week'); grpNew(r.id); const e = document.getElementById('grpNm'); if (!e) return false; e.value = '새묶음점검'; grpMake(r.id);
+    const q = livePlans().find(x => x.name === '새묶음점검'), ok = !!q && r.plan === q.id && q.goal === ''; r._deleted = true; if (q) q._deleted = true; rowOpen = null; renderWeek(); return ok; }));
+  C('적는 칸과 줄에 [비서에게 쪼개 달라고]가 있다', await ev(() => { openWrite(); const a = [...document.querySelectorAll('#wrBox button')].some(b => /쪼개 달라고/.test(b.textContent)); closeWrite(); const r = putLine('쪼개기 점검 줄'); rowOpen = r.id; go('week'); const b = [...document.querySelectorAll('#week button')].some(x => /쪼개 달라고/.test(x.textContent)); r._deleted = true; rowOpen = null; renderWeek(); return a && b; }));
+  C('할 일 탭 맨 위 [＋ 할 일 추가]가 적는 칸을 연다', await ev(() => { renderWeek(); const b = [...document.querySelectorAll('#week button')].find(x => /할 일 추가/.test(x.textContent)); if (!b) return false; b.click(); const ok = !!document.getElementById('wrIn') && !!document.querySelector('#wrBox .scanb'); closeWrite(); return ok; }));
   await ev(() => { _dump = null; go('today'); });
   // 계획 초안
   await ev(() => { window._pl0 = [D.plans.length, D.rocks.length, (dayOf(today()).picks || []).length]; openPlan('new'); });

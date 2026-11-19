@@ -190,6 +190,7 @@ a { color: inherit; }
 .memo .bslot { padding-left: 0; }
 .evein { display: block; width: 100%; height: 34px; margin-top: 4px; padding: 0 2px; font: inherit; font-size: 15px; font-weight: 600; color: inherit; background: transparent; border: none; border-top: 1px dashed rgba(74,42,51,.2); border-bottom: 1px solid rgba(74,42,51,.35); border-radius: 0; outline: none; }
 .evein::placeholder { color: inherit; opacity: .45; font-weight: 400; }
+.grph { display: flex; align-items: baseline; gap: 8px; margin: 14px 16px 0 52px; padding: 8px 0 6px; border-bottom: 1.5px solid var(--ink); cursor: pointer; } .grpn { font-weight: 700; font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .grpm { flex: none; font-size: 12.5px; opacity: .65; } .grpa { flex: none; margin-left: auto; font-size: 12.5px; text-decoration: underline; opacity: .8; }
 .bb { flex: none; display: flex; gap: 8px; margin-left: auto; } .bb button, .pill, .sticky .act button, .ev .gapb { flex: none; font-size: 13px; font-weight: 600; text-decoration: none !important; border: 1.5px solid currentColor; border-radius: 15px; padding: 0 12px !important; height: 30px; line-height: 27px; white-space: nowrap; } .pill { color: var(--ink-2); font-size: 12px; height: 26px; line-height: 23px; padding: 0 10px !important; }
 .partask { flex: 1 1 100%; display: flex; gap: 8px; align-items: center; } .partask .evein { flex: 1; min-width: 0; margin: 0; } .partask .pill { color: inherit; }
 .dump { width: 100%; box-sizing: border-box; margin: 8px 0 2px; padding: 8px 10px; font: inherit; font-size: 15px; line-height: 1.6; color: inherit; background: rgba(255,255,255,.55); border: 1px dashed rgba(0,0,0,.25); border-radius: 6px; resize: vertical; } .dump::placeholder { color: rgba(0,0,0,.35); }
@@ -811,7 +812,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.57'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.58'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -920,6 +921,9 @@ function doneOn(ds) { return live().filter(r => (r.checks && r.checks[ds]) || r.
 let quickB = 'urgent', _qbTap = false; const QB_NAME = { urgent: '급함·중요', important: '중요 · 할 일 탭에 적어요', light: '급함·가벼움' }, QB_PH = { urgent: '새 할 일 적기', important: '중요한 일 적기 · 언제까지인지도', light: '가벼운 일 적기' };
 function setQuickB(b) { quickB = b; _qbTap = false; document.querySelectorAll('.qb button').forEach(x => x.classList.toggle('on', x.dataset.b === b)); const n = document.getElementById('qbName'); if (n) n.textContent = QB_NAME[b]; const e = document.getElementById('quickIn'); if (e) { e.placeholder = QB_PH[b]; e.focus(); } }
 // B는 언제까지만 할지 묻는다. 안 고르면 C에 적는다
+// 여러 줄을 한 번에 넣었을 때: 날짜 없는 B를 하나씩 묻는다. 안 고르면 C로(오늘 칸에는 넣지 않는다)
+function askDues(rs) { const q = rs.filter(r => r && r.bucket === 'important' && !r.due && !r.routine); const next = () => { const r = q.shift(); if (!r) return; const t = r.title.length > 14 ? r.title.slice(0, 14) + '…' : r.title;
+  openDate('', { title: 'B · ' + t + ' · 언제까지', cancel: () => { r.bucket = 'light'; r.u = new Date().toISOString(); save(); render(); toast('날짜가 없어 C에 적었어요'); setTimeout(next, 0); } }, v => { r.due = v; r.u = new Date().toISOString(); save(); render(); setTimeout(next, 0); }); }; next(); }
 function askDue(r, pre) { openDate(pre || '', { title: '언제까지만', cancel: () => { r.bucket = 'light'; r.u = new Date().toISOString(); const d = dayOf(today()); if (!d.picks.includes(r.id)) d.picks.push(r.id); save(); render(); toast('날짜가 없어 C에 적었어요'); } }, v => { r.due = v; r.u = new Date().toISOString(); save(); render(); toast(`할 일 탭 B에 적었어요 · ${fmtDue(r)}`); }); }
 function addToday(blur) {
   const el = document.getElementById('quickIn'); let t = (el.value||'').trim(); if (!t) return;
@@ -963,7 +967,7 @@ function renderToday() {
   else if (picks.length && !(D.guide && D.guide.rowTap)) h += `<div class="row ruled" style="padding-left:52px;font-size:12px;color:var(--faint)">줄을 누르면 칸·마감을 고칠 수 있어요</div>`;
   h += firstLine(ds);
   // 새로 적는 줄은 위의 일에 딸린 칸처럼 보이지 않게: 한 칸 띄우고, 빈 점선 체크칸으로 '새 줄'임을 보인다
-  h += `<div class="item" style="margin-top:${picks.length ? 18 : 0}px"><div class="mg"><span aria-hidden="true" style="width:22px;height:22px;border:1.5px dashed var(--faint);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;color:var(--faint)">+</span></div><div class="bd"><input class="wr" id="quickIn" style="padding-left:0;font-size:17px" placeholder="${QB_PH[quickB]}" aria-label="오늘 할 것" enterkeyhint="done" onkeydown="if(event.key==='Enter'){if(this.value.trim())addToday();else this.blur()}" onblur="if(this.value.trim()&&!_qbTap)addToday(true)"><div class="qb" role="group" aria-label="어느 칸에 적을지" style="${live().filter(r => !r.appt).length >= 5 || quickB !== 'urgent' ? '' : 'display:none'}">${[['urgent', 'A'], ['important', 'B'], ['light', 'C']].map(([k, n]) => `<button type="button" data-b="${k}" class="${quickB === k ? 'on' : ''}" aria-label="${n} 칸" onpointerdown="_qbTap=true;setTimeout(()=>{_qbTap=false},600)" onclick="setQuickB('${k}')">${n}</button>`).join('')}<span id="qbName">${QB_NAME[quickB]}</span><span style="flex:1"></span><button onclick="openWrite()" style="font-size:13px;font-weight:500;color:var(--ink-2);text-decoration:underline;white-space:nowrap;border:none;background:none;width:auto;height:auto;padding:0;border-radius:0">여러 줄 · 종이 찍기</button></div></div></div>`;
+  h += `<div class="item" style="margin-top:${picks.length ? 18 : 0}px"><div class="mg"><span aria-hidden="true" style="width:22px;height:22px;border:1.5px dashed var(--faint);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;color:var(--faint)">+</span></div><div class="bd"><input class="wr" id="quickIn" style="padding-left:0;font-size:17px" placeholder="${QB_PH[quickB]}" aria-label="오늘 할 것" enterkeyhint="done" onkeydown="if(event.key==='Enter'){if(this.value.trim())addToday();else this.blur()}" onblur="if(this.value.trim()&&!_qbTap)addToday(true)"><div class="qb" role="group" aria-label="어느 칸에 적을지" style="${live().filter(r => !r.appt).length >= 5 || quickB !== 'urgent' ? '' : 'display:none'}">${[['urgent', 'A'], ['important', 'B'], ['light', 'C']].map(([k, n]) => `<button type="button" data-b="${k}" class="${quickB === k ? 'on' : ''}" aria-label="${n} 칸" onpointerdown="_qbTap=true;setTimeout(()=>{_qbTap=false},600)" onclick="setQuickB('${k}')">${n}</button>`).join('')}<span id="qbName">${QB_NAME[quickB]}</span><span style="flex:1"></span><button onclick="openWrite()" style="font-size:13px;font-weight:500;color:var(--ink-2);text-decoration:underline;white-space:nowrap;border:none;background:none;width:auto;height:auto;padding:0;border-radius:0">여러 줄 · 사진</button></div></div></div>`;
   const srow = (r, right, hot) => `<div class="row ruled" style="padding-left:52px;gap:8px;font-size:${hot ? 16 : 14}px;${hot ? 'font-weight:600;color:var(--ink)' : 'color:var(--ink-2)'}"><span class="tag" style="font-size:10px;height:18px;line-height:16px">${r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</span>${right}<button class="pill" onclick="pick('${r.id}')">오늘로</button></div>`;
   if (dueSoon.length) {
     h += `<div class="sp"></div><div class="lbl"><span>곧 마감</span><button onclick="go('week')">할 일 ›</button></div>`;
@@ -1027,7 +1031,15 @@ let _dump = null; // null | 'more' | 'next'
 // ── 종이 찍기: 손으로 적은 메모를 찍으면 비서가 읽어 적는 칸에 채워 준다. 바로 넣지 않고, 고친 뒤 본인이 넣는다 ──
 let _scanBusy = false;
 function aiOff() { return (D.settings || {}).ai === false; }
-function scanBtn(target) { return `<label class="scanb" style="display:inline-flex;align-items:center;cursor:pointer">${_scanBusy ? '읽는 중…' : '종이 찍기'}<input type="file" accept="image/*" capture="environment" style="display:none" ${_scanBusy ? 'disabled' : ''} onchange="scanInto('${target}', this.files[0]);this.value=''"></label>`; }
+function scanBtn(target) { return `<button class="scanb" onclick="scanMenu(this,'${target}')">${_scanBusy ? '읽는 중…' : '사진 불러오기'}</button>`; }
+function scanPick(target, cap, name) { return `<button style="padding:0"><label style="display:inline-flex;align-items:center;cursor:pointer;padding:0 12px;height:100%">${name}<input type="file" accept="image/*" ${cap ? 'capture="environment"' : ''} style="display:none" onchange="scanInto('${target}', this.files[0]);this.value='';scanMenuOff()"></label></button>`; }
+function scanMenuOff() { document.querySelectorAll('.scanm').forEach(e => e.remove()); }
+function scanMenu(btn, target) { // 사진 불러오기 › 찍기 / 보관함. 한 번 더 누르면 접는다
+  if (_scanBusy) return; const row = btn.closest('.act'); if (!row) return;
+  if (row.nextElementSibling && row.nextElementSibling.classList.contains('scanm')) { scanMenuOff(); return; }
+  scanMenuOff(); const m = document.createElement('div'); m.className = 'act scanm'; m.style.marginTop = '8px';
+  m.innerHTML = `<span style="font-size:13px;opacity:.7;align-self:center">종이에 적은 것을</span>${scanPick(target, true, '찍기')}${scanPick(target, false, '보관함')}`; row.after(m);
+}
 async function scanInto(target, file) {
   if (!file || _scanBusy) return;
   if (aiOff()) { toast('비서 AI가 꺼져 있어요. 메뉴 › 내 정보가 가는 곳에서 켜 주세요'); return; }
@@ -1048,18 +1060,20 @@ async function scanInto(target, file) {
     const el = box(); if (el) { const cur = el.value.trim() ? el.value.replace(/\s+$/, '') : keep.replace(/\s+$/, ''); el.value = (cur ? cur + '\n' : '') + lines.join('\n'); el.dispatchEvent(new Event('input')); el.focus(); }
     toast(`${lines.length}줄을 읽었어요. 고칠 곳을 보고 넣어 주세요`);
   } catch(e) { toast('메모를 읽지 못했어요. 직접 적어 주세요'); }
-  finally { _scanBusy = false; document.querySelectorAll('.scanb').forEach(l => { l.firstChild.textContent = '종이 찍기'; }); }
+  finally { _scanBusy = false; document.querySelectorAll('.scanb').forEach(l => { l.firstChild.textContent = '사진 불러오기'; }); }
 }
 function dumpHtml(kind) {
   const nx = kind === 'next', first = kind === 'first';
   return `<div class="stickies" style="padding-top:12px"><div class="sticky wide start"><div class="who"><span>비서</span><span>${first ? '처음 뵙겠습니다' : nx ? '다음 주' : '이번 주'}</span></div>
     <div class="tx">${first ? '적어 두면 까먹지 않게 알려 드려요. ' : ''}${nx ? '다음 주' : '이번 주'}에 해야 할 일을 생각나는 대로 적어 보세요. 미뤄 둔 일, 아직 먼 마감도요. 한 줄에 하나씩</div>
     <textarea id="dumpIn" class="dump" rows="7" placeholder="금요일까지 보고서 제출&#10;수요일 저녁 학원 픽업&#10;목요일 회의 자료 준비&#10;12/5 원고 마감&#10;미뤄 둔 건강검진 예약&#10;세금 신고 서류 챙기기&#10;엄마한테 전화"></textarea>
-    <div class="act"><button class="go" onclick="weekDump()">정리해 주세요</button><button style="padding:0">${scanBtn('dumpIn')}</button>${first ? '' : `<button onclick="_dump=null;render()">닫기</button>`}</div></div></div>`;
+    <div class="act"><button class="go" onclick="weekDump()">정리해 주세요</button>${scanBtn('dumpIn')}${first ? '' : `<button onclick="_dump=null;render()">닫기</button>`}</div></div></div>`;
 }
 function putLine(t) {
   t = String(t || '').replace(/^\s*(?:[-–·•*]\s*|\d+[.)]\s+)/, '').trim(); if (!t) return null;
-  const td = today(), r = { id: uid(), week: weekKey(new Date()), bucket: 'urgent', role: '', title: t, due: '', done: false, carry: 0, checks: {}, c: td };
+  // 줄 앞의 'A ', 'B ', 'C '는 칸이다(종이에 적은 표시나 비서가 사진을 읽으며 붙인 것). 없으면 A
+  const bm = t.match(/^([ABC])(?:[.):]\s*|\s+)(?=\S)/), bk = bm ? { A: 'urgent', B: 'important', C: 'light' }[bm[1]] : 'urgent'; if (bm) t = t.slice(bm[0].length).trim();
+  const td = today(), r = { id: uid(), week: weekKey(new Date()), bucket: bk, role: '', title: t, due: '', done: false, carry: 0, checks: {}, c: td };
   const pd = parseDue(t), lo = pd ? null : parseDue(t, true), g = pd || lo;
   if (g) { r.due = g.due; if (g.t) r.dueT = g.t; if (pd && pd.cut) r.title = pd.cut; if (g.due > td) r.title = r.title.replace(/(^|\s)(내일|모레)(?=\s|$)/, (m, a, w) => g.due === addDays(td, w === '내일' ? 1 : 2) ? a + md(g.due) : m); }
   // 오늘 칸은 본인이 고른다: '오늘'이라고 적은 일과 오늘이 마감인 일만 오늘에. 이번 주 안의 마감('까지')은 마감 날 칸에 놓고 그 전에는 「곧 마감」에서 보인다. 날짜만 적힌 일은 그날, 먼 마감·날짜 없는 일은 목록에만
@@ -1069,13 +1083,13 @@ function putLine(t) {
   if (lo) r.on = 1; // 그날 하는 일(마감이 아니라 그날의 일)
   // 시각까지 적힌 그날의 일('목요일 3시 회의')은 약속이다: 그날 일정 칸에 보이고 그 시각 전에 알린다
   if (lo && lo.t) { r.at = lo.due + 'T' + lo.t; r.appt = true; r.bucket = 'light'; r.vol = (curVol() || {}).id; D.rocks.push(r); return r; }
-  D.rocks.push(r); if (day) { const d = dayOf(day); d.picks = d.picks || []; d.picks.push(r.id); }
+  D.rocks.push(r); if (day && (bk !== 'important' || tdy)) { const d = dayOf(day); d.picks = d.picks || []; d.picks.push(r.id); } // B는 할 일 탭에 두는 일이라 날짜 칸에 놓지 않는다
   return r;
 }
 function weekDump() {
   const el = document.getElementById('dumpIn'); if (!el) return; const lines = el.value.split(/\n+/).map(x => x.trim()).filter(Boolean); if (!lines.length) { el.focus(); return; }
-  const ids = lines.map(putLine).filter(Boolean).map(r => r.id); _dump = null; D.guide = Object.assign({ done: {}, off: {} }, D.guide, { sheet: { d: today(), ids: ((D.guide && D.guide.sheet && D.guide.sheet.d === today() ? D.guide.sheet.ids : []) || []).concat(ids) } });
-  markStarted(); save(); render(); toast(`${ids.length}개를 날짜대로 놓았어요`);
+  const prs = lines.map(putLine).filter(Boolean), ids = prs.map(r => r.id); _dump = null; D.guide = Object.assign({ done: {}, off: {} }, D.guide, { sheet: { d: today(), ids: ((D.guide && D.guide.sheet && D.guide.sheet.d === today() ? D.guide.sheet.ids : []) || []).concat(ids) } });
+  markStarted(); save(); render(); toast(`${ids.length}개를 날짜대로 놓았어요`); askDues(prs);
 }
 function sheetHtml() {
   const sh = D.guide && D.guide.sheet; if (!sh || sh.d !== today()) return ''; const td = today(), rs = (sh.ids || []).map(rock).filter(r => r && !r._deleted); if (!rs.length) return '';
@@ -2014,8 +2028,9 @@ function openWrite() {
   el.style.cssText = 'position:fixed;inset:0;z-index:90;background:rgba(31,24,16,.38);display:flex;align-items:flex-start;justify-content:center;padding:calc(64px + env(safe-area-inset-top)) 16px 0';
   el.onclick = e => { if (e.target === el) closeWrite(); };
   el.innerHTML = `<div class="sticky wide" style="width:100%;max-width:440px;transform:none"><div class="who"><span>적기</span><span>${md(today())}</span></div>
-    <textarea id="wrIn" rows="4" aria-label="적기" placeholder="지금 떠오른 것, 적어 둘 것\n한 줄에 하나씩" style="width:100%;box-sizing:border-box;border:0;background:rgba(255,255,255,.55);border-radius:6px;padding:10px;font:inherit;font-size:16px;line-height:1.5;resize:none;color:inherit"></textarea>
-    <div class="act"><button onclick="saveWrite('todo')">할 일로</button><button onclick="saveWrite('memo')">메모로</button><button style="padding:0">${scanBtn('wrIn')}</button><button onclick="closeWrite()">닫기</button></div></div>`;
+    <textarea id="wrIn" rows="4" aria-label="적기" placeholder="지금 떠오른 것, 적어 둘 것\n한 줄에 하나씩 · 줄 앞에 A B C를 적으면 그 칸으로" style="width:100%;box-sizing:border-box;border:0;background:rgba(255,255,255,.55);border-radius:6px;padding:10px;font:inherit;font-size:16px;line-height:1.5;resize:none;color:inherit"></textarea>
+    <div class="act"><button onclick="saveWrite('todo')">할 일로</button><button onclick="saveWrite('memo')">메모로</button>${scanBtn('wrIn')}<button onclick="closeWrite()">닫기</button></div>
+    <div class="act" style="margin-top:8px"><span style="font-size:13px;opacity:.7;align-self:center">단계가 많은 큰 일이면</span><button onclick="writeSplit()">비서에게 쪼개 달라고</button></div></div>`;
   document.body.appendChild(el); setTimeout(() => { const t = document.getElementById('wrIn'); if (t) t.focus(); }, 60);
 }
 function closeWrite() { const el = document.getElementById('wrBox'); if (el) el.remove(); }
@@ -2023,7 +2038,7 @@ function saveWrite(kind) {
   const el = document.getElementById('wrIn'), v = ((el && el.value) || '').trim(); if (!v) { if (el) el.focus(); return; }
   if (kind === 'memo') { const now = new Date().toISOString(); D.memos = D.memos || []; D.memos.push({ id: uid('m_'), text: v, at: now, u: now }); closeWrite(); save(); render(); toast('메모에 적었어요'); return; }
   const rs = v.split(/\n+/).map(putLine).filter(Boolean); closeWrite(); save(); render();
-  const r = rs[0]; toast(rs.length > 1 ? `${rs.length}개 적었어요` : r && r.due && r.due !== today() ? `${md(r.due)}${r.on ? ' 칸에 놓았어요' : '까지로 적었어요'}` : '할 일에 적었어요');
+  askDues(rs); const r = rs[0]; toast(rs.length > 1 ? `${rs.length}개 적었어요` : r && r.due && r.due !== today() ? `${md(r.due)}${r.on ? ' 칸에 놓았어요' : '까지로 적었어요'}` : '할 일에 적었어요');
 }
 window.dualWrite = openWrite;
 async function takePending() {
@@ -2099,7 +2114,7 @@ function plansHtml() {
   if (closed.length) h += `<div class="lbl"><span></span><button onclick="showClosed=!showClosed;renderWeek()">닫은 계획 ${closed.length} ${showClosed ? '접기' : '보기'}</button></div>` + (showClosed ? closed.map(row).join('') : '');
   return h ? h + `<div class="sp"></div>` : '';
 }
-function openPlan(v) { if (v === 'new' && !paid() && openPlans().length >= 1) { toast('구독 전에는 계획을 한 개까지 둘 수 있어요'); openSub(); return; } planView = v; plRoutine = false; if (v === 'new') { planDraft = { name: '', goal: '', due: '', how: '', state: '' }; plMode = 'ask'; plAI = null; plBusy = false; } go('plan'); if (v === 'new') setTimeout(() => { const e = document.getElementById('plName'); if (e) e.focus(); }, 60); }
+function openPlan(v) { if (v === 'new' && !paid() && openPlans().length >= 1) { toast('구독 전에는 계획을 한 개까지 둘 수 있어요'); openSub(); return; } planView = v; plRoutine = false; if (v === 'new') { planDraft = { name: '', goal: '', due: '', how: '', state: '' }; plMode = 'ask'; plAI = null; plBusy = false; plFrom = null; } go('plan'); if (v === 'new') setTimeout(() => { const e = document.getElementById('plName'); if (e) e.focus(); }, 60); }
 function planKeep() { const g = id => (document.getElementById(id) || {}).value, has = id => !!document.getElementById(id); if (has('plName')) planDraft.name = g('plName') || ''; if (has('plGoal')) planDraft.goal = g('plGoal') || ''; if (has('plHow')) planDraft.how = g('plHow') || ''; if (has('plState')) planDraft.state = g('plState') || ''; }
 function editPlan(id) { const p = planOf(id); if (!p) return; planDraft = { name: p.name, goal: p.goal || '', due: p.due || '', how: p.how || '' }; planView = 'edit:' + id; render(); }
 // ── 계획 초안: 한 줄 적으면 비서가 단계·루틴 초안을 낸다. 고치고 빼서 받으면 할 일 목록에만 놓인다(오늘 칸은 본인이 고른다) ──
@@ -2131,6 +2146,7 @@ function planTake() {
   const base = () => ({ id: uid(), week: weekKey(new Date()), bucket: 'important', role: '', done: false, carry: 0, checks: {}, plan: p.id, vol: (curVol() || {}).id, c: today() });
   steps.forEach(x => D.rocks.push(Object.assign(base(), { title: x.t, due: x.due || '' })));
   if (rt) D.rocks.push(Object.assign(base(), { title: rt.t.trim(), routine: Math.min(7, Math.max(1, Number(rt.per) || 3)) }));
+  const src = plFrom && rock(plFrom); if (src && !src.done) { src._deleted = true; src.u = now; const dd = D.days || {}; Object.keys(dd).forEach(k => { if ((dd[k].picks || []).includes(src.id)) dd[k].picks = dd[k].picks.filter(x => x !== src.id); }); } plFrom = null;
   plAI = null; plMode = 'ask'; planView = p.id; save(); render(); window.scrollTo(0, 0); toast(`계획을 받았어요 · 할 일 ${steps.length}개${rt ? ', 루틴 1개' : ''}`);
 }
 // 내 에이전트와 논의하기: 요청문을 복사하고(늘), 연결된 비서가 Claude면 Claude 앱의 새 대화에 채워서 연다. 보내기는 본인이 누른다
@@ -2258,8 +2274,19 @@ function titleEd(r) { return `<span class="tx txed" contenteditable="plaintext-o
 function rowRole(id, n) { const r = rock(id); if (!r) return; r.role = r.role === n ? '' : n; save(); render(); }
 function rowEdit(r, out) {
   return `
-  <div class="bslot rowsl">${r.routine ? '' : `<button type="button" class="pill dbtn dbtn2" onclick="openDate('${r.due || ''}',{allowNone:${r.bucket !== 'important'},title:'${r.bucket === 'important' ? '언제까지' : '마감'}'},v=>rowDue('${r.id}',v))">${r.due ? '마감 ' + dLabel(r.due) : '마감 정하기'}</button>${r.due ? `<input type="time" class="dueT" aria-label="마감 시각" value="${r.dueT || ''}" onchange="rowDueT('${r.id}',this.value)">` : ''}`}<span class="bks">${BUCKETS.map(([b, n]) => `<button class="${r.bucket === b ? 'on' : ''}" onclick="rowBucket('${r.id}','${b}')">${n.split(' ')[0]}</button>`).join('')}</span><span style="flex:1"></span>${out || ''}<button onclick="rowOpen=null;todayOpen=null;render()">닫기</button></div><div class="bhint">A 급함·중요 · B 중요(할 일 탭, 날짜 필요) · C 급함·가벼움 · D 나중에</div>${D.roles.length ? `<div class="bslot"><span>역할</span>${D.roles.map(n => `<button class="${r.role === n ? 'on' : ''}" onclick="rowRole('${r.id}','${esc(n).replace(/'/g, "\\'")}')">${esc(n)}</button>`).join('')}</div>` : ''}${openPlans().length ? `<div class="bslot"><span>계획</span>${openPlans().map(q => `<button class="${r.plan === q.id ? 'on' : ''}" onclick="rowPlan('${r.id}','${q.id}')">${esc(q.name)}</button>`).join('')}</div>` : ''}`;
+  <div class="bslot rowsl">${r.routine ? '' : `<button type="button" class="pill dbtn dbtn2" onclick="openDate('${r.due || ''}',{allowNone:${r.bucket !== 'important'},title:'${r.bucket === 'important' ? '언제까지' : '마감'}'},v=>rowDue('${r.id}',v))">${r.due ? '마감 ' + dLabel(r.due) : '마감 정하기'}</button>${r.due ? `<input type="time" class="dueT" aria-label="마감 시각" value="${r.dueT || ''}" onchange="rowDueT('${r.id}',this.value)">` : ''}`}<span class="bks">${BUCKETS.map(([b, n]) => `<button class="${r.bucket === b ? 'on' : ''}" onclick="rowBucket('${r.id}','${b}')">${n.split(' ')[0]}</button>`).join('')}</span><span style="flex:1"></span>${out || ''}<button onclick="rowOpen=null;todayOpen=null;render()">닫기</button></div><div class="bhint">A 급함·중요 · B 중요(할 일 탭, 날짜 필요) · C 급함·가벼움 · D 나중에</div>${D.roles.length ? `<div class="bslot"><span>역할</span>${D.roles.map(n => `<button class="${r.role === n ? 'on' : ''}" onclick="rowRole('${r.id}','${esc(n).replace(/'/g, "\\'")}')">${esc(n)}</button>`).join('')}</div>` : ''}${r.routine ? '' : `<div class="bslot"><span>묶음</span>${openPlans().map(q => `<button class="${r.plan === q.id ? 'on' : ''}" onclick="rowPlan('${r.id}','${q.id}')">${esc(q.name)}</button>`).join('')}${grpNewFor === r.id ? `<input id="grpNm" maxlength="24" placeholder="묶음 이름" enterkeyhint="done" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();grpMake('${r.id}')}" style="flex:1;min-width:110px;height:30px;border:0;border-bottom:1.5px solid var(--ink);background:none;font:inherit;font-size:14px"><button onclick="grpMake('${r.id}')">묶기</button>` : `<button onclick="grpNew('${r.id}')">＋ 새 묶음</button>`}${r.plan ? '' : `<button onclick="rowSplit('${r.id}')">비서에게 쪼개 달라고</button>`}</div>`}`;
 }
+// 새 묶음: 이름만 있는 계획. 목표·기한은 나중에 계획 화면에서 채운다
+let grpNewFor = null;
+function grpNew(id) { grpNewFor = id; render(); setTimeout(() => { const e = document.getElementById('grpNm'); if (e) e.focus(); }, 60); }
+function grpMake(id) { const r = rock(id), e = document.getElementById('grpNm'), nm = ((e && e.value) || '').trim().slice(0, 24); if (!r) return; if (!nm) { if (e) e.focus(); return; }
+  const now = new Date().toISOString(), had = openPlans().find(q => q.name === nm), q = had || { id: uid('p_'), at: now, u: now, name: nm, goal: '', due: '', how: '' }; if (!had) D.plans.push(q);
+  r.plan = q.id; r.u = now; grpNewFor = null; save(); render(); toast(`「${nm}」로 묶었어요`); }
+// 큰 일 한 줄을 계획으로: 그 줄이 계획 이름이 되고, 비서 초안을 받으면 원래 줄은 단계들로 바뀐다
+let plFrom = null;
+function rowSplit(id) { const r = rock(id); if (!r) return; openPlan('new'); if (planView !== 'new') return; planDraft.name = r.title; planDraft.due = r.due || ''; plFrom = id; renderPlan(); planAsk(); }
+function writeSplit() { const el = document.getElementById('wrIn'), v = ((el && el.value) || '').split(/\n+/).map(x => x.trim()).filter(Boolean)[0]; if (!v) { if (el) el.focus(); toast('쪼갤 큰 일을 한 줄 적어 주세요'); return; }
+  closeWrite(); openPlan('new'); if (planView !== 'new') return; planDraft.name = v.replace(/^[ABC](?:[.):]\s*|\s+)(?=\S)/, ''); renderPlan(); planAsk(); }
 function rowPlan(id, pid) { const r = rock(id); if (!r) return; if (r.plan === pid) delete r.plan; else r.plan = pid; save(); render(); }
 function rowTitle(id, v) { const r = rock(id); v = (v || '').trim(); if (!r || !v || v === r.title) return; r.title = v; save(); render(); }
 function rowBucket(id, b) {
@@ -2288,11 +2315,12 @@ function itemRow(r, n) {
       ${r.done?`<span style="color:var(--check)">완료</span>`:(r.routine && r.checks && r.checks[td])?`<span style="color:var(--check)">오늘 했음 ✓</span>`:(picked?`<span style="color:var(--check)">오늘 칸 ✓</span>`:`<button onclick="pick('${r.id}')">오늘로</button>`)}
       <button onclick="delRock('${r.id}')">✕</button></div>${rowOpen === r.id && !r.done ? rowEdit(r) : ''}</div></div>`;
 }
+let grpOpen = {}; function grpTog(k) { grpOpen[k] = !grpOpen[k]; if (!grpOpen[k]) rowOpen = null; renderWeek(); }
 function renderWeek() {
   const items = openItems();
   const gh = roleFinder() + weekNotes() + groupHtml() + guidesNow('week').map(guideHtml).join('');
   const early = live().length < 5 && !livePlans().length; // 처음에는 '할 일부터 적기'만: 계획 배너는 다섯 개쯤 쌓인 뒤에
-  let h = (early ? '' : planBanner()) + (gh ? `<div class="stickies" style="padding-top:12px">${gh}</div>` : `<div class="sp"></div>`);
+  let h = `<div style="padding:14px 16px 0 52px"><button onclick="openWrite()" style="width:100%;height:48px;border:1.5px solid var(--ink);border-radius:12px;background:none;font-size:16px;font-weight:700;color:var(--ink)">＋ 할 일 추가</button></div>` + (early ? '' : planBanner()) + (gh ? `<div class="stickies" style="padding-top:12px">${gh}</div>` : `<div class="sp"></div>`);
   h += plansHtml();
   let n = 0;
   BUCKETS.forEach(([b, name]) => {
@@ -2302,7 +2330,16 @@ function renderWeek() {
     h += `<div class="lbl"><span>${name} <span class="mono" style="letter-spacing:0">${list.length - doneToday.length}</span></span><button onclick="openAdd('${b}')">+ 추가</button></div>`;
     if (addOpen && addBucket === b) h += addFormHtml(b);
     if (!list.length) h += `<div class="line faint ruled">${b==='important'?'언제까지만?':''}</div>`;
-    list.forEach(r => { n++; h += itemRow(r, n); });
+    // 같은 계획에 딸린 일이 둘 이상이면 계획 이름 아래로 묶는다. 접혀 있으면 가장 가까운 한 줄만 보인다
+    const cnt = {}; list.forEach(r => { if (!r.done && planOf(r.plan)) cnt[r.plan] = (cnt[r.plan] || 0) + 1; }); const seen = {};
+    const grouped = Object.values(cnt).some(c => c >= 2), loose = [];
+    list.forEach(r => { const g = !r.done && cnt[r.plan] >= 2 ? r.plan : '';
+      if (!g) { if (grouped) loose.push(r); else { n++; h += itemRow(r, n); } return; } if (seen[g]) return; seen[g] = 1;
+      const rs = list.filter(x => !x.done && x.plan === g), op = !!grpOpen[b + g] || rs.some(x => x.id === rowOpen), nx = rs.find(x => x.due);
+      h += `<div class="grph" onclick="grpTog('${b + g}')"><span class="grpn">${esc(planOf(g).name)}</span><span class="grpm">${rs.length}개${nx ? ' · 다음 ' + md(nx.due) : ''}</span><span class="grpa">${op ? '접기' : '펼치기 ›'}</span></div>`;
+      (op ? rs : rs.slice(0, 1)).forEach(x => { n++; h += `<div class="grpi">${itemRow(x, n)}</div>`; });
+    });
+    if (loose.length) { h += `<div class="grph" style="cursor:default"><span class="grpn">그 밖</span><span class="grpm">${loose.filter(x => !x.done).length}개</span></div>`; loose.forEach(x => { n++; h += itemRow(x, n); }); }
     h += `<div class="sp"></div>`;
   });
   document.getElementById('week').innerHTML = h;
