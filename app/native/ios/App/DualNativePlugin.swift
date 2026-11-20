@@ -4,6 +4,8 @@ import Capacitor
 import EventKit
 import WidgetKit
 import AuthenticationServices
+import CryptoKit
+import Security
 import UIKit
 
 @objc(DualNativePlugin)
@@ -16,11 +18,74 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "widgetSave", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "takePending", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "appleSignIn", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "googleSignIn", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "calendarAdd", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openUrl", returnType: CAPPluginReturnPromise),
     ]
     private let store = EKEventStore()
     private var appleDelegate: AppleSignInDelegate?
+    private var webAuth: ASWebAuthenticationSession?
+    private var webAuthAnchor: WebAuthAnchor?
+
+    private static func b64url(_ d: Data) -> String {
+        return d.base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+    }
+
+    // 기기 Google 로그인: 시스템 로그인 창(ASWebAuthenticationSession) + PKCE. id_token(JWT)을 돌려주면 서버가 검증한다(aud = iOS 클라이언트 ID)
+    // { clientId: "….apps.googleusercontent.com" }
+    @objc func googleSignIn(_ call: CAPPluginCall) {
+        let suffix = ".apps.googleusercontent.com"
+        guard let clientId = call.getString("clientId"), clientId.hasSuffix(suffix) else { call.reject("no client id"); return }
+        let scheme = "com.googleusercontent.apps." + String(clientId.dropLast(suffix.count))
+        let redirect = scheme + ":/oauth2redirect"
+        var raw = [UInt8](repeating: 0, count: 32)
+        guard SecRandomCopyBytes(kSecRandomDefault, raw.count, &raw) == errSecSuccess else { call.reject("random"); return }
+        let verifier = DualNativePlugin.b64url(Data(raw))
+        let challenge = DualNativePlugin.b64url(Data(SHA256.hash(data: Data(verifier.utf8))))
+        var c = URLComponents(string: "https://accounts.google.com/o/oauth2/v2/auth")!
+        c.queryItems = [
+            URLQueryItem(name: "client_id", value: clientId),
+            URLQueryItem(name: "redirect_uri", value: redirect),
+            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "scope", value: "openid email profile"),
+            URLQueryItem(name: "code_challenge", value: challenge),
+            URLQueryItem(name: "code_challenge_method", value: "S256"),
+            URLQueryItem(name: "prompt", value: "select_account"),
+        ]
+        guard let url = c.url else { call.reject("bad url"); return }
+        DispatchQueue.main.async {
+            let anchor = WebAuthAnchor(window: self.bridge?.webView?.window)
+            let s = ASWebAuthenticationSession(url: url, callbackURLScheme: scheme) { [weak self] cb, err in
+                self?.webAuth = nil; self?.webAuthAnchor = nil
+                if let err = err {
+                    let canceled = (err as? ASWebAuthenticationSessionError)?.code == .canceledLogin
+                    call.reject(canceled ? "canceled" : err.localizedDescription); return
+                }
+                guard let cb = cb, let code = URLComponents(url: cb, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "code" })?.value else { call.reject("no code"); return }
+                var body = URLComponents()
+                body.queryItems = [
+                    URLQueryItem(name: "client_id", value: clientId),
+                    URLQueryItem(name: "code", value: code),
+                    URLQueryItem(name: "code_verifier", value: verifier),
+                    URLQueryItem(name: "grant_type", value: "authorization_code"),
+                    URLQueryItem(name: "redirect_uri", value: redirect),
+                ]
+                var req = URLRequest(url: URL(string: "https://oauth2.googleapis.com/token")!)
+                req.httpMethod = "POST"
+                req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+                req.httpBody = (body.percentEncodedQuery ?? "").replacingOccurrences(of: "+", with: "%2B").data(using: .utf8)
+                URLSession.shared.dataTask(with: req) { data, _, e in
+                    if let e = e { call.reject(e.localizedDescription); return }
+                    guard let data = data, let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { call.reject("bad token response"); return }
+                    guard let token = j["id_token"] as? String else { call.reject((j["error_description"] as? String) ?? (j["error"] as? String) ?? "no id token"); return }
+                    call.resolve(["idToken": token])
+                }.resume()
+            }
+            s.presentationContextProvider = anchor
+            self.webAuth = s; self.webAuthAnchor = anchor
+            if !s.start() { self.webAuth = nil; self.webAuthAnchor = nil; call.reject("could not start") }
+        }
+    }
 
     // 기기 Apple 로그인: identity token(JWT)을 돌려주면 서버가 검증한다(aud = 앱 번들 ID)
     @objc func appleSignIn(_ call: CAPPluginCall) {
@@ -128,6 +193,15 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func takePending(_ call: CAPPluginCall) {
         let p = SharedStore.takePending()
         call.resolve(["checks": p.checks, "picks": p.picks, "shared": p.shared.map { ["text": $0.text, "at": $0.at, "src": $0.src] }])
+    }
+}
+
+final class WebAuthAnchor: NSObject, ASWebAuthenticationPresentationContextProviding {
+    let window: UIWindow?
+    init(window: UIWindow?) { self.window = window }
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        if let w = window { return w }
+        return UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first ?? ASPresentationAnchor()
     }
 }
 

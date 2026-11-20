@@ -181,7 +181,7 @@ async function verifyJwt(jwt, jwksUrl, issuers, aud) {
   return payload;
 }
 const PROVIDERS = {
-  google: env => env.GOOGLE_CLIENT_ID && { jwks: 'https://www.googleapis.com/oauth2/v3/certs', iss: ['accounts.google.com', 'https://accounts.google.com'], aud: env.GOOGLE_CLIENT_ID },
+  google: env => env.GOOGLE_CLIENT_ID && { jwks: 'https://www.googleapis.com/oauth2/v3/certs', iss: ['accounts.google.com', 'https://accounts.google.com'], aud: [env.GOOGLE_CLIENT_ID, env.GOOGLE_IOS_CLIENT_ID].filter(Boolean) },
   apple: env => env.APPLE_SERVICES_ID && { jwks: 'https://appleid.apple.com/auth/keys', iss: ['https://appleid.apple.com'], aud: [env.APPLE_SERVICES_ID, env.APPLE_APP_ID || 'com.hvsodream.dualplanner'] },
 };
 async function auth(req, env, path) {
