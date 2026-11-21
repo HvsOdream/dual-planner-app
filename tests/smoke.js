@@ -250,7 +250,7 @@ async function ui(browser, label, ctxOpts) {
 
   // 9. 동기화 병합, 구독 안 한 화면
   C('병합: 서버 메모와 내 메모가 다 남는다', await ev(() => { const m = mergeState(pickState(), { memos: [{ id: 'm_srv', text: '서버', at: '2026-01-01T00:00:00Z', u: '2026-01-01T00:00:00Z' }] }).memos; return m.some(x => x.id === 'm_srv') && m.some(x => x.id === 'm_1'); }));
-  C('1.0은 전부 무료: 메뉴에 구독 줄이 없고, 구독 안내로 가지 않는다', await ev(() => { const p0 = D.preview; D.preview = 'free'; moreSec = ''; go('more'); const noRow = ![...document.querySelectorAll('#moreIdx .mrow b')].some(b => b.textContent === '구독'), open = paid(); openSub(); const stay = (spread() ? rightTab : tab) !== 'sub', noWord = !/구독|무료/.test(document.querySelector('.cover').textContent); D.preview = p0; return SELL === false && noRow && open && stay && noWord; }));
+  C('1.0은 전부 무료: 메뉴에 구독 줄이 없고, 구독 안내로 가지 않는다', await ev(() => { const p0 = D.preview; D.preview = 'free'; moreSec = ''; go('more'); const noRow = ![...document.querySelectorAll('#moreIdx .mrow b')].some(b => b.textContent === '속지' || b.textContent === '구독'), open = paid(); openSub(); const stay = (spread() ? rightTab : tab) !== 'sub', noWord = !/구독|무료|속지|써 보/.test(document.querySelector('.cover').textContent); D.preview = p0; return SELL === false && noRow && open && stay && noWord; }));
   await ev(() => { SELL = true; D.preview = 'free'; });
   for (const t of ['today', 'week', 'memo', 'review', 'more']) await ev(t => go(t), t);
   await ev(() => { const d3 = addDays(today(), 2); D.rocks.push({ id: 'fz1', week: weekKey(new Date()), bucket: 'important', role: '', title: '사흘 안 마감', due: d3, done: false, carry: 0, checks: {} }, { id: 'fz2', week: '2026-01-05', bucket: 'light', role: '', title: '날짜 지난 일', due: addDays(today(), -3), done: false, carry: 0, checks: {} }); delete D.freeNote; go('week'); });
@@ -258,6 +258,7 @@ async function ui(browser, label, ctxOpts) {
   C('구독 전: 펴진 한 장에 옮기기 버튼은 안 보이고 떼기는 보인다', await ev(() => { const bs = [...document.querySelectorAll('#week .sticky.ro button')], vis = b => getComputedStyle(b).display !== 'none'; return bs.filter(vis).every(b => b.classList.contains('unlock') || /dropNote/.test(b.getAttribute('onclick'))) && bs.some(b => vis(b) && /떼기/.test(b.textContent)) && bs.some(b => !vis(b)); }));
   await ev(() => { D.plans.filter(p => !p._deleted).forEach(p => delete p.closedAt); openPlan('new'); });
   C('구독 전: 두 번째 계획은 구독 안내로 간다', await ev(() => (spread() ? rightTab : tab) === 'sub' && openPlans().length >= 1));
+  C('속지 장: 1년 속지 한 가지, 구독이라는 말이 없다', await ev(() => { const t = document.getElementById('subP').textContent; return /1년 속지 사기/.test(t) && /자동으로 다시 결제되지 않/.test(t) && !/구독|월 /.test(t) && document.querySelector('.cover').textContent.includes('속지'); }));
   await ev(() => { D.plans.forEach(p => p._deleted = true); go('week'); openPlan('new'); });
   C('구독 전: 첫 계획은 적을 수 있다', await ev(() => planView === 'new' && !!document.getElementById('plName')));
   C('구독 안 한 화면에서도 탭이 열린다', (await ev(() => document.querySelector('#p-more .sheet').textContent.length)) > 10);
