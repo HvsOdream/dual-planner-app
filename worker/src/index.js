@@ -426,6 +426,45 @@ async function planDraft(req, env, token) {
   if (!steps.length && !rt) return json({ error: 'bad draft' }, 502);
   return json({ goal: line(out.goal, 120), steps, routine: rt });
 }
+// 한 가지 일로 묶기: 계획 없는 할 일들 가운데 같은 일에 딸린 줄을 찾아 묶음 이름·끝 날짜·날짜 없는 줄의 짐작 날짜를 낸다. 묶을지는 사용자가 정한다
+async function bundle(req, env, token) {
+  if (req.method !== 'POST') return json({ error: 'method' }, 405);
+  if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
+  const dk = 'b:' + token + ':' + new Date().toISOString().slice(0, 10), used = Number(await env.PLANNER.get(dk) || 0);
+  if (used >= 6) return json({ error: 'daily limit' }, 429);
+  let b; try { b = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const line = (x, n) => String(x || '').replace(/[\r\n]+/g, ' ').trim().slice(0, n), isD = x => /^\d{4}-\d{2}-\d{2}$/.test(String(x || ''));
+  const td = isD(b.today) ? b.today : new Date().toISOString().slice(0, 10);
+  const items = (Array.isArray(b.items) ? b.items : []).slice(0, 40).map(x => ({ id: line(x && x.id, 40), title: line(x && x.title, 80), due: isD(x && x.due) ? x.due : '' })).filter(x => x.id && x.title);
+  if (items.length < 4) return json({ none: true });
+  const events = (Array.isArray(b.events) ? b.events : []).filter(e => e && isD(e.date) && e.date >= td).slice(0, 20).map(e => ({ date: e.date, title: line(e.title, 40) })).filter(e => e.title);
+  const plans = (Array.isArray(b.plans) ? b.plans : []).slice(0, 10).map(x => line(x, 30)).filter(Boolean);
+  const sys = [
+    '너는 종이 플래너를 함께 쓰는 비서다. 사용자가 흩어 적은 할 일 줄들 가운데, 같은 한 가지 일(행사·프로젝트·제출물 하나)을 끝내려고 하는 줄들을 찾아 한 묶음으로 권한다.',
+    '묶음은 가장 뚜렷한 것 하나만 낸다. 줄은 3개 이상 8개 이하. 같은 행사·결과물·고유명사를 가리키는 줄만 넣는다. 그저 같은 분야(강의, 연구, 집안일)라는 이유로는 묶지 않는다. 뚜렷한 묶음이 없으면 {"none":true}만 낸다.',
+    'name: 묶음 이름. 사용자가 쓴 낱말로 12자 안쪽(예: "추계학술대회 준비"). 이미 있는 계획과 같은 일이면 묶지 않는다(none).',
+    'end: 이 일이 끝나는 날. 일정 목록에 그 행사나 마감이 있을 때만 그 날짜를 쓰고 endTitle에 그 일정 제목을 그대로 쓴다. 없으면 둘 다 빈 문자열. 날짜를 지어내지 않는다.',
+    'guess: 묶음에 넣은 줄 가운데 날짜가 없는 줄마다, 끝내면 좋을 날짜를 짐작해 준다(오늘 이후, end가 있으면 그 전). 날짜가 있는 줄은 넣지 않는다.',
+    '설명 없이 JSON 하나만 출력한다: {"name":"...","ids":["id"],"end":"YYYY-MM-DD","endTitle":"...","guess":{"id":"YYYY-MM-DD"}}'
+  ].join('\n');
+  const user = `오늘: ${td}\n할 일:\n${items.map(x => `- id=${x.id}: ${x.title}${x.due ? ' (' + x.due + '까지)' : ''}`).join('\n')}\n일정:\n${events.length ? events.map(e => `- ${e.date} ${e.title}`).join('\n') : '없음'}\n이미 있는 계획: ${plans.join(', ') || '없음'}`;
+  const msgs = [{ role: 'system', content: sys }, { role: 'user', content: user }], meter = { calls: [] };
+  let out;
+  try {
+    const main = env.ANTHROPIC_API_KEY ? (env.BUNDLE_MODEL || env.GROUP_MODEL || 'claude-haiku-5-5') : '';
+    try { out = jsonIn(await llm(env, msgs, 500, main, meter)); } catch (e) { if (!main) throw e; }
+    if (!out) out = jsonIn(await llm(env, msgs, 500, '', meter));
+  } catch (e) { return json({ error: 'model failed', reason: String(e.message || e) }, 502); }
+  await env.PLANNER.put(dk, String(used + 1), { expirationTtl: 172800 }); await meterSave(env, 'bundle', meter);
+  const by = Object.fromEntries(items.map(x => [x.id, x]));
+  const ids = [...new Set((out && Array.isArray(out.ids) ? out.ids : []).map(String).filter(id => by[id]))].slice(0, 8), name = line(out && out.name, 20);
+  if (!out || out.none || ids.length < 3 || !name) return json({ none: true });
+  const ev = isD(out.end) && out.end >= td ? events.find(e => e.date === out.end) : null, end = ev ? ev.date : '', endTitle = ev ? ((events.find(e => e.date === end && e.title === line(out.endTitle, 40)) || ev).title) : '';
+  const far = new Date(td + 'T00:00:00Z'); far.setUTCDate(far.getUTCDate() + 42);
+  const lim = end || [far.toISOString().slice(0, 10)].concat(ids.map(id => by[id].due)).sort().pop(), guess = {};
+  ids.forEach(id => { const g = out.guess && out.guess[id]; if (!by[id].due && isD(g) && g >= td && g <= lim) guess[id] = g; });
+  return json({ name, ids, end, endTitle, guess });
+}
 // 종이 찍기: 손으로 적은 메모 사진 → 줄 목록. 사진은 읽는 데만 쓰고 저장하지 않는다. 넣을지는 사용자가 고쳐서 정한다
 async function scanNote(req, env, token) {
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
@@ -648,7 +687,7 @@ export default {
     const am = url.pathname.match(/^\/auth\/(config|google|apple|account)\/?$/);
     if (am) return auth(req, env, am[1]);
     if (url.pathname.replace(/\/$/, '') === '/admin/stats') return adminStats(req, env);
-    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group|cal|feedback|review|plan|scan)\/?$/);
+    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group|cal|feedback|review|plan|scan|bundle)\/?$/);
     if (!m) return json({ ok: true, name: 'dual-planner-api', usage: '/u/:token/state | /u/:token/items | /u/:token/mcp | /auth/config | /auth/google | /auth/apple | /auth/account' });
     const token = m[1], kind = m[2], key = 'u:' + token;
     if (kind === 'mcp') return mcp(req, env, token);
@@ -658,6 +697,7 @@ export default {
     if (kind === 'review') return review(req, env, token);
     if (kind === 'plan') return planDraft(req, env, token);
     if (kind === 'scan') return scanNote(req, env, token);
+    if (kind === 'bundle') return bundle(req, env, token);
     const cur = Object.assign(empty(), JSON.parse(await env.PLANNER.get(key) || 'null') || {});
     if (kind === 'state') {
       if (req.method === 'GET') return json(cur);

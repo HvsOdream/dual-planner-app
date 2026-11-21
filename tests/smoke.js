@@ -215,6 +215,18 @@ async function ui(browser, label, ctxOpts) {
   C('적은 약속이 시작–끝으로 보인다', await ev(() => [...document.querySelectorAll('#review .ev .tm')].some(e => /13:00–14:00/.test(e.textContent))));
 
   // 7. 메뉴: 첫 화면 줄, 쪽마다 들어갔다 나오기
+  // 한 가지 일로 묶기: 포스트잇 → 줄 빼기·날짜 → 묶기
+  { const r = await ev(() => { const P0 = D.plans.length, R0 = D.rocks.length, td = today(), mk = (id, t, due) => D.rocks.push({ id, week: weekKey(new Date()), bucket: 'light', role: '', title: t, due: due || '', done: false, carry: 0, checks: {}, c: td });
+      mk('bn1', '묶기 연사 메일', addDays(td, 3)); mk('bn2', '묶기 편성표'); mk('bn3', '묶기 좌장 섭외'); mk('bn4', '묶기와 상관없는 줄');
+      D.bundleSug = { day: td, key: 'bn1,bn2,bn3,bn4', name: '묶기 점검', ids: ['bn1', 'bn2', 'bn3', 'bn4'], end: addDays(td, 12), endTitle: '학술대회', guess: { bn2: addDays(td, 5), bn3: addDays(td, 8) }, due: {} };
+      go('week'); const st = document.querySelector('#week .sticky.bundle'), shown = !!st && st.querySelectorAll('.bnr').length === 4 && !!st.querySelector('svg') && st.querySelectorAll('.bnd.ask').length === 3 && /네 줄/.test(st.textContent);
+      bundleDrop('bn4'); const dropped = document.querySelectorAll('#week .sticky.bundle .bnr').length === 3;
+      D.bundleSug.due.bn2 = addDays(td, 6); document.getElementById('bnName').value = '묶기 점검 2'; document.getElementById('bnName').oninput(); bundleTake();
+      const q = D.plans[D.plans.length - 1], rs = ['bn1', 'bn2', 'bn3'].map(rock), took = D.plans.length === P0 + 1 && q.name === '묶기 점검 2' && q.due === addDays(td, 12) && rs.every(x => x.plan === q.id) && rock('bn2').due === addDays(td, 6) && !rock('bn3').due && !rock('bn4').plan && planView === q.id && !(dayOf(td).picks || []).some(id => /^bn/.test(id)) && !!document.querySelector('#plan .pvb svg');
+      D.plans.length = P0; D.rocks.length = R0; D.bundleSug = { day: td, key: 'k', name: 'x', ids: ['a1', 'b1', 'c1'], end: '', endTitle: '', guess: {}, due: {} }; go('week'); const again = !!document.querySelector('#week .sticky.bundle'); bundleNo(); const off = !document.querySelector('#week .sticky.bundle') && (D.bundleOff || []).includes('k');
+      delete D.bundleOff; D.bundleSug = { day: td }; planView = ''; go('week'); return { shown, dropped, took, again, off }; });
+    C('묶기 권유 포스트잇: 줄·길 그림이 나오고, 줄을 빼고 날짜를 정해 묶으면 계획 한 장이 열린다', r.shown && r.dropped && r.took, r); C('묶기 권유: 아니요를 누르면 떼어지고 같은 묶음을 기억한다', r.again && r.off, r);
+    const o = await overflow(); C('할 일 탭(묶기 뒤)에 넘치는 줄이 없다', !o.length, o.slice(0, 4)); }
   await ev(() => { moreSec = ''; go('more'); });
   C('메뉴 첫 화면에 줄이 있다', (await ev(() => document.querySelectorAll('#moreIdx .mrow').length)) >= 8);
   C('메뉴 첫 화면이 묶음 카드와 아이콘으로 나온다', await ev(() => document.querySelectorAll('#moreIdx .mgrp').length >= 4 && document.querySelectorAll('#moreIdx .mrow .mic').length >= 7 && /DUAL Planner \d/.test(document.querySelector('#moreIdx .mver').textContent)));
@@ -372,6 +384,11 @@ async function server() {
   await call('items', 'POST', { src: 'mcp', items: [{ text: '영어 회화', kind: 'plan', goal: '질의응답을 영어로', how: '리얼클래스', due: '2026-12-31' }] });
   S = await call('state', 'GET'); const sp = (S.plans || [])[0];
   C('비서가 계획을 적는다(kind=plan)', !!sp && sp.name === '영어 회화' && sp.goal === '질의응답을 영어로' && sp.due === '2026-12-31', S.plans);
+  env.AI = { run: async () => ({ response: JSON.stringify({ name: '학술대회 준비', ids: ['x1', 'x2', 'x3', 'zz'], end: '2030-01-10', endTitle: '학술대회', guess: { x3: '2030-01-05', x1: '2030-01-04', x2: '2031-01-01' } }) }) };
+  { const bd = await call('bundle', 'POST', { today: '2030-01-01', items: [{ id: 'x1', title: '연사 메일', due: '2030-01-03' }, { id: 'x2', title: '편성표' }, { id: 'x3', title: '좌장 섭외' }, { id: 'x4', title: '장보기' }], events: [{ date: '2030-01-10', title: '학술대회' }] });
+    C('묶기 권유: 보낸 줄만 남고, 끝은 일정에 있는 날, 짐작은 날짜 없는 줄에만(끝을 넘으면 버림)', bd.name === '학술대회 준비' && (bd.ids || []).join() === 'x1,x2,x3' && bd.end === '2030-01-10' && bd.endTitle === '학술대회' && bd.guess.x3 === '2030-01-05' && !('x1' in bd.guess) && !('x2' in bd.guess), bd);
+    const few = await call('bundle', 'POST', { today: '2030-01-01', items: [{ id: 'x1', title: '하나' }] }); C('묶기 권유: 줄이 적으면 묻지 않는다', few.none === true, few); }
+  delete env.AI;
   await call('items', 'POST', { items: [{ text: '리얼클래스 20분', kind: 'item', bucket: 'B', routine: 5, plan: '영어 회화' }, { text: '모의 질의응답', kind: 'item', bucket: 'B', due: '2026-12-06', plan: sp.id }, { id: sp.id, op: 'update', goal: '고친 목표' }] });
   S = await call('state', 'GET');
   C('비서가 루틴·할 일을 계획에 묶는다(이름·id)', S.rocks.filter(r => r.plan === sp.id).length === 2 && S.plans[0].goal === '고친 목표', S.rocks.map(r => [r.title, r.plan]));
