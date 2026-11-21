@@ -834,7 +834,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.69'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.70'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결', legal: '약관·개인정보처리방침' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -860,7 +860,7 @@ function renderMoreIdx() {
   let top = '';
   if (a || hasProviders()) { const pv = a ? (a.provider === 'apple' ? 'Apple' : 'Google') : '', nm = a ? (a.name || a.email || pv + ' 계정') : '로그인 안 함';
     top += `<button class="mrow macct" onclick="openSec('acct')"><span class="mav">${esc(a ? [...String(a.name || a.email || 'D')][0].toUpperCase() : 'D')}</span><span class="in"><span class="nm"><b>${esc(nm)}</b><i>${a ? pv + '로 로그인됨' : '로그인하면 다른 기기에서도 이어 써요'}</i></span><span class="ch">›</span></span></button>`; }
-  if (SELL) top += row('sub', '속지', (subActive() ? '속지 사용 중' : trialLeft() > 0 ? `써 보는 중 · ${trialShown()}일 남음` : '써 보기 끝'), 'openSub()');
+  if (SELL) top += row('sub', '속지', subShort(), 'openSub()');
   let h = `<div style="height:8px"></div>` + (top ? grp('', top) : '');
   h += grp('비서', row('conn', '비서 연결', agentOn() ? '연결됨' : '연결 안 됨', "openSec('conn')") + row('roles', '내 역할', D.roles.length ? D.roles.length + '개' : '정하지 않음', "openSec('roles')") + row('feats', '비서 포스트잇', FEATS.filter(f => featOn(f[0])).length + '종 켜짐', "openSec('feats')"));
   h += grp(isNative() ? '알림·일정' : '일정', (isNative() ? row('notify', '알림', c.on ? '켜짐' + (c.off && c.off.evening ? '' : ' · 저녁 ' + (c.evening || '21:30')) : '꺼짐', "openSec('notify')") : '') + row('cal', '캘린더', nat() ? (st.calNative ? '아이폰 캘린더' : '꺼짐') : (st.calUrl ? '연결됨' : '연결 안 함'), "openSec('cal')"));
@@ -923,13 +923,13 @@ function coverParts(tab) {
   let t1, t2, left = '';
   const yw = `${now.getFullYear()} · W${weekNo(now)}`;
   if (tab==='today') { const pk = (dayOf(today()).picks || []).map(rock).filter(r => r && !r._deleted && !(r.at && r.at.slice(0, 10) > today())), dn = pk.filter(r => r.checks && r.checks[today()]).length; t1 = `${now.getMonth()+1}월 ${now.getDate()}일 ${DOW[(now.getDay()+6)%7]}요일`; t2 = yw + (pk.length ? ` · 오늘 ${dn}/${pk.length}` : ''); }
-  else if (tab==='sub') { t1 = '속지'; t2 = (subActive() ? '속지 사용 중' : trialLeft() > 0 ? `써 보는 중 · ${trialShown()}일 남음` : '써 보기 끝'); left = `<button class="ibtn" aria-label="뒤로" onclick="go(subBack === 'sub' ? 'more' : subBack)">‹</button>`; }
+  else if (tab==='sub') { t1 = '속지'; t2 = subShort(); left = `<button class="ibtn" aria-label="뒤로" onclick="go(subBack === 'sub' ? 'more' : subBack)">‹</button>`; }
   else if (tab==='priv') { t1 = '내 정보가 가는 곳'; t2 = aiOk() ? '비서 AI 켬' : '비서 AI 끔'; left = `<button class="ibtn" aria-label="뒤로" onclick="go(privBack === 'priv' ? 'more' : privBack)">‹</button>`; }
   else if (tab==='roles') { t1 = '내 역할'; t2 = roleItems ? '할 일·일정마다 역할 정하기' : '역할 이름 고치기'; left = `<button class="ibtn" aria-label="뒤로" onclick="closeRoles()">‹</button>`; }
   else if (tab==='plan') { const pl = planOf(planView.replace('edit:', '')); t1 = planView === 'new' ? '새 계획' : pl ? esc(pl.name) : '계획'; t2 = planView === 'new' ? '할 일' : '계획' + (pl && pl.due ? ` · ${md(pl.due)}까지` : '') + (pl && pl.closedAt ? ' · 닫음' : ''); left = `<button class="ibtn" aria-label="할 일로" onclick="go('week')">‹</button>`; }
   else if (tab==='notis') { t1 = '지난 알림'; t2 = '최근 2주 · 알림과 비서 포스트잇'; left = `<button class="ibtn" aria-label="뒤로" onclick="go(notisBack === 'notis' ? 'today' : notisBack)">‹</button>`; }
   else if (tab==='more' && moreSec && MORE_SECS[moreSec]) { t1 = MORE_SECS[moreSec]; t2 = '메뉴'; left = `<button class="ibtn" aria-label="메뉴로" onclick="moreSec='';render()">‹</button>`; }
-  else if (tab==='more') { t1 = '메뉴'; t2 = yw + (SELL ? ' · ' + (subActive() ? '속지 사용 중' : trialLeft() > 0 ? `써 보는 중 · ${trialShown()}일 남음` : '써 보기 끝') : ''); }
+  else if (tab==='more') { t1 = '메뉴'; t2 = yw + (SELL ? ' · ' + subShort() : ''); }
   else if (tab==='memo') { const n = memoEntries().length; t1 = '메모'; t2 = n ? `${yw} · ${n}장` : yw; }
   else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${yw} · 열린 일 ${o.length}`; }
   else if (tab==='shelf') { t1 = '책장'; t2 = `속지 ${liveVols().length}권`; left = `<button class="ibtn" aria-label="뒤로" onclick="go('review')">‹</button>`; }
@@ -976,6 +976,7 @@ function addToday(blur) {
 }
 let _moreNotes = false, _retro = null; // 접어 둔 포스트잇 / 오늘의 회고(null이면 저녁 알림 시각 뒤에 펼친다)
 function renderToday() {
+  if (dayLocked(today())) { document.getElementById('today').innerHTML = lockHtml(); return; }
   markAOpen();
   carryIn();
   const ds = today(), day = dayOf(ds);
@@ -990,7 +991,7 @@ function renderToday() {
   const back = ds === today() && backMode(), tp = tapped('morning');
   // 맨 위 포스트잇은 한 장만 펴 둔다(저녁엔 오늘 닫기, 아침엔 브리핑이 먼저). 나머지는 '몇 장 더'로 접는다
   const pkOn = ds === today() && !back && pickShow();
-  const tops = [ds === today() && _dump ? helloHtml() : '', tp && !back ? briefHtml(ds) : '', notifStickies(ds), pkOn ? pickHtml() : '', ds === today() && !_dump ? sheetHtml() : '', back ? `<div class="stickies">${backHtml()}</div>` : '', back || tp || pkOn ? '' : briefHtml(ds), ds === today() && !_dump ? helloHtml() : '', trialHtml(ds), back ? '' : niceHtml(ds)].filter(Boolean);
+  const tops = [trialHtml(ds), ds === today() && _dump ? helloHtml() : '', tp && !back ? briefHtml(ds) : '', notifStickies(ds), pkOn ? pickHtml() : '', ds === today() && !_dump ? sheetHtml() : '', back ? `<div class="stickies">${backHtml()}</div>` : '', back || tp || pkOn ? '' : briefHtml(ds), ds === today() && !_dump ? helloHtml() : '', back ? '' : niceHtml(ds)].filter(Boolean);
   const eveIds = tops.length && tops[0] === notifStickies(ds) && eveHtml(ds) ? eveRest(ds).map(r => r.id) : [];
   let h = `<div class="sp"></div>${tops[0] || ''}${tops.length > 1 ? `<button class="morenotes" onclick="_moreNotes=!_moreNotes;renderToday()">포스트잇 ${tops.length - 1}장 더 ${_moreNotes ? '접기' : '보기'}</button><div id="moreNotes" style="display:${_moreNotes ? 'block' : 'none'}">${tops.slice(1).join('')}</div>` : ''}
   ${calHtml(ds)}
@@ -1392,12 +1393,7 @@ function dropNote(k) { D.noteOff = D.noteOff || {}; D.noteOff[k] = today(); if (
 // 비서 포스트잇 한 장: 구독(또는 체험) 중이면 또렷하게, 아니면 흐리게
 function aNote(o) {
   if (!/\bwide\b/.test(o.cls || '') && String(o.text || '').length > 44) o = Object.assign({}, o, { cls: ((o.cls || '') + ' wide').trim() });
-  if (!paid()) { // 구독 전: 하루 한 장만 펴 보인다(읽기만, 옮기기 버튼 없음). 나머지는 접힌 채 붙어 있다
-    const td = today(); if (!D.freeNote || D.freeNote.d !== td) { D.freeNote = { d: td, k: o.label }; _save0(); }
-    if (D.freeNote.k !== o.label) return `<button class="sticky fold ${/\borange\b/.test(o.cls || '') ? 'orange' : ''}" onclick="openSub()"><span class="who"><span>비서</span><span>${esc(o.label)}${o.meta ? ' · ' + esc(o.meta) : ''}</span></span><span class="unlock">접혀 있어요 · 속지를 끼우면 다 펴져요 ›</span></button>`;
-    { const tb = featTab(o.label); logN(o.key || 'a:' + o.label + ':' + (tb === 'review' ? weekKey(new Date()) : td), o.label, o.text, tb); }
-    return `<div class="sticky ro ${o.cls || ''}"><div class="who"><span>비서</span><span>${esc(o.label)}${o.meta ? ' · ' + esc(o.meta) : ''}</span></div><div class="tx">${o.html || esc(o.text)}</div>${o.acts ? `<div class="act">${o.acts}</div>` : ''}<button class="unlock" onclick="openSub()">오늘의 한 장 · 여기서 바로 옮기기는 속지를 끼우면 돼요</button></div>`;
-  }
+  if (!paid()) return ''; // 속지 밖의 날에는 비서 포스트잇이 붙지 않는다
   { const tb = featTab(o.label); logN(o.key || 'a:' + o.label + ':' + (tb === 'review' ? weekKey(new Date()) : today()), o.label, o.text, tb); }
   useMark();
   return `<div class="sticky ${o.cls || ''}"><div class="who"><span>비서</span><span>${esc(o.label)}${o.meta ? ' · ' + esc(o.meta) : ''}</span></div><div class="tx">${o.html || esc(o.text)}</div>${o.acts ? `<div class="act">${o.acts}</div>` : ''}</div>`;
@@ -1469,21 +1465,27 @@ function recordNotes(wk) {
 
 // ── 비서 포스트잇 구독: 비서 포스트잇을 받은 날로 20일 무료, 그 뒤 월 구독 또는 연 구독(할인) ──
 // 가격은 여기 한 곳에서만 바꾼다(앱스토어 지역별 가격은 결제 연결 때 StoreKit 값으로 덮어씀)
-const SUB_MONTH = 3900, SUB_YEAR = 22000, TRIAL_DAYS = 20; // 1년 속지 한 가지만 판다(가격은 과금 전에 확정). SUB_MONTH는 쓰지 않음
+const SUB_MONTH = 3900, SUB_YEAR = 22000, TRIAL_DAYS = 14; // 1년 속지 한 가지만 판다(가격은 과금 전에 확정). SUB_MONTH는 쓰지 않음
 const won = n => n.toLocaleString('ko-KR') + '원';
 const SUB_OFF = Math.round((1 - SUB_YEAR / (SUB_MONTH * 12)) * 100);
 const SUB_PRICE = `월 ${won(SUB_MONTH)} · 연 ${won(SUB_YEAR)}`;
 let subPlan = 'year';
-function ensureTrial() {}
+function ensureTrial() { if (!SELL || trialFrom()) return; D.settings = Object.assign({}, D.settings, { trialFrom: today(), u: new Date().toISOString() }); D._modified = D.settings.u; save(); } // 써 보기는 판매가 켜진 채 처음 연 날부터
 // 쓴 날: 또렷한 비서 포스트잇이 한 장이라도 붙은 날만 센다(열기만 한 날, 비운 날은 안 깎인다). 계정 상태에 같이 저장
 function useDays() { return ((D.settings || {}).useDays || []).slice(); }
-function trialLeft() { const td = today(); return Math.max(0, TRIAL_DAYS - useDays().filter(d => d < td).length); }
-function trialShown() { return Math.max(0, TRIAL_DAYS - useDays().length); } // 오늘 받은 날까지 뺀 남은 날
-function useMark() {
-  if (!SELL || subActive() || D.preview) return; const td = today(), u = useDays();
-  if (u.includes(td) || u.length >= TRIAL_DAYS || trialLeft() <= 0) return;
-  u.push(td); D.settings = Object.assign({}, D.settings, { useDays: u, u: new Date().toISOString() }); D._modified = D.settings.u; _save0();
-}
+// 속지는 날짜를 산다: 산 날부터 열두 달의 날짜가 열리고, 그 안에서는 기능을 전부 쓴다. 처음 2주는 속지 없이 열린다
+function trialFrom() { return (D.settings || {}).trialFrom || ''; }
+function trialEnd() { return addDays(trialFrom() || today(), TRIAL_DAYS - 1); }
+function trialLeft() { return Math.max(0, dgap(today(), trialEnd()) + 1); } // 오늘을 넣어 남은 날
+function trialShown() { return trialLeft(); }
+function useMark() { if (!SELL || D.preview) return; const td = today(), u = useDays(); if (u.includes(td)) return; u.push(td); D.settings = Object.assign({}, D.settings, { useDays: u.slice(-400), u: new Date().toISOString() }); D._modified = D.settings.u; _save0(); }
+function subRange(from) { const d = new Date(from + 'T00:00:00'); d.setFullYear(d.getFullYear() + 1); d.setDate(d.getDate() - 1); return { from, until: dstr(d) }; }
+function accessEnd() { const u = (D.sub && D.sub.until) || '', t = trialEnd(); return u > t ? u : t; }
+// 그 날짜의 장을 쓸 수 있는가. 지난 날짜와 속지 안의 날짜는 열려 있고, 속지 끝 뒤의 날짜만 닫힌다(마감 날짜로 적는 것은 막지 않는다)
+function dayLocked(ds) { if (!SELL || D.preview === 'paid') return false; if (D.preview === 'free') return ds >= today(); return ds > accessEnd(); }
+function kDate(ds) { const [y, m, d] = String(ds || '').split('-').map(Number); return y ? `${m}월 ${d}일` : ''; }
+function lockStop() { if (!dayLocked(today())) return false; toast('새로 적으려면 1년 속지가 있어야 해요'); openSub(); return true; }
+function lockHtml() { const had = !!(D.sub && D.sub.until); return `<div class="stickies" style="padding-top:16px"><div class="sticky wide"><div class="who"><span>비서</span><span>${had ? '속지 끝' : '써 보기 끝'}</span></div><div class="tx"><b>${had ? `속지가 ${kDate(D.sub.until)}에 끝났어요` : '써 보기 2주가 끝났어요'}</b><div class="hint" style="margin-top:4px">적어 둔 할 일과 메모, 지난 기록은 그대로 볼 수 있어요. 오늘부터 다시 쓰려면 1년 속지를 끼워 주세요</div></div><div class="act"><button onclick="openSub()">1년 속지 보기</button></div></div></div>`; }
 function subActive() { return !!(D.sub && D.sub.until && D.sub.until >= today()); }
 // 1.0은 전부 무료로 낸다: 구독 화면·무료 날짜 세기·구독 안내를 모두 숨긴다. 과금을 시작할 때 true로
 let SELL = false;
@@ -1492,30 +1494,28 @@ function paid() {
   if (!SELL) return true;
   if (D.preview === 'free') return false;
   if (D.preview === 'paid') return true;
-  const v = curVol(); return !!((v && v.paid) || subActive() || trialLeft() > 0);
+  return !dayLocked(today());
 }
 function togglePaidPreview() { D.preview = D.preview === 'free' ? 'paid' : D.preview === 'paid' ? '' : 'free'; delete D.paidPreview; _save0(); closeMore(); render(); toast(D.preview === 'free' ? '속지 없는 화면으로 보는 중' : D.preview === 'paid' ? '속지 끼운 화면으로 보는 중' : '실제 상태로 보는 중'); }
 function subscribe() { toast(isNative() ? '속지 결제는 다음 업데이트에서 열려요' : '속지는 앱에서 살 수 있어요'); }
 function openSub() { if (!SELL) return; if (tab !== 'sub') subBack = tab === 'more' ? 'more' : tab; go('sub'); }
 let subBack = 'more';
 function subUntil() { const [y, m, d] = String((D.sub || {}).until || '').split('-').map(Number); return y ? `${y}년 ${m}월 ${d}일` : ''; }
-function subStatus() { const t = trialLeft(); return subActive() ? `1년 속지 사용 중 · ${subUntil()}까지` : t > 0 ? `써 보는 중 · ${useDays().length}일 썼고 ${trialShown()}일 남았어요` : '써 보기가 끝났어요 · 비서 포스트잇은 하루 한 장만 펴 보여요'; }
+function subShort() { return subActive() ? `${D.sub.until.replace(/-/g, '.')}까지` : trialLeft() > 0 ? `써 보는 중 · ${trialLeft()}일 남음` : D.sub && D.sub.until ? '속지 끝' : '써 보기 끝'; }
+function subStatus() { return subActive() ? `1년 속지 · ${subUntil()}까지` : trialLeft() > 0 ? `써 보는 중 · ${kDate(trialEnd())}까지 ${trialLeft()}일 남았어요` : D.sub && D.sub.until ? `속지가 ${kDate(D.sub.until)}에 끝났어요` : '써 보기 2주가 끝났어요'; }
 // 구독 페이지: 메뉴 안의 노트 한 장
 function renderSubPage() {
   const el = document.getElementById('subP'); if (!el) return;
-  const on = subActive(), rvs = Object.values(D.reviews || {}).filter(r => r && r.summary).length, cds = Object.values(D.reviews || {}).reduce((a, r) => a + ((r && r.candidates) || []).length + ((r && r.adopted) || 0), 0);
-  const plan = (k, name, price, sub, tag) => `<button class="plan ${subPlan === k ? 'on' : ''}" onclick="subPlan='${k}';renderSubPage()" aria-pressed="${subPlan === k}"><span class="pk">${subPlan === k ? '●' : '○'}</span><span class="pn"><b>${name}${tag ? ` <em>${tag}</em>` : ''}</b><i>${sub}</i></span><span class="pp">${price}</span></button>`;
+  const on = subActive(), next = on ? subRange(addDays(D.sub.until, 1)) : subRange(today()), nu = next.until.split('-').map(Number);
   el.innerHTML = `<div class="lbl">지금</div><div class="subst">${subStatus()}</div>
-    ${useDays().length ? `<div class="subst" style="font-size:13px;color:var(--ink-2)">지금까지 오늘 브리핑·마감·멈춘 일 포스트잇 ${useDays().length}일${rvs ? `, 주간 리뷰 ${rvs}번` : ''}${cds ? `, 다음 주 후보 ${cds}장` : ''}을 받았어요</div>` : ''}
-    ${on ? `<div class="subst" style="font-size:12px">${subUntil()}이 지나면 새 속지를 살 수 있어요. 자동으로 결제되지 않아요</div>` : `<div class="lbl" style="margin-top:8px">1년 속지</div>
-    <div class="plan on" style="cursor:default"><span class="pk">●</span><span class="pn"><b>1년 속지</b><i>산 날부터 열두 달 · 한 달에 ${won(Math.round(SUB_YEAR / 12 / 10) * 10)}꼴</i></span><span class="pp">${won(SUB_YEAR)}</span></div>
-    <button class="cta" style="margin-top:8px" onclick="subscribe()">1년 속지 사기</button>
-    <div class="subst" style="font-size:12px">한 번 사면 열두 달 써요. 자동으로 다시 결제되지 않고, 끝나면 새 속지를 사요<br>써 보기 ${TRIAL_DAYS}일은 비서 포스트잇을 받은 날만 세요. 보통 한 달쯤이에요</div>`}
-    <div class="lbl" style="margin-top:8px">속지를 끼우면</div>
-    <div class="subst" style="font-size:13px;line-height:1.8">비서 포스트잇이 전부 펴져요(속지 없이는 하루 한 장) · 포스트잇에서 바로 오늘로·내일로 옮기고 시간을 잡아요 · 알림을 비서가 그날 내용으로 써요 · 계획을 여러 개 둬요(속지 없이는 한 개)</div>
-    <div class="lbl" style="margin-top:8px">비서 포스트잇</div>
-    <div class="subst" style="font-size:13px;line-height:1.8">${FEATS.map(f => f[1]).join(' · ')}</div>
-    <div class="subst" style="font-size:12px;color:var(--muted)">할 일·오늘·달력·약속과 알림, 내 비서(Claude 등) 연결은 속지 없이도 그대로 써요</div>
+    <div class="lbl" style="margin-top:8px">1년 속지</div>
+    <div class="plan on" style="cursor:default"><span class="pk">●</span><span class="pn"><b>1년 속지</b><i>${on ? '지금 속지 뒤로 열두 달' : '오늘부터 열두 달'} · ${nu[0]}년 ${nu[1]}월 ${nu[2]}일까지</i></span><span class="pp">${won(SUB_YEAR)}</span></div>
+    <button class="cta" style="margin-top:8px" onclick="subscribe()">${on ? '다음 속지 미리 사기' : '1년 속지 사기'}</button>
+    <div class="subst" style="font-size:12px">한 번 사면 열두 달 써요. 자동으로 다시 결제되지 않아요${on ? '<br>미리 사면 지금 속지가 끝난 다음 날부터 이어져요' : ''}</div>
+    <div class="lbl" style="margin-top:8px">속지가 있는 날짜에는</div>
+    <div class="subst" style="font-size:13px;line-height:1.8">오늘 장과 달력, 비서 포스트잇과 알림, 계획까지 전부 써요. 처음 2주는 속지 없이 써 볼 수 있어요</div>
+    <div class="lbl" style="margin-top:8px">속지가 끝나면</div>
+    <div class="subst" style="font-size:13px;line-height:1.8">그 뒤 날짜의 장은 열리지 않아요. 적어 둔 할 일과 메모, 지난 기록과 책장은 계속 볼 수 있어요. 마감 날짜는 속지 끝 뒤로도 적을 수 있어요</div>
     <div class="acts" style="padding:12px 0;gap:20px"><button class="cta ghost" style="width:auto;margin:0" onclick="toast('구매 복원은 결제 연결 뒤에 열려요')">구매 복원</button></div>
     <div class="legal"><a href="legal/terms.html" target="_blank">이용약관</a><a href="legal/privacy.html" target="_blank">개인정보처리방침</a></div>`;
 }
@@ -1524,14 +1524,11 @@ function renderSubBox() {
   const t = trialLeft(), on = subActive();
   el.innerHTML = `<div class="lbl" style="padding-left:0">비서 포스트잇</div>` +
     `<div class="feats">${FEATS.map(([id, n, w, d]) => { const f = featOn(id); return `<button class="feat ${f ? 'on' : ''}" onclick="setFeat('${id}', ${!f})" aria-pressed="${f}"><span class="nm"><b>${n}</b><i>${w} · ${d}</i></span><span class="st">${f ? '켬' : '끔'}</span></button>`; }).join('')}</div>` +
-    (paid() ? '' : `<div class="subst" style="font-size:12px;margin-top:6px">속지 없이는 켜 둔 포스트잇 중 하루 한 장만 펴 보여요</div>`) + '<div style="height:8px"></div>';
+    '<div style="height:8px"></div>';
 }
 // 뒤집힌 포스트잇: 내용은 숫자만 비치고, 누르면 귀퉁이가 들린다
 // 구독 전: 비서 포스트잇은 붙어 있되 글씨가 흐리다. 누르면 구독 안내
-function backSticky(label, count, text, cls) {
-  return `<div class="sticky blur ${cls || ''}" role="button" tabindex="0" onclick="openSub()"><div class="who"><span>비서</span><span>${esc(label)} · ${esc(count)}</span></div>
-    <div class="tx" aria-hidden="true">${esc(String(text || '').slice(0, 160))}</div><div class="unlock">속지를 끼우면 또렷해져요</div></div>`;
-}
+function backSticky() { return ''; } // 예전의 흐린 포스트잇: 이제 쓰지 않는다
 // ── 속지 비서: 역할 없는 할 일이 3개 넘게 쌓이면 묶음을 제안한다 ──
 function syncRoles() { D.roles = D.roles || []; live().forEach(r => { if (r.role && !D.roles.includes(r.role)) D.roles.push(r.role); }); Object.values(evRoles()).forEach(n => { if (n && !D.roles.includes(n)) D.roles.push(n); }); }
 function unroled() { return openItems().filter(r => !r.role); }
@@ -1627,7 +1624,7 @@ function evTm(st, en) { return st + (en && en > st ? `<i>–${en}</i>` : ''); }
 // ctx 't' = 오늘 화면(오늘 일정만), 'c' = 달력에서 고른 날
 function calHtml(ds, ctx) {
   ctx = ctx || 't';
-  const hm = nowHM(), isToday = ds === today(), canAdd = ds >= today(), open = _evAdd === ctx;
+  const hm = nowHM(), isToday = ds === today(), shut = dayLocked(ds), canAdd = ds >= today() && !shut, open = _evAdd === ctx;
   const rows = eventsOn(ds).map(e => ({ k: e.allDay ? '00:00' : e.start, e })).concat(apptsOn(ds).map(r => ({ k: atOn(r, ds), r })));
   const gap = ctx === 't' && isToday ? freeGap(ds) : null, gc = gap ? gapCands(ds) : [];
   if (gap && gc.length) rows.push({ k: gap[0], gap }); else _gapOpen = ctx === 't' && isToday ? false : _gapOpen;
@@ -1640,9 +1637,11 @@ function calHtml(ds, ctx) {
     : `<div class="ev ruled appt ${isToday && (r.atEnd || atOn(r, ds)) < hm ? 'past' : ''}"><span class="tm">${evTm(atOn(r, ds), r.atEnd)}</span><span class="et">${esc(r.title)}</span><span class="te">${apptClash(ds, atOn(r, ds), r.id) ? '겹침' : r.block ? '할 일' : '약속'}</span><button class="evx" aria-label="약속 지우기" onclick="dropAppt('${r.id}')">×</button></div>`).join('');
   if (canAdd && open) h += `<div class="ev ruled evadd"><input type="hidden" id="evD${ctx}" value="${ds}"><input type="time" id="evT${ctx}" aria-label="시작" value="${isToday ? freeFrom(ds) : '09:00'}"><span style="color:var(--muted)">–</span><input type="time" id="evE${ctx}" aria-label="끝"><input id="evN${ctx}" placeholder="누구와 무엇을" onkeydown="if(event.key==='Enter')addAppt('${ctx}')"><button onclick="addAppt('${ctx}')">적기</button></div>`;
   else if (!rows.length) h += `<div class="ev ruled" style="color:var(--faint)"><span class="tm"></span><span class="et">일정 없음</span></div>`;
+  if (shut && ctx === 'c') h += `<div class="ev ruled"><span class="tm"></span><button class="et" style="text-align:left;text-decoration:underline;color:var(--ink-2)" onclick="openSub()">이 날짜는 속지 밖이에요 · 1년 속지 보기</button></div>`;
   return h;
 }
 function addAppt(ctx) {
+  if (lockStop()) return;
   ctx = ctx || 't'; const v = k => (document.getElementById(k + ctx) || {}).value || '';
   const t = v('evT'), en = v('evE'), n = v('evN').trim(), dd = v('evD') || today();
   if (!t || !n) { toast(!n ? '무엇인지 적어 주세요' : '시각을 정해 주세요'); return; }
@@ -1717,14 +1716,11 @@ function briefOf(ds) {
 }
 // 무료 한 달이 끝나 갈 때: 오늘 칸 위에 한 장만
 function trialHtml(ds) {
-  if (!SELL || ds !== today() || subActive() || D.preview) return '';
-  const t = trialLeft(), n = trialShown(), k = t > 0 ? 'trial:' + ds : 'trialend';
-  if (n > 3 || noteOff(k)) return '';
-  // 무엇을 받아 왔는지: 가격보다 먼저
-  const rvs = Object.values(D.reviews || {}).filter(r => r && r.summary).length, cds = Object.values(D.reviews || {}).reduce((a, r) => a + ((r && r.candidates) || []).length + ((r && r.adopted) || 0), 0);
-  const got = `${useDays().length}일 동안 오늘 브리핑과 마감·멈춘 일 포스트잇${rvs ? `, 주간 리뷰 ${rvs}번` : ''}${cds ? `, 다음 주 후보 ${cds}장` : ''}을 받았어요`;
-  const msg = t > 0 ? (n > 0 ? `써 보기가 <b>${n}일</b> 남았어요` : '오늘이 써 보기 마지막 날이에요') + `<div class="hint" style="margin-top:2px">${got}. 포스트잇을 받은 날만 세요</div>` : `써 보기 ${TRIAL_DAYS}일을 다 썼어요. 이제 비서 포스트잇은 하루 한 장만 펴 보여요<div class="hint" style="margin-top:2px">${got}</div>`;
-  return `<div class="stickies"><div class="sticky wide"><div class="who"><span>비서</span><span>${t > 0 ? (n > 0 ? n + '일 남음' : '마지막 날') : '써 보기 끝'}</span></div><div class="tx">${msg}<div class="hint">계속 받으려면 1년 속지 ${won(SUB_YEAR)} · 한 번 사면 열두 달</div></div><div class="act"><button onclick="openSub()">속지 보기</button><button onclick="dropNote('${k}')">나중에</button></div></div></div>`;
+  if (!SELL || ds !== today() || D.preview) return '';
+  const note = (k, who, msg, hint) => noteOff(k) ? '' : `<div class="stickies"><div class="sticky wide"><div class="who"><span>비서</span><span>${who}</span></div><div class="tx">${msg}<div class="hint" style="margin-top:2px">${hint}</div></div><div class="act"><button onclick="openSub()">속지 보기</button><button onclick="dropNote('${k}')">나중에</button></div></div></div>`;
+  if (subActive()) { const n = dgap(ds, D.sub.until) + 1; return n > 14 ? '' : note('subend:' + D.sub.until, n + '일 남음', `속지가 <b>${kDate(D.sub.until)}</b>에 끝나요`, '미리 사면 그 다음 날부터 열두 달이 이어져요'); }
+  const n = trialLeft(); if (n < 1 || n > 3) return '';
+  return note('trial:' + ds, n > 1 ? n + '일 남음' : '마지막 날', n > 1 ? `써 보기가 <b>${n}일</b> 남았어요` : '오늘이 써 보기 마지막 날이에요', `${kDate(trialEnd())} 뒤의 날짜는 1년 속지가 있어야 열려요 · ${won(SUB_YEAR)}`);
 }
 // 브리핑에 적는 짧은 제목: 머리표([신진])와 콜론·괄호 뒤 설명은 뗀다(원래 제목은 할 일에 그대로)
 function shortT(t) { let x = String(t || '').replace(/^\[[^\]]{1,8}\]\s*/, ''); const i = x.search(/\s*(?:(?<!\d)[:：]|[(（—])/); if (i >= 6) x = x.slice(0, i); return x.trim(); }
@@ -2036,7 +2032,7 @@ function notifyNext() {
   return `<div class="subst" style="font-size:12px;margin:6px 0 0">${p.length ? `다음 알림 ${f(p[0].at)} · ${esc(p[0].title)} (잡힌 알림 ${p.length}개)` : '<span style="color:var(--check)">잡힌 알림이 없어요</span>'} · <button style="font-size:12px;text-decoration:underline" onclick="testNotif()">시험 알림</button></div>`;
 }
 function notifyPreview() {
-  if (!smartNotify()) return `<div class="subst" style="font-size:12px;margin:6px 0 0">문구는 늘 같아요. 속지를 끼우면 비서가 그날 내용으로 써요</div>`;
+  if (!smartNotify()) return `<div class="subst" style="font-size:12px;margin:6px 0 0">문구는 늘 같아요</div>`;
   const t = notifText('morning', plusDays(today(), 1)), e = notifText('evening', today());
   return `<div class="subst" style="font-size:12px;margin:6px 0 0;line-height:1.6">오늘 저녁: <b>${esc(e.title)}</b> ${esc(e.body)}<br>내일 아침: <b>${esc(t.title)}</b> ${esc(t.body)}</div>`;
 }
@@ -2063,6 +2059,7 @@ function widgetSync() {
 }
 // ── 위젯·잠금 화면의 「적기」: 앱이 적는 칸으로 바로 열린다. 떠오른 것을 줄마다 적고, 할 일로 놓거나 메모로 둔다 ──
 function openWrite() {
+  if (lockStop()) return;
   if (document.getElementById('wrBox')) { const t = document.getElementById('wrIn'); if (t) t.focus(); return; }
   const el = document.createElement('div'); el.id = 'wrBox';
   el.style.cssText = 'position:fixed;inset:0;z-index:90;background:rgba(31,24,16,.38);display:flex;align-items:flex-start;justify-content:center;padding:calc(64px + env(safe-area-inset-top)) 16px 0';
@@ -2093,12 +2090,13 @@ function qaDraw(open) {
       <div class="l">날짜 · 지금 ${md(today())} (${DOW[(d.getDay() + 6) % 7]})${off ? ' · 실제보다 ' + (off > 0 ? '+' : '') + off + '일' : ''}</div><div class="r">${b('−1일', 'qaDay(-1)')}${b('+1일', 'qaDay(1)')}${b('+7일', 'qaDay(7)')}${off ? b('원래대로', 'qaDay(0)') : ''}</div>
       <div class="l">데이터</div><div class="r">${b('예시 채우기', 'qaSeed()')}${b('비우기', 'qaClear()')}</div>
       <div class="l">창 크기</div><div class="r">${b('휴대폰', 'qaWin(390,844)')}${b('펼친 화면', 'qaWin(1000,720)')}</div>
-      <div class="l">속지 판매 화면 · 지금 ${SELL ? '켜짐' : '꺼짐(전부 무료)'}</div><div class="r">${b(SELL ? '끄기' : '켜기', 'qaSell()')}${b('연습장 나가기', 'qaExit()')}</div></div>`;
+      <div class="l">속지 판매 화면 · 지금 ${SELL ? '켜짐' : '꺼짐(전부 무료)'}</div><div class="r">${b(SELL ? '끄기' : '켜기', 'qaSell()')}${SELL ? b(D.sub ? '속지 빼기' : '속지 산 것으로', 'qaBuy()') : ''}${b('연습장 나가기', 'qaExit()')}</div></div>`;
 }
 function qaDay(n) { try { if (!n) localStorage.removeItem('dpa_qa_off'); else localStorage.setItem('dpa_qa_off', String(qaOff() + n)); } catch (e) {} location.reload(); }
 function qaClear() { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); }
 function qaWin(w, h) { window.open(location.pathname + '?qa', 'dpqa' + w, `width=${w},height=${h}`); }
 function qaSell() { SELL = !SELL; try { localStorage.setItem('dpa_qa_sell', SELL ? '1' : ''); } catch (e) {} render(); qaDraw(true); }
+function qaBuy() { if (D.sub) delete D.sub; else D.sub = subRange(today()); save(); render(); qaDraw(true); }
 function qaExit() { location.href = location.pathname; }
 function qaSeed() {
   const td = today(), now = new Date().toISOString(), mk = (t, b, due, plan, done, role) => D.rocks.push({ id: uid(), week: weekKey(new Date()), bucket: b, role: role || '', title: t, due: due || '', done: !!done, doneAt: done ? td : '', carry: 0, checks: {}, c: td, plan: plan || '', u: now });
@@ -2112,6 +2110,7 @@ function qaSeed() {
 }
 if (QA) setTimeout(() => qaDraw(false), 0);
 function saveWrite(kind) {
+  if (lockStop()) return;
   const el = document.getElementById('wrIn'), v = ((el && el.value) || '').trim(); if (!v) { if (el) el.focus(); return; }
   if (kind === 'memo') { const now = new Date().toISOString(); D.memos = D.memos || []; D.memos.push({ id: uid('m_'), text: v, at: now, u: now }); closeWrite(); save(); render(); toast('메모에 적었어요'); return; }
   const rs = v.split(/\n+/).map(putLine).filter(Boolean); closeWrite(); save(); render();
@@ -2267,7 +2266,7 @@ function plansHtml() {
   if (closed.length) h += `<div class="lbl"><span></span><button onclick="showClosed=!showClosed;renderWeek()">닫은 계획 ${closed.length} ${showClosed ? '접기' : '보기'}</button></div>` + (showClosed ? closed.map(row).join('') : '');
   return h ? h + `<div class="sp"></div>` : '';
 }
-function openPlan(v) { if (v === 'new' && !paid() && openPlans().length >= 1) { toast('속지 없이는 계획을 한 개까지 둘 수 있어요'); openSub(); return; } planView = v; plRoutine = false; if (v === 'new') { planDraft = { name: '', goal: '', due: '', how: '', state: '' }; plMode = 'ask'; plAI = null; plBusy = false; plFrom = null; } go('plan'); if (v === 'new') setTimeout(() => { const e = document.getElementById('plName'); if (e) e.focus(); }, 60); }
+function openPlan(v) { if (v === 'new' && lockStop()) return; planView = v; plRoutine = false; if (v === 'new') { planDraft = { name: '', goal: '', due: '', how: '', state: '' }; plMode = 'ask'; plAI = null; plBusy = false; plFrom = null; } go('plan'); if (v === 'new') setTimeout(() => { const e = document.getElementById('plName'); if (e) e.focus(); }, 60); }
 function planKeep() { const g = id => (document.getElementById(id) || {}).value, has = id => !!document.getElementById(id); if (has('plName')) planDraft.name = g('plName') || ''; if (has('plGoal')) planDraft.goal = g('plGoal') || ''; if (has('plHow')) planDraft.how = g('plHow') || ''; if (has('plState')) planDraft.state = g('plState') || ''; }
 function editPlan(id) { const p = planOf(id); if (!p) return; planDraft = { name: p.name, goal: p.goal || '', due: p.due || '', how: p.how || '' }; planView = 'edit:' + id; render(); }
 // ── 계획 초안: 한 줄 적으면 비서가 단계·루틴 초안을 낸다. 고치고 빼서 받으면 할 일 목록에만 놓인다(오늘 칸은 본인이 고른다) ──
@@ -2327,6 +2326,7 @@ function savePlan() {
 function closePlan(id) { const p = planOf(id); if (!p) return; if (p.closedAt) delete p.closedAt; else { if (!confirm('이 계획을 닫을까요? 딸린 루틴과 할 일은 그대로 남아요')) return; p.closedAt = today(); } save(); render(); }
 function delPlan(id) { const p = planOf(id); if (!p || !confirm('이 계획을 지울까요? 딸린 루틴과 할 일은 지워지지 않고 계획 표시만 빠져요')) return; p._deleted = true; D.rocks.forEach(r => { if (r.plan === id) delete r.plan; }); save(); go('week'); }
 function planAddItem(pid) {
+  if (lockStop()) return;
   const p = planOf(pid), el = document.getElementById('plAdd'), title = ((el && el.value) || '').trim(); if (!p) return; if (!title) { if (el) el.focus(); return; }
   const r = { id: uid(), week: weekKey(new Date()), bucket: 'important', role: '', title, done: false, carry: 0, checks: {}, plan: pid, vol: (curVol() || {}).id };
   if (plRoutine) r.routine = Number((document.getElementById('plN') || {}).value) || 3;
@@ -2561,8 +2561,9 @@ function addFormHtml(b) {
     ${needDue ? '<div class="arh">적으면 언제까지만 할지 물어요</div>' : ''}
     <div class="arbtn"><button class="ghost" onclick="addOpen=false;addPrefill='';addKeepV={};renderWeek()">취소</button><button class="go" onclick="addRock('${b}')">적기</button></div></div>`;
 }
-function openAdd(b) { addBucket = b; addOpen = true; addRoutine = false; addPlan = ''; addKeepV = {}; renderWeek(); setTimeout(()=>{ const e=document.getElementById('rockTitle'); if (e) e.focus(); }, 50); }
+function openAdd(b) { if (lockStop()) return; addBucket = b; addOpen = true; addRoutine = false; addPlan = ''; addKeepV = {}; renderWeek(); setTimeout(()=>{ const e=document.getElementById('rockTitle'); if (e) e.focus(); }, 50); }
 function addRock(b) {
+  if (lockStop()) return;
   b = b || addBucket;
   const title = (document.getElementById('rockTitle').value||'').trim();
   if (!title) { toast('제목이 비어 있어요'); return; }
