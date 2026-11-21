@@ -262,6 +262,12 @@ body.kb .tabbar { display: none; }
 .mrow { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; border-bottom: 1px solid var(--rule); text-align: left; color: var(--ink); text-decoration: none; }
 .mrow b { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; } .mrow .v { flex: 0 1 auto; max-width: 58%; font-size: 14px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .mrow .ch { flex: none; font-size: 18px; color: var(--muted); }
 .mpage .lbl.mg { margin-top: 14px; } #moreSecs .msec:not([data-sec="notify"]) > div > .lbl:first-child { display: none; } #moreSecs .msec { padding-top: 8px; }
+.mgrp { background: var(--white); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.mgrp .mrow { border-bottom: 0; gap: 12px; padding-left: 12px; min-height: 50px; } .mgrp .mrow .in { flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 8px; padding-right: 12px; border-bottom: 1px solid var(--rule); } .mgrp .mrow:last-child .in { border-bottom: 0; }
+.mic { flex: none; width: 30px; height: 30px; border-radius: 8px; background: var(--paper-2); color: var(--ink); display: flex; align-items: center; justify-content: center; }
+.mgrp .macct { min-height: 72px; } .mav { flex: none; width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: var(--paper); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; }
+.macct .nm { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; } .macct .nm b { flex: none; font-size: 17px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .macct .nm i { font-style: normal; font-size: 13px; color: var(--ink-2); }
+.mver { text-align: center; font-size: 12px; color: var(--ink-2); padding: 18px 0 6px; }
 .mpage { padding: 8px 16px 40px 52px; } .mpage .lbl { padding-left: 0; } .mpage .cta { margin-left: 0; width: 100%; } .mpage .legal { margin-top: 16px; }
 .dev-on { position: fixed; left: 8px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; font-size: 11px; background: var(--check); color: #fff; padding: 2px 8px; border-radius: 10px; }
 @keyframes peel { 0%, 55% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px) rotate(-5deg); } }
@@ -595,6 +601,7 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
       <div class="msec" data-sec="cal"><div id="calBox"></div></div>
       <div class="msec" data-sec="notify"><div id="notifyBox"></div></div>
       <div class="msec" data-sec="cover"><div id="coverBox"></div></div>
+      <div class="msec" data-sec="legal"><div><div style="height:8px"></div><div class="mgrp"><a class="mrow" href="legal/terms.html" target="_blank"><span class="in"><b>이용약관</b><span class="ch">›</span></span></a><a class="mrow" href="legal/privacy.html" target="_blank"><span class="in"><b>개인정보처리방침</b><span class="ch">›</span></span></a></div></div></div>
       <div class="msec" data-sec="conn">
         <div class="lbl" style="padding-left:0">상태</div>
         <div id="connBox" style="font-size:14px;line-height:1.8;margin:2px 0 4px"></div>
@@ -815,26 +822,39 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.60'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.61'; // VERSION 파일과 같이 올린다
 let moreSec = '';
-const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
+const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결', legal: '약관·개인정보처리방침' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
+// 메뉴 첫 화면: 아이폰 설정처럼 묶음마다 둥근 카드 하나, 줄마다 작은 아이콘. 맨 위는 계정·구독 카드
+const MICON = {
+  conn: ['<path d="M7.5 10.5a3 3 0 0 0 4.2 0l2.3-2.3a3 3 0 0 0-4.2-4.2l-.8.8"/><path d="M10.5 7.5a3 3 0 0 0-4.2 0L4 9.8A3 3 0 0 0 8.2 14l.8-.8"/>', '#F6CF52'],
+  roles: ['<circle cx="9" cy="6" r="2.6"/><path d="M3.8 15c.6-2.6 2.7-4 5.2-4s4.6 1.4 5.2 4"/>', '#F4907A'],
+  feats: ['<path d="M3.5 3.5h11v7.5l-3.5 3.5h-7.5z"/><path d="M14.5 11h-3.5v3.5"/>', '#FFF59A'],
+  notify: ['<path d="M4.5 12.5h9c-.9-1-1.3-2.2-1.3-4.3a3.2 3.2 0 0 0-6.4 0c0 2.1-.4 3.3-1.3 4.3z"/><path d="M7.7 14.8a1.5 1.5 0 0 0 2.6 0"/>', '#A9D56E'],
+  cal: ['<rect x="3" y="4" width="12" height="11" rx="1.5"/><path d="M3 7.5h12M6.5 2.5v3M11.5 2.5v3"/>', '#7CCBE0'],
+  cover: ['<path d="M4.5 2.5h9v13h-9z"/><path d="M7 2.5v13"/>', '#C9A6E4'],
+  sub: ['<path d="M5 2.5h8v13l-4-3-4 3z"/>', ''],
+  info: ['<circle cx="9" cy="9" r="6.2"/><path d="M9 8.2v4M9 5.7v.2"/>', ''],
+  doc: ['<path d="M5 2.5h6l2.5 2.5v10.5H5z"/><path d="M7.2 8.5h4M7.2 11.5h4"/>', ''],
+  mail: ['<rect x="2.5" y="4" width="13" height="10" rx="1.5"/><path d="M3 5l6 4.5L15 5"/>', '']
+};
+function mIc(k) { const m = MICON[k]; return `<span class="mic" ${m[1] ? `style="background:${m[1]};color:#1F2A44"` : ''}><svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${m[0]}</svg></span>`; }
 function renderMoreIdx() {
   const idx = document.getElementById('moreIdx'), secs = document.getElementById('moreSecs'); if (!idx || !secs) return;
-  const row = (label, val, on) => `<button class="mrow" onclick="${on}"><b>${label}</b><span class="v">${esc(val || '')}</span><span class="ch">›</span></button>`;
-  const lbl = (t, first) => `<div class="lbl ${first ? '' : 'mg'}">${t}</div>`;
+  const row = (ic, label, val, on) => `<button class="mrow" onclick="${on}">${mIc(ic)}<span class="in"><b>${label}</b><span class="v">${esc(val || '')}</span><span class="ch">›</span></span></button>`;
+  const grp = (t, rows) => (t ? `<div class="lbl mg">${t}</div>` : '') + `<div class="mgrp">${rows}</div>`;
   const a = D.account, c = notifyCfg(), st = D.settings || {};
-  let h = lbl('계정·구독', true);
-  if (a || hasProviders()) h += row('계정', a ? (a.provider === 'apple' ? 'Apple' : 'Google') + '로 로그인됨' : '로그인 안 함', "openSec('acct')");
-  h += row('구독', subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝', 'openSub()');
-  h += lbl('비서') + row('비서 연결', agentOn() ? '연결됨' : '연결 안 됨', "openSec('conn')") + row('내 역할', D.roles.length ? D.roles.length + '개' : '정하지 않음', "openSec('roles')") + row('비서 포스트잇', FEATS.filter(f => featOn(f[0])).length + '종 켜짐', "openSec('feats')");
-  h += lbl(isNative() ? '알림·일정' : '일정');
-  if (isNative()) h += row('알림', c.on ? '켜짐' + (c.off && c.off.evening ? '' : ' · 저녁 ' + (c.evening || '21:30')) : '꺼짐', "openSec('notify')");
-  h += row('캘린더', nat() ? (st.calNative ? '아이폰 캘린더' : '꺼짐') : (st.calUrl ? '연결됨' : '연결 안 함'), "openSec('cal')");
-  h += lbl('모양') + row('표지', (COVERS.find(x => x[0] === curTheme()) || [, ''])[1], "openSec('cover')");
-  h += lbl('정보') + row('내 정보가 가는 곳', aiOk() ? '비서 AI 켬' : '비서 AI 끔', 'openPrivacy()');
-  h += `<a class="mrow" href="legal/terms.html" target="_blank"><b>이용약관</b><span class="ch">›</span></a><a class="mrow" href="legal/privacy.html" target="_blank"><b>개인정보처리방침</b><span class="ch">›</span></a><a class="mrow" href="mailto:withsky0@gmail.com"><b>문의</b><span class="ch">›</span></a>`;
-  h += `<div class="mrow"><b>버전</b><span class="v">${APP_VER}</span></div><div style="height:10px"></div><div id="devBox"></div>`;
+  let top = '';
+  if (a || hasProviders()) { const pv = a ? (a.provider === 'apple' ? 'Apple' : 'Google') : '', nm = a ? (a.name || a.email || pv + ' 계정') : '로그인 안 함';
+    top += `<button class="mrow macct" onclick="openSec('acct')"><span class="mav">${esc(a ? [...String(a.name || a.email || 'D')][0].toUpperCase() : 'D')}</span><span class="in"><span class="nm"><b>${esc(nm)}</b><i>${a ? pv + '로 로그인됨' : '로그인하면 다른 기기에서도 이어 써요'}</i></span><span class="ch">›</span></span></button>`; }
+  top += row('sub', '구독', subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝', 'openSub()');
+  let h = `<div style="height:8px"></div>` + grp('', top);
+  h += grp('비서', row('conn', '비서 연결', agentOn() ? '연결됨' : '연결 안 됨', "openSec('conn')") + row('roles', '내 역할', D.roles.length ? D.roles.length + '개' : '정하지 않음', "openSec('roles')") + row('feats', '비서 포스트잇', FEATS.filter(f => featOn(f[0])).length + '종 켜짐', "openSec('feats')"));
+  h += grp(isNative() ? '알림·일정' : '일정', (isNative() ? row('notify', '알림', c.on ? '켜짐' + (c.off && c.off.evening ? '' : ' · 저녁 ' + (c.evening || '21:30')) : '꺼짐', "openSec('notify')") : '') + row('cal', '캘린더', nat() ? (st.calNative ? '아이폰 캘린더' : '꺼짐') : (st.calUrl ? '연결됨' : '연결 안 함'), "openSec('cal')"));
+  h += grp('모양', row('cover', '표지', (COVERS.find(x => x[0] === curTheme()) || [, ''])[1], "openSec('cover')"));
+  h += grp('정보', row('info', '내 정보가 가는 곳', aiOk() ? '비서 AI 켬' : '비서 AI 끔', 'openPrivacy()') + row('doc', '약관·개인정보처리방침', '', "openSec('legal')") + `<a class="mrow" href="mailto:withsky0@gmail.com">${mIc('mail')}<span class="in"><b>문의</b><span class="ch">›</span></span></a>`);
+  h += `<div class="mver">DUAL Planner ${APP_VER}</div><div id="devBox"></div>`;
   idx.innerHTML = h;
   if (moreSec && !MORE_SECS[moreSec]) moreSec = '';
   idx.style.display = moreSec ? 'none' : ''; secs.style.display = moreSec ? '' : 'none';

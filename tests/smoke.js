@@ -217,7 +217,8 @@ async function ui(browser, label, ctxOpts) {
   // 7. 메뉴: 첫 화면 줄, 쪽마다 들어갔다 나오기
   await ev(() => { moreSec = ''; go('more'); });
   C('메뉴 첫 화면에 줄이 있다', (await ev(() => document.querySelectorAll('#moreIdx .mrow').length)) >= 8);
-  for (const k of ['feats', 'roles', 'cal', 'cover', 'conn']) {
+  C('메뉴 첫 화면이 묶음 카드와 아이콘으로 나온다', await ev(() => document.querySelectorAll('#moreIdx .mgrp').length >= 4 && document.querySelectorAll('#moreIdx .mrow .mic').length >= 7 && /DUAL Planner \d/.test(document.querySelector('#moreIdx .mver').textContent)));
+  for (const k of ['feats', 'roles', 'cal', 'cover', 'conn', 'legal']) {
     await ev(k => openSec(k), k);
     const r = await ev(() => ({ vis: [...document.querySelectorAll('#moreSecs .msec')].filter(e => e.style.display !== 'none').map(e => e.dataset.sec), len: (document.querySelector('#moreSecs .msec:not([style*="none"])') || { textContent: '' }).textContent.trim().length, idx: document.getElementById('moreIdx').style.display }));
     C(`메뉴 › ${k} 쪽만 보인다`, r.vis.length === 1 && r.vis[0] === k && r.len > 3 && r.idx === 'none', r);
