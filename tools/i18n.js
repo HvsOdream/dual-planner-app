@@ -5,10 +5,14 @@
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.resolve(__dirname, '..'), src = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace(/^\s*\/\/.*$/gm, ''); // 주석 줄의 예시는 줍지 않는다
 const keys = new Set(), un = s => s.replace(/\\(['"`\\])/g, '$1').replace(/\\n/g, '\n');
-// T('문구'[, 값[, '자리']]) · N('문구')
-for (const m of src.matchAll(/\b([TN])\(\s*(['"`])((?:\\.|(?!\2).)*)\2\s*(?:,\s*([^()]*?|\{[^{}]*\})\s*(?:,\s*(['"])([\w-]+)\5)?)?\s*\)/g)) {
-  if (/\$\{/.test(m[3])) { console.log('⚠ T() 안에 ${}가 있습니다. {이름}으로 바꿔 주세요: ' + m[3].slice(0, 50)); continue; }
-  keys.add(un(m[3]) + (m[6] ? '@' + m[6] : '')); }
+// T('문구'[, 값[, '자리']]) · N('문구'). 둘째 칸은 괄호 깊이를 세며 건너뛴다(값에 함수 호출이 들어 있어도 되게)
+for (const m of src.matchAll(/\b([TN])\(\s*(['"`])((?:\\.|(?!\2).)*)\2/g)) {
+  if (m[2] === '`' && /\$\{/.test(m[3])) { console.log('⚠ T() 안에 ${}가 있습니다. {이름}으로 바꿔 주세요: ' + m[3].slice(0, 50)); continue; }
+  let i = m.index + m[0].length, depth = 0, commas = 0, ctx = ''; const open = '([{', close = ')]}';
+  for (; i < src.length; i++) { const ch = src[i];
+    if (ch === "'" || ch === '"' || ch === '`') { const j = i; i++; while (i < src.length && src[i] !== ch) { if (src[i] === '\\') i++; i++; } if (depth === 0 && commas === 2) ctx = src.slice(j + 1, i); continue; }
+    if (open.includes(ch)) depth++; else if (close.includes(ch)) { if (depth === 0) break; depth--; } else if (ch === ',' && depth === 0) commas++; }
+  keys.add(un(m[3]) + (ctx && /^[\w-]+$/.test(ctx) ? '@' + ctx : '')); }
 // <… data-t>글자</…> · data-t="열쇠" · aria-label="…" data-t-aria
 for (const m of src.matchAll(/<[^>]*\sdata-t(?:="([^"]*)")?[^>]*>([^<]*)</g)) keys.add((m[1] || m[2]).trim());
 for (const m of src.matchAll(/aria-label="([^"]*)"[^>]*\sdata-t-aria/g)) keys.add(m[1]);
