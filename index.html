@@ -832,7 +832,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.65'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.66'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결', legal: '약관·개인정보처리방침' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -2185,7 +2185,8 @@ function planSteps(pid) { return live().filter(r => r.plan === pid && !r.routine
 function pathMode() { try { return localStorage.getItem('dpa_path') === 'cal' ? 'cal' : 'line'; } catch (e) { return 'line'; } }
 function pathFlip() { try { localStorage.setItem('dpa_path', pathMode() === 'cal' ? 'line' : 'cal'); } catch (e) {} renderPlan(); }
 function dgap(a, b) { return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000); }
-function pathCut(t, n) { const x = shortT(t); return x.length > n ? x.slice(0, n - 1) + '…' : x; }
+// 이름표: 계획(묶음) 이름과 겹치는 앞머리 낱말은 떼고 보여 준다(「학술대회 준비」의 "학술대회 좌장 섭외" → "좌장 섭외")
+function pathCut(t, n, nm) { let x = shortT(t); if (nm) { const ws = String(nm).split(/\s+/).filter(w => w.length >= 2); let y = x; for (let k = 0; k < 3; k++) { const w = ws.find(w => y.startsWith(w)); if (!w) break; y = y.slice(w.length).replace(/^[\s·:,\-]+/, ''); } if (y.length >= 2) x = y; } return x.length > n ? x.slice(0, n - 1) + '…' : x; }
 function pathData(p) {
   const st = planSteps(p.id), td = today(); if (!st.length && !p.due) return null;
   const dues = st.map(r => r.due), end = [p.due || '', dues[dues.length - 1] || ''].sort().pop();
@@ -2195,7 +2196,7 @@ function pathData(p) {
   const pts = st.map(r => ({ d: r.due, t: r.title, k: r.done ? 'done' : r === nx ? 'next' : 'todo' }));
   if (p.due && !dues.includes(p.due)) pts.push({ d: p.due, t: '끝', k: 'goal' });
   const last = pts[pts.length - 1]; if (last.d === end && last.k === 'todo') last.k = 'goal';
-  return { st, pts, start, end, td, span: dgap(start, end), done: st.filter(r => r.done).length };
+  return { st, pts, start, end, td, nm: p.name, span: dgap(start, end), done: st.filter(r => r.done).length, undated: openItems().filter(r => r.plan === p.id && !r.routine && !r.due).length };
 }
 const PATH_TONE = { paper: 'var(--paper)', ink: 'var(--ink)', ink2: 'var(--ink-2)', track: 'var(--rule)' }, PATH_POSTIT = { paper: 'var(--postit)', ink: 'var(--postit-ink)', ink2: 'var(--postit-muted)', track: 'var(--postit-edge)' };
 function pathDot(k, x, y, c) {
@@ -2218,7 +2219,7 @@ function pathLineSvg(q, c) {
     for (const lv of [i % 2, 1 - i % 2]) if (used[lv].every(u => Math.abs(u - cx) >= 62)) { used[lv].push(cx); lab[i] = { lv, anc }; break; } });
   q.pts.forEach((pt, i) => { const px = x(pt.d), l = lab[i];
     if (l) { const ty = l.lv ? 44 : 14, tx = l.anc === 'start' ? px - 4 : l.anc === 'end' ? px + 4 : px;
-      h += `<line x1="${px}" y1="${ty + 18}" x2="${px}" y2="${TY - 8}" style="stroke:${c.ink2};stroke-width:1.2"/><text x="${tx}" y="${ty}" text-anchor="${l.anc}" style="font-size:10.5px;fill:${c.ink2};font-family:var(--mono)">${pt.k === 'dash' ? '?' : md(pt.d)}</text><text x="${tx}" y="${ty + 14}" text-anchor="${l.anc}" style="font-size:13px;font-weight:800;fill:${c.ink}${pt.k === 'done' ? ';text-decoration:line-through' : ''}">${esc(pathCut(pt.t, 7))}</text>`; }
+      h += `<line x1="${px}" y1="${ty + 18}" x2="${px}" y2="${TY - 8}" style="stroke:${c.ink2};stroke-width:1.2"/><text x="${tx}" y="${ty}" text-anchor="${l.anc}" style="font-size:10.5px;fill:${c.ink2};font-family:var(--mono)">${pt.k === 'dash' ? '?' : md(pt.d)}</text><text x="${tx}" y="${ty + 14}" text-anchor="${l.anc}" style="font-size:13px;font-weight:800;fill:${c.ink}${pt.k === 'done' ? ';text-decoration:line-through' : ''}">${esc(pathCut(pt.t, 7, q.nm))}</text>`; }
     h += pathDot(pt.k, px, TY, c); });
   if (q.td >= q.start && q.td <= q.end) { const tx = x(q.td), anc = tx < 20 ? 'start' : tx > 300 ? 'end' : 'middle'; h += `<path d="M${tx} ${TY + 12} L${tx - 6} ${TY + 22} L${tx + 6} ${TY + 22} Z" style="fill:${c === PATH_TONE ? '#F4907A' : 'var(--check)'}"/><text x="${anc === 'start' ? tx - 6 : anc === 'end' ? tx + 6 : tx}" y="${TY + 36}" text-anchor="${anc}" style="font-size:11px;font-weight:800;fill:${c.ink}">오늘</text>`; }
   return h + '</svg>';
@@ -2238,7 +2239,7 @@ function pathCalSvg(q) {
     const d = addDays(g0, i), cx = (i % 7) * CW + CW / 2, y = TOP + Math.floor(i / 7) * RH, ms = by[d], on = d >= q.start && d <= q.end, num = (i === 0 || d.slice(8) === '01') ? md(d) : String(Number(d.slice(8)));
     if (ms) { const k = ['done', 'next', 'goal', 'todo'].find(k => ms.some(m => m.k === k)), allDone = ms.every(m => m.k === 'done'), kk = allDone ? 'done' : k === 'done' ? 'todo' : k;
       h += kk === 'done' ? `<circle cx="${cx}" cy="${y + 19}" r="13" style="fill:var(--check)"/>` : kk === 'goal' ? `<circle cx="${cx}" cy="${y + 19}" r="14" style="fill:var(--ink)"/>` : `<circle cx="${cx}" cy="${y + 19}" r="13" style="fill:var(--paper);stroke:var(--ink);stroke-width:${kk === 'next' ? 3 : 1.5}"/>`;
-      h += `<text x="${cx}" y="${y + 23.5}" text-anchor="middle" style="font-size:${num.length > 2 ? 10.5 : 13}px;font-weight:800;fill:${kk === 'done' ? '#fff' : kk === 'goal' ? 'var(--paper)' : 'var(--ink)'}">${num}</text><text x="${cx}" y="${y + 45}" text-anchor="middle" style="font-size:10.5px;font-weight:800;fill:var(--ink)">${esc(pathCut(ms[0].t, ms.length > 1 ? 3 : 5))}${ms.length > 1 ? '+' + (ms.length - 1) : ''}</text>`; }
+      h += `<text x="${cx}" y="${y + 23.5}" text-anchor="middle" style="font-size:${num.length > 2 ? 10.5 : 13}px;font-weight:800;fill:${kk === 'done' ? '#fff' : kk === 'goal' ? 'var(--paper)' : 'var(--ink)'}">${num}</text><text x="${cx}" y="${y + 45}" text-anchor="middle" style="font-size:10.5px;font-weight:800;fill:var(--ink)">${esc(pathCut(ms[0].t, ms.length > 1 ? 3 : 5, q.nm))}${ms.length > 1 ? '+' + (ms.length - 1) : ''}</text>`; }
     else { h += `<text x="${cx}" y="${y + 23.5}" text-anchor="middle" style="font-size:${num.length > 2 ? 11 : 13}px;font-weight:${d === q.td ? 800 : 500};fill:${on ? 'var(--postit-ink)' : d < q.td ? 'var(--muted)' : 'var(--ink)'}">${num}</text>`;
       if (d === q.td) h += `<rect x="${cx - 17}" y="${y + 35}" width="34" height="14" style="fill:#F4907A"/><text x="${cx}" y="${y + 45.5}" text-anchor="middle" style="font-size:10px;font-weight:800;fill:#3A1810">오늘</text>`; }
   }
@@ -2248,7 +2249,7 @@ function pathCalSvg(q) {
 function planPathHtml(p) {
   const q = pathData(p); if (!q) return '';
   const dl = dgap(q.td, q.end), both = spread(), cal = pathMode() === 'cal';
-  const sub = md(q.end) + '까지' + (q.st.length ? ` · ${q.st.length}단계 중 ${q.done}` : '');
+  const sub = md(q.end) + '까지' + (q.st.length ? ` · ${q.st.length}단계 중 ${q.done}` : '') + (q.undated ? ` · 날짜 없는 일 ${q.undated}` : '');
   let h = `<div class="lbl mg" style="padding-left:0"><span>가는 길</span>${both ? '' : `<button onclick="pathFlip()">${cal ? '한 줄로' : '달력으로'}</button>`}</div><div class="pvh"><b>${dl > 0 ? 'D-' + dl : dl === 0 ? '오늘' : '지남'}</b><span>${sub}</span></div>`;
   if (both) return h + `<div class="pvb">${pathLineSvg(q)}</div><div class="pvb" style="padding-top:8px">${pathCalSvg(q)}</div>`;
   return h + `<button class="pvb" onclick="pathFlip()" aria-label="가는 길 · ${cal ? '한 줄로 보기' : '달력으로 보기'}">${cal ? pathCalSvg(q) : pathLineSvg(q)}</button>`;
@@ -2453,7 +2454,7 @@ function bundlePath(g, rs) {
   if (pts.length < 2) return '';
   const end = pts[pts.length - 1].d, span = dgap(td, end); if (span < 1) return '';
   if (pts[pts.length - 1].k === 'todo') pts[pts.length - 1].k = 'goal';
-  return pathLineSvg({ pts, start: td, end, td, span }, PATH_POSTIT);
+  return pathLineSvg({ pts, start: td, end, td, span, nm: g.name }, PATH_POSTIT);
 }
 function bundleHtml() {
   if (!featOn('bundle') || !paid() || backMode()) return '';
