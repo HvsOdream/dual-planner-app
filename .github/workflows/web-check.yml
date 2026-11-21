@@ -2,7 +2,7 @@ name: web-check
 # index.html 안의 스크립트에 문법 오류가 있으면 바로 빨간불(0.7.2에서 앱이 통째로 안 뜬 사고 재발 방지)
 on:
   push:
-    paths: ['index.html', 'worker/**', 'tests/**', 'VERSION', '.github/workflows/web-check.yml']
+    paths: ['index.html', 'lang/**', 'tools/**', 'worker/**', 'tests/**', 'VERSION', '.github/workflows/web-check.yml']
 jobs:
   syntax:
     runs-on: ubuntu-latest
@@ -21,6 +21,8 @@ jobs:
           for f in /tmp/s*.js; do node --check "$f"; done
       - name: worker syntax
         run: node --check worker/src/index.js
+      - name: 번역 사전 점검 (문법, 사라진 열쇠, {값} 짝)
+        run: node tools/i18n.js --check
   smoke:
     # 탭마다 열어 보고 자주 쓰는 동작을 한 번씩 해 본다(겹치는 줄, 깨진 버튼, 서버 병합)
     runs-on: ubuntu-latest

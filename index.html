@@ -7,6 +7,18 @@
 <meta name="apple-mobile-web-app-title" content="DUAL">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#FBF8F1">
+<script>
+// 언어 고르기. 사전 파일(lang/*.js)이 본문 스크립트보다 먼저 읽혀야 해서 여기서 정한다.
+// 순서: 주소의 ?lang= → 메뉴에서 고른 값(dpa_lang) → (ON일 때만) 기기 언어 → 한국어.
+// ON은 번역이 다 준비되면 켠다. 꺼져 있는 동안 기기 언어가 무엇이든 한국어로 뜬다.
+(function () { var ON = false;
+  function norm(c) { c = String(c || '').toLowerCase(); if (c.indexOf('ko') === 0) return 'ko'; if (c.indexOf('en') === 0) return 'en';
+    if (c.indexOf('zh') === 0) return /hant|-tw|-hk|-mo/.test(c) ? 'zh-Hant' : 'zh-Hans'; return ''; }
+  var l = ''; try { var q = /[?&]lang=([\w-]+)/.exec(location.search); l = norm(q && q[1]) || norm(localStorage.getItem('dpa_lang')); } catch (e) {}
+  if (!l && ON) { var ls = navigator.languages || [navigator.language]; for (var i = 0; i < ls.length && !l; i++) l = norm(ls[i]); if (!l) l = 'en'; }
+  window.DP_LANG = l || 'ko'; window.DP_LANG_ON = ON; window.DP_DICT = {}; window.DP_norm = norm;
+  if (window.DP_LANG !== 'ko') document.write('<script src="lang/' + window.DP_LANG + '.js"><\/script>'); })();
+</script>
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <link rel="icon" type="image/svg+xml" href="brand/icon.svg">
@@ -622,14 +634,14 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
 </main>
 
 <nav class="tabbar">
-  <button data-tab="today" class="on" onclick="go('today')"><i></i><span>오늘</span></button>
-  <button data-tab="week" onclick="go('week')"><i></i><span>할 일</span></button>
-  <button data-tab="memo" onclick="go('memo')"><i></i><span>메모</span></button>
-  <button data-tab="review" onclick="go('review')"><i></i><span>달력</span></button>
-  <button data-tab="more" onclick="moreSec='';go('more')"><i></i><span>메뉴</span></button>
+  <button data-tab="today" class="on" onclick="go('today')"><i></i><span data-t>오늘</span></button>
+  <button data-tab="week" onclick="go('week')"><i></i><span data-t>할 일</span></button>
+  <button data-tab="memo" onclick="go('memo')"><i></i><span data-t>메모</span></button>
+  <button data-tab="review" onclick="go('review')"><i></i><span data-t>달력</span></button>
+  <button data-tab="more" onclick="moreSec='';go('more')"><i></i><span data-t>메뉴</span></button>
 </nav>
 
-<div class="login" id="login" aria-modal="true" role="dialog" aria-label="로그인">
+<div class="login" id="login" aria-modal="true" role="dialog" aria-label="로그인" data-t-aria>
   <div class="lseal" aria-label="DUAL Planner"><svg viewBox="0 0 100 100" aria-hidden="true"><rect x="16" y="16" width="26" height="68" rx="5" fill="currentColor"/><path d="M48 16 H55 A34 34 0 0 1 55 84 H48 Z" fill="currentColor"/></svg><b>DUAL Planner</b></div>
   <div class="btns">
     <button class="abtn" id="abtn" onclick="appleLogin()"><svg width="16" height="19" viewBox="0 0 17 20" aria-hidden="true"><path fill="#fff" d="M14.1 10.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.7-1-2.7-4.1zM11.5 3c.7-.9 1.2-2 1.1-3.1-1 0-2.2.7-2.9 1.6-.6.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.8-1.5z"/></svg>Apple로 계속하기</button>
@@ -649,7 +661,26 @@ const QA = (() => { try { return /[?&]qa\b/.test(location.search) && !(window.Ca
 function qaOff() { try { return QA ? Number(localStorage.getItem('dpa_qa_off') || 0) : 0; } catch (e) { return 0; } }
 if (qaOff()) { const R = Date, ms = qaOff() * 86400000; window.Date = class extends R { constructor(...a) { if (a.length) super(...a); else super(R.now() + ms); } static now() { return R.now() + ms; } }; }
 const KEY = QA ? 'dpa_qa' : 'dpa_v1';
-const DOW = ['월','화','수','목','금','토','일'];
+// ── 언어 ──
+// 한국어 문구가 원문이자 열쇠다. T('문구')는 지금 언어의 사전(lang/*.js)에 그 문구가 있으면 번역을, 없으면 한국어를 그대로 돌려준다.
+//   T('{n}개 남음', { n: 3 })      바뀌는 값은 {이름}으로. 사전 값이 [하나일 때, 여럿일 때] 배열이면 n으로 고른다(영어 복수)
+//   T('끝', null, 'path')          같은 한국어가 자리마다 다르게 옮겨져야 하면 셋째 칸에 자리 이름. 사전 열쇠는 '끝@path'
+//   N('가죽')                      지금은 그대로 두고 쓰는 곳에서 T()에 넣을 문구 표시(목록·상수). tools/i18n.js가 열쇠로 줍는다
+// 화면에 박힌 글자는 태그에 data-t를 달면 applyLang()이 옮긴다. 사용자가 적은 글은 옮기지 않는다.
+const LANG = window.DP_LANG || 'ko', DICT = window.DP_DICT || {}, T_MISS = {};
+const N = s => s;
+function T(s, v, ctx) {
+  let d = ctx ? DICT[s + '@' + ctx] : undefined; if (d === undefined) d = DICT[s];
+  if (d === undefined && LANG !== 'ko') T_MISS[ctx ? s + '@' + ctx : s] = 1;
+  let out = d === undefined ? s : Array.isArray(d) ? (v && Number(v.n) === 1 ? d[0] : d[d.length - 1]) : d;
+  return v ? String(out).replace(/\{(\w+)\}/g, (m, k) => (k in v ? v[k] : m)) : out;
+}
+const WDS = { ko: ['일','월','화','수','목','금','토'], en: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], 'zh-Hans': ['周日','周一','周二','周三','周四','周五','周六'], 'zh-Hant': ['週日','週一','週二','週三','週四','週五','週六'] };
+function wdn(i) { return (WDS[LANG] || WDS.ko)[i]; } // 요일 이름. i는 Date#getDay()와 같다(0=일)
+function applyLang() { document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-t]').forEach(e => { const k = e.dataset.t || e.textContent.trim(); e.dataset.t = k; e.textContent = T(k); });
+  document.querySelectorAll('[data-t-aria]').forEach(e => { const k = e.dataset.tAria || e.getAttribute('aria-label'); e.dataset.tAria = k; e.setAttribute('aria-label', T(k)); }); }
+const DOW = [1, 2, 3, 4, 5, 6, 0].map(wdn);
 const CHECK = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D7452E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5 L10 18 L20 6"></path></svg>`;
 
 // ── 데이터 ──
@@ -835,7 +866,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.73'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.74'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결', legal: '약관·개인정보처리방침' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -859,14 +890,14 @@ function renderMoreIdx() {
   const grp = (t, rows) => (t ? `<div class="lbl mg">${t}</div>` : '') + `<div class="mgrp">${rows}</div>`;
   const a = D.account, c = notifyCfg(), st = D.settings || {};
   let top = '';
-  if (a || hasProviders()) { const pv = a ? (a.provider === 'apple' ? 'Apple' : 'Google') : '', nm = a ? (a.name || a.email || pv + ' 계정') : '로그인 안 함';
-    top += `<button class="mrow macct" onclick="openSec('acct')"><span class="mav">${esc(a ? [...String(a.name || a.email || 'D')][0].toUpperCase() : 'D')}</span><span class="in"><span class="nm"><b>${esc(nm)}</b><i>${a ? pv + '로 로그인됨' : '로그인하면 다른 기기에서도 이어 써요'}</i></span><span class="ch">›</span></span></button>`; }
-  if (SELL) top += row('sub', '속지', subShort(), 'openSub()');
+  if (a || hasProviders()) { const pv = a ? (a.provider === 'apple' ? 'Apple' : 'Google') : '', nm = a ? (a.name || a.email || T('{p} 계정', { p: pv })) : T('로그인 안 함');
+    top += `<button class="mrow macct" onclick="openSec('acct')"><span class="mav">${esc(a ? [...String(a.name || a.email || 'D')][0].toUpperCase() : 'D')}</span><span class="in"><span class="nm"><b>${esc(nm)}</b><i>${a ? T('{p}로 로그인됨', { p: pv }) : T('로그인하면 다른 기기에서도 이어 써요')}</i></span><span class="ch">›</span></span></button>`; }
+  if (SELL) top += row('sub', T('속지'), subShort(), 'openSub()');
   let h = `<div style="height:8px"></div>` + (top ? grp('', top) : '');
-  h += grp('비서', row('conn', '비서 연결', agentOn() ? '연결됨' : '연결 안 됨', "openSec('conn')") + row('roles', '내 역할', D.roles.length ? D.roles.length + '개' : '정하지 않음', "openSec('roles')") + row('feats', '비서 포스트잇', FEATS.filter(f => featOn(f[0])).length + '종 켜짐', "openSec('feats')"));
-  h += grp(isNative() ? '알림·일정' : '일정', (isNative() ? row('notify', '알림', c.on ? '켜짐' + (c.off && c.off.evening ? '' : ' · 저녁 ' + (c.evening || '21:30')) : '꺼짐', "openSec('notify')") : '') + row('cal', '캘린더', nat() ? (st.calNative ? '아이폰 캘린더' : '꺼짐') : (st.calUrl ? '연결됨' : '연결 안 함'), "openSec('cal')"));
-  h += grp('모양', row('cover', '표지', (COVERS.find(x => x[0] === curTheme()) || [, ''])[1], "openSec('cover')"));
-  h += grp('정보', row('info', '내 정보가 가는 곳', aiOk() ? '비서 AI 켬' : '비서 AI 끔', 'openPrivacy()') + row('doc', '약관·개인정보처리방침', '', "openSec('legal')") + `<a class="mrow" href="mailto:withsky0@gmail.com">${mIc('mail')}<span class="in"><b>문의</b><span class="ch">›</span></span></a>`);
+  h += grp(T('비서'), row('conn', T('비서 연결'), agentOn() ? T('연결됨') : T('연결 안 됨'), "openSec('conn')") + row('roles', T('내 역할'), D.roles.length ? T('{n}개', { n: D.roles.length }) : T('정하지 않음'), "openSec('roles')") + row('feats', T('비서 포스트잇'), T('{n}종 켜짐', { n: FEATS.filter(f => featOn(f[0])).length }), "openSec('feats')"));
+  h += grp(isNative() ? T('알림·일정') : T('일정'), (isNative() ? row('notify', T('알림'), c.on ? T('켜짐') + (c.off && c.off.evening ? '' : T(' · 저녁 {t}', { t: c.evening || '21:30' })) : T('꺼짐'), "openSec('notify')") : '') + row('cal', T('캘린더'), nat() ? (st.calNative ? T('아이폰 캘린더') : T('꺼짐')) : (st.calUrl ? T('연결됨') : T('연결 안 함')), "openSec('cal')"));
+  h += grp(T('모양'), row('cover', T('표지'), T((COVERS.find(x => x[0] === curTheme()) || [, ''])[1]), "openSec('cover')"));
+  h += grp(T('정보'), row('info', T('내 정보가 가는 곳'), aiOk() ? T('비서 AI 켬') : T('비서 AI 끔'), 'openPrivacy()') + row('doc', T('약관·개인정보처리방침'), '', "openSec('legal')") + `<a class="mrow" href="mailto:withsky0@gmail.com">${mIc('mail')}<span class="in"><b>${T('문의')}</b><span class="ch">›</span></span></a>`);
   h += `<div class="mver">DUAL Planner ${APP_VER}</div><div id="devBox"></div>`;
   idx.innerHTML = h;
   if (moreSec && !MORE_SECS[moreSec]) moreSec = '';
@@ -1485,7 +1516,7 @@ function subRange(from) { const d = new Date(from + 'T00:00:00'); d.setFullYear(
 function accessEnd() { const u = (D.sub && D.sub.until) || '', t = trialEnd(); return u > t ? u : t; }
 // 그 날짜의 장을 쓸 수 있는가. 지난 날짜와 속지 안의 날짜는 열려 있고, 속지 끝 뒤의 날짜만 닫힌다(마감 날짜로 적는 것은 막지 않는다)
 function dayLocked(ds) { if (!SELL || D.preview === 'paid') return false; if (D.preview === 'free') return ds >= today(); return ds > accessEnd(); }
-function kDate(ds) { const [y, m, d] = String(ds || '').split('-').map(Number); return y ? `${m}월 ${d}일` : ''; }
+function kDate(ds) { const [y, m, d] = String(ds || '').split('-').map(Number); if (!y) return ''; return LANG === 'en' ? ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1] + ' ' + d : LANG === 'ko' ? `${m}월 ${d}일` : `${m}月${d}日`; }
 function lockStop() { if (!dayLocked(today())) return false; toast('새로 적으려면 1년 속지가 있어야 해요'); openSub(); return true; }
 function lockHtml() { const had = !!(D.sub && D.sub.until); return `<div class="stickies" style="padding-top:16px"><div class="sticky wide"><div class="who"><span>비서</span><span>${had ? '속지 끝' : '써 보기 끝'}</span></div><div class="tx"><b>${had ? `속지가 ${kDate(D.sub.until)}에 끝났어요` : '써 보기 한 달이 끝났어요'}</b><div class="hint" style="margin-top:4px">적어 둔 할 일과 메모, 지난 기록은 그대로 볼 수 있어요. 오늘부터 다시 쓰려면 1년 속지를 끼워 주세요</div></div><div class="act"><button onclick="openSub()">1년 속지 보기</button></div></div></div>`; }
 function subActive() { return !!(D.sub && D.sub.until && D.sub.until >= today()); }
@@ -2042,7 +2073,7 @@ function notifyPreview() {
   return `<div class="subst" style="font-size:12px;margin:6px 0 0;line-height:1.6">오늘 저녁: <b>${esc(e.title)}</b> ${esc(e.body)}<br>내일 아침: <b>${esc(t.title)}</b> ${esc(t.body)}</div>`;
 }
 // ── 표지 ──
-const COVERS = [['navy', '네이비', '#1E2F4F', '#F3F1EA'], ['terra', '테라코타', '#A9503A', '#FBF1E4'], ['cream', '크림', '#E4DCC6', '#2B2925'], ['leather', '가죽', '#6B4E36', '#F2E6D0']];
+const COVERS = [['navy', N('네이비'), '#1E2F4F', '#F3F1EA'], ['terra', N('테라코타'), '#A9503A', '#FBF1E4'], ['cream', N('크림'), '#E4DCC6', '#2B2925'], ['leather', N('가죽'), '#6B4E36', '#F2E6D0']];
 function curTheme() { return new URLSearchParams(location.search).get('theme') || (D.settings && D.settings.theme) || 'navy'; }
 function applyTheme() { const t = curTheme(); if (document.documentElement.dataset.theme !== t) document.documentElement.dataset.theme = t; const e = edgeStyle(); if (e === 'tab') document.documentElement.dataset.edge = 'tab'; else delete document.documentElement.dataset.edge; }
 function edgePick() { try { return localStorage.getItem('dpa_edge') || ''; } catch(e) { return ''; } }
@@ -2986,6 +3017,7 @@ ensureVol();
 edgeCheck(); edgeSoon();
 syncPages();
 listenNotifs();
+applyLang();
 render();
 notifCatchUp();
 showIntro();

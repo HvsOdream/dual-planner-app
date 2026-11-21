@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 rm -rf app/www && mkdir -p app/www
 cp index.html manifest.webmanifest app/www/
-cp -R brand icons legal app/www/
+cp -R brand icons legal lang app/www/
 cp app/native/native.js app/www/native.js
 [ -f app/node_modules/@capacitor/core/dist/capacitor.js ] || (cd app && npm install --no-audit --no-fund >/dev/null)
 cp app/node_modules/@capacitor/core/dist/capacitor.js app/www/capacitor.js

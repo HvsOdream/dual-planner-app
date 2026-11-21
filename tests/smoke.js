@@ -188,13 +188,14 @@ async function ui(browser, label, ctxOpts) {
   C('마감 읽기: 전·느슨한 읽기', await ev(() => { const a = parseDue('엄마 생신선물 금 저녁전'), b = parseDue('금요일 회식 예약'), c = parseDue('금요일 회식 예약', true), d = parseDue('적금 넣기', true), e = parseDue('불량률 보고서 목 1시 리뷰전까지'); return !!a && a.cut === '엄마 생신선물' && !b && !!c && !d && !!e && e.t === '13:00' && !e.cut; }));
   await ev(() => { rock('tb1')._deleted = true; D.settings.notify.evening = window._ne0; save(); render(); });
   // 4-3. 일정 칸의 빈 시간
-  await ev(() => { window._nh0 = nowHM; window.nowHM = () => '08:10'; const td = today(); window._cc0 = [D.settings.calUrl, D.calCache]; D.settings.calUrl = 'x'; D.calCache = { url: 'x', events: [{ date: td, start: '15:00', end: '16:00', title: '빈 시간 확인 회의' }] }; D.rocks.push({ id: 'gp1', week: weekKey(new Date()), bucket: 'urgent', role: '', title: '빈 시간에 넣을 일', done: false, carry: 0, checks: {} }); dayOf(td).picks.push('gp1'); _gapOpen = false; go('today'); });
+  await ev(() => { window._nh0 = nowHM; window.nowHM = () => '08:10'; const td = today(); const c1 = rock('c1'); window._c1at = c1 && c1.at; if (c1) c1.at = td + 'T07:00'; /* 씨앗의 '지금 시각' 약속이 아침 8~9시대에 빈 시간을 가리지 않게 */ window._cc0 = [D.settings.calUrl, D.calCache]; D.settings.calUrl = 'x'; D.calCache = { url: 'x', events: [{ date: td, start: '15:00', end: '16:00', title: '빈 시간 확인 회의' }] }; D.rocks.push({ id: 'gp1', week: weekKey(new Date()), bucket: 'urgent', role: '', title: '빈 시간에 넣을 일', done: false, carry: 0, checks: {} }); dayOf(td).picks.push('gp1'); _gapOpen = false; go('today'); });
   C('일정 칸에 빈 시간 줄이 나온다', await ev(() => { const g = document.querySelector('#today .ev.gap'); const f = window._g0 = freeGap(today()); return !!g && !!f && f[0] === '09:00' && g.textContent.includes(f[0]) && g.textContent.includes(f[1]) && /넣기/.test(g.textContent); }), await ev(() => JSON.stringify({ gap: freeGap(today()), appts: apptsOn(today()).map(r => [r.title, r.at, r.atEnd]), hm: nowHM() })));
   await pg.locator('#today .ev.gap .gapb').click();
   await pg.locator('#today .ev.gapc button', { hasText: '빈 시간에 넣을 일' }).click();
   C('빈 시간에 넣으면 그 시각의 일정이 된다', await ev(() => { const r = rock('gp1'); return r.at === today() + 'T09:00' && r.atEnd === window._g0[1] && r.block === true && [...document.querySelectorAll('#today .ev.appt')].some(e => /빈 시간에 넣을 일/.test(e.textContent) && /09:00/.test(e.textContent)); }));
   C('남은 빈 시간은 그 뒤부터다', await ev(() => { const g = freeGap(today()); return !g || g[0] >= window._g0[1]; }));
   { const o = await overflow(); C('오늘에서 넘치는 줄이 없다(빈 시간)', !o.length, o.slice(0, 4)); }
+  await ev(() => { const c1 = rock('c1'); if (c1 && window._c1at) c1.at = window._c1at; });
   await ev(() => { rock('gp1')._deleted = true; D.calCache = window._cc0[1]; if (window._cc0[0] === undefined) delete D.settings.calUrl; else D.settings.calUrl = window._cc0[0]; window.nowHM = window._nh0; save(); render(); });
   // 5. 메모: 적기, 고치기, 할 일로, 지우기, 비서 메모는 메모로 누른 것만
   await ev(() => go('memo'));
@@ -402,11 +403,30 @@ async function server() {
   C('planner_read에 메모장이 나온다', /메모장/.test(rd), rd.slice(0, 80));
 }
 
+// 언어: 한국어는 그대로, ?lang= 으로 고르면 사전에 있는 문구만 바뀌고 없는 문구는 한국어로 남는다
+async function lang(browser) {
+  const C = (n, ok, d) => check('[언어] ' + n, ok, d);
+  const open = async q => { const ctx = await browser.newContext({ ...devices['iPhone 14'], timezoneId: 'Asia/Seoul', locale: 'ko-KR' }); await ctx.route('**/*', r => (r.request().url().startsWith('file:') ? r.continue() : r.abort())); const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', e => errs.push(e.message)); await pg.addInitScript(seed, LONG); await pg.goto(PAGE + q); await pg.waitForTimeout(700); return { ctx, pg, errs }; };
+  const tabs = pg => pg.evaluate(() => [...document.querySelectorAll('.tabbar span')].map(e => e.textContent).join('|'));
+  { const { ctx, pg, errs } = await open('');
+    C('기본은 한국어이고 T()는 원문을 그대로 돌려준다', await pg.evaluate(() => LANG === 'ko' && T('오늘') === '오늘' && T('{n}개', { n: 3 }) === '3개' && document.documentElement.lang === 'ko') && (await tabs(pg)) === '오늘|할 일|메모|달력|메뉴' && !errs.length, errs);
+    C('기기 언어 읽기: 번체·간체·영어를 가린다', (await pg.evaluate(() => ['zh-TW', 'zh-HK', 'zh-Hant-TW', 'zh-CN', 'zh', 'en-US', 'ko-KR', 'ja-JP'].map(DP_norm).join(','))) === 'zh-Hant,zh-Hant,zh-Hant,zh-Hans,zh-Hans,en,ko,');
+    C('번역을 켜기 전에는 기기 언어가 달라도 한국어', await pg.evaluate(() => window.DP_LANG_ON === false));
+    await ctx.close(); }
+  { const { ctx, pg, errs } = await open('?lang=en');
+    C('영어: 탭과 메뉴 첫 화면이 바뀐다', (await tabs(pg)) === 'Today|To-do|Notes|Calendar|Menu' && await pg.evaluate(() => { moreSec = ''; go('more'); const t = document.getElementById('moreIdx').textContent; return /Assistant/.test(t) && /Cover/.test(t) && /Leather/.test(t) && document.documentElement.lang === 'en'; }), await tabs(pg));
+    C('영어: 복수와 값 끼우기', await pg.evaluate(() => T('{n}종 켜짐', { n: 1 }) === '1 on' && T('{p}로 로그인됨', { p: 'Apple' }) === 'Signed in with Apple' && T('없는 문구') === '없는 문구' && !!T_MISS['없는 문구']));
+    C('영어: 아직 옮기지 않은 화면도 오류 없이 뜬다', await pg.evaluate(() => { go('today'); go('week'); go('memo'); go('review'); return true; }) && !errs.length, errs);
+    await ctx.close(); }
+  for (const [q, want] of [['?lang=zh-Hans', '今天|待办|备忘|日历|菜单'], ['?lang=zh-TW', '今天|待辦|備忘|月曆|選單']]) { const { ctx, pg, errs } = await open(q); C(q + ' 탭 이름', (await tabs(pg)) === want && !errs.length, [await tabs(pg), errs]); await ctx.close(); }
+}
+
 (async () => {
   const browser = await chromium.launch(process.env.PW_CHROME ? { executablePath: process.env.PW_CHROME } : {});
   try {
     await ui(browser, '접은 화면', devices['iPhone 14']);
     await ui(browser, '펼친 화면', { viewport: { width: 1100, height: 800 } });
+    await lang(browser);
     await server();
   } catch (e) { fails.push('점검이 중간에 멈춤 → ' + (e && e.message || e).toString().split('\n').slice(0, 3).join(' ') + ' / 마지막 통과: ' + passed[passed.length - 1]); }
   await browser.close();
