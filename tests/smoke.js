@@ -136,6 +136,7 @@ async function ui(browser, label, ctxOpts) {
   await pg.locator('#plan .pladd button', { hasText: '루틴' }).click(); await pg.fill('#plAdd', '리얼클래스 20분'); await pg.selectOption('#plN', '5'); await pg.locator('#plan .pladd .go').click();
   C('계획 안에서 할 일과 루틴을 적는다', await ev(id => { const a = D.rocks.find(r => r.title === '모의 질의응답 한 번'), b = D.rocks.find(r => r.title === '리얼클래스 20분'); return !!a && a.plan === id && a.bucket === 'important' && !!a.due && !!b && b.plan === id && b.routine === 5; }, pid));
   { const o = await overflow(); C('계획 한 장에 넘치는 줄이 없다', !o.length, o.slice(0, 4)); }
+  C('계획 한 장에 가는 길 그림이 나오고, 누르면 달력으로 바뀐다(펼친 화면은 둘 다)', await ev(() => { const a = !!document.querySelector('#plan .pvb svg') && /D-|오늘/.test(document.querySelector('#plan .pvh b').textContent); if (spread()) return a && document.querySelectorAll('#plan .pvb svg').length === 2; const m0 = pathMode(); pathFlip(); const b = pathMode() !== m0 && !!document.querySelector('#plan .pvb svg'); pathFlip(); return a && b && pathMode() === m0; }));
   await ev(() => go('week'));
   C('할 일 탭에 계획 줄과 진행이 보인다', await ev(() => { const r = document.querySelector('#week .prow'); return !!r && /영어 회화/.test(r.textContent) && /이번 주 루틴 0\/5/.test(r.textContent) && /할 일 1/.test(r.textContent); }));
   C('할 일 아래에 계획 이름이 붙는다', await ev(() => [...document.querySelectorAll('#week .item')].some(e => /모의 질의응답/.test(e.textContent) && /영어 회화/.test(e.querySelector('.m').textContent))));
@@ -382,7 +383,7 @@ async function server() {
 }
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.PW_CHROME ? { executablePath: process.env.PW_CHROME } : {});
   try {
     await ui(browser, '접은 화면', devices['iPhone 14']);
     await ui(browser, '펼친 화면', { viewport: { width: 1100, height: 800 } });

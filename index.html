@@ -252,6 +252,8 @@ body.kb .tabbar { display: none; }
 .prow { display: flex; align-items: center; gap: 8px; width: calc(100% - 68px); margin: 0 16px 0 52px; padding: 8px 0; min-height: 52px; text-align: left; border-bottom: 1px solid var(--rule); color: var(--ink); }
 .prow .pn { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; } .prow b { font-size: 16px; font-weight: 700; } .prow i { font-style: normal; font-size: 13px; color: var(--ink-2); } .prow .ch { font-size: 18px; color: var(--muted); } .prow.closed b { color: var(--ink-2); font-weight: 600; }
 .plt { font-size: 16px; font-weight: 600; line-height: 1.55; padding: 6px 0 10px; border-bottom: 1px solid var(--rule); white-space: pre-wrap; word-break: break-word; } .plt.how { font-size: 15px; font-weight: 500; } .plt.none { color: var(--faint); font-weight: 400; font-size: 14px; }
+.pvh { display: flex; align-items: baseline; gap: 10px; padding: 2px 0 4px; } .pvh b { font-size: 32px; font-weight: 800; letter-spacing: -.5px; } .pvh span { font-size: 13px; color: var(--ink-2); }
+.pvb { display: block; width: 100%; padding: 0 0 6px; border-bottom: 1px solid var(--rule); text-align: left; color: var(--ink); } .pvb svg { display: block; width: 100%; height: auto; overflow: visible; } .pvmore { font-size: 12px; color: var(--ink-2); padding: 6px 0 0; }
 .plf { display: block; width: 100%; min-height: 44px; padding: 0; font: inherit; font-size: 16px; color: var(--ink); background: transparent; border: none; border-bottom: 1px solid var(--rule); border-radius: 0; outline: none; } .plf.nm { font-size: 17px; font-weight: 700; } textarea.plf { line-height: 1.6; padding: 8px 0; resize: none; overflow: hidden; }
 .plf::placeholder { color: var(--faint); font-weight: 400; }
 .pbtns { display: flex; align-items: center; gap: 18px; padding-top: 16px; } .pbtns button { height: 44px; font-size: 15px; text-decoration: underline; text-underline-offset: 3px; color: var(--ink-2); } .pbtns .go { font-weight: 700; color: var(--ink); } .pbtns .sp1 { flex: 1; }
@@ -813,7 +815,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.59'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.60'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -2106,6 +2108,75 @@ function planSub(p) {
   if (p.due) parts.push(`${md(p.due)}까지`);
   return parts.join(' · ') || '아직 딸린 일이 없어요';
 }
+// ── 가는 길: 계획에 딸린 날짜 있는 할 일을 한 줄(날짜 간격대로)과 달력(4주쯤)으로 그린다. 그림을 누르면 모양이 바뀌고, 마지막 모양을 이 기기가 기억한다. 펼친 화면에서는 둘 다 보인다 ──
+function planSteps(pid) { return live().filter(r => r.plan === pid && !r.routine && !r.appt && r.due).sort((a, b) => a.due < b.due ? -1 : a.due > b.due ? 1 : 0); }
+function pathMode() { try { return localStorage.getItem('dpa_path') === 'cal' ? 'cal' : 'line'; } catch (e) { return 'line'; } }
+function pathFlip() { try { localStorage.setItem('dpa_path', pathMode() === 'cal' ? 'line' : 'cal'); } catch (e) {} renderPlan(); }
+function dgap(a, b) { return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000); }
+function pathCut(t, n) { const x = shortT(t); return x.length > n ? x.slice(0, n - 1) + '…' : x; }
+function pathData(p) {
+  const st = planSteps(p.id), td = today(); if (!st.length && !p.due) return null;
+  const dues = st.map(r => r.due), end = [p.due || '', dues[dues.length - 1] || ''].sort().pop();
+  const made = p.at ? dstr(new Date(p.at)) : td, start = [made, dues[0] || td, td].sort()[0];
+  if (dgap(start, end) < 1) return null;
+  const nx = st.find(r => !r.done);
+  const pts = st.map(r => ({ d: r.due, t: r.title, k: r.done ? 'done' : r === nx ? 'next' : 'todo' }));
+  if (p.due && !dues.includes(p.due)) pts.push({ d: p.due, t: '끝', k: 'goal' });
+  const last = pts[pts.length - 1]; if (last.d === end && last.k === 'todo') last.k = 'goal';
+  return { st, pts, start, end, td, span: dgap(start, end), done: st.filter(r => r.done).length };
+}
+function pathDot(k, x, y) {
+  if (k === 'done') return `<circle cx="${x}" cy="${y}" r="7" style="fill:var(--check);stroke:var(--paper);stroke-width:2"/>`;
+  if (k === 'goal') return `<circle cx="${x}" cy="${y}" r="8" style="fill:var(--ink);stroke:var(--paper);stroke-width:2"/>`;
+  if (k === 'next') return `<circle cx="${x}" cy="${y}" r="7" style="fill:var(--paper);stroke:var(--ink);stroke-width:3"/>`;
+  return `<circle cx="${x}" cy="${y}" r="6" style="fill:var(--paper);stroke:var(--ink-2);stroke-width:2"/>`;
+}
+function pathLineSvg(q) {
+  const X0 = 8, W = 306, TY = 80, x = d => Math.round((X0 + W * Math.max(0, Math.min(q.span, dgap(q.start, d))) / q.span) * 10) / 10;
+  let h = `<svg viewBox="0 0 322 122" aria-hidden="true"><line x1="${X0}" y1="${TY}" x2="${X0 + W}" y2="${TY}" style="stroke:var(--rule);stroke-width:8;stroke-linecap:round"/>`;
+  if (q.td > q.start) h += `<line x1="${X0}" y1="${TY}" x2="${x(q.td)}" y2="${TY}" style="stroke:var(--check);stroke-width:8;stroke-linecap:round"/>`;
+  // 이름표: 다음 단계와 끝을 먼저 놓고, 나머지는 자리가 날 때만. 두 높이를 번갈아 써서 겹치지 않게 한다
+  const order = q.pts.map((_, i) => i).sort((a, b) => { const w = i => q.pts[i].k === 'next' ? 0 : i === q.pts.length - 1 ? 1 : i === 0 ? 2 : 3; return w(a) - w(b) || a - b; });
+  const used = [[], []], lab = {};
+  order.forEach(i => { const px = x(q.pts[i].d), anc = px < 44 ? 'start' : px > 278 ? 'end' : 'middle', cx = anc === 'start' ? px + 28 : anc === 'end' ? px - 28 : px;
+    for (const lv of [i % 2, 1 - i % 2]) if (used[lv].every(u => Math.abs(u - cx) >= 62)) { used[lv].push(cx); lab[i] = { lv, anc }; break; } });
+  q.pts.forEach((pt, i) => { const px = x(pt.d), l = lab[i];
+    if (l) { const ty = l.lv ? 44 : 14, tx = l.anc === 'start' ? px - 4 : l.anc === 'end' ? px + 4 : px;
+      h += `<line x1="${px}" y1="${ty + 18}" x2="${px}" y2="${TY - 8}" style="stroke:var(--ink-2);stroke-width:1.2"/><text x="${tx}" y="${ty}" text-anchor="${l.anc}" style="font-size:10.5px;fill:var(--ink-2);font-family:var(--mono)">${md(pt.d)}</text><text x="${tx}" y="${ty + 14}" text-anchor="${l.anc}" style="font-size:13px;font-weight:800;fill:var(--ink)${pt.k === 'done' ? ';text-decoration:line-through' : ''}">${esc(pathCut(pt.t, 7))}</text>`; }
+    h += pathDot(pt.k, px, TY); });
+  if (q.td >= q.start && q.td <= q.end) { const tx = x(q.td), anc = tx < 20 ? 'start' : tx > 300 ? 'end' : 'middle'; h += `<path d="M${tx} ${TY + 12} L${tx - 6} ${TY + 22} L${tx + 6} ${TY + 22} Z" style="fill:#F4907A"/><text x="${anc === 'start' ? tx - 6 : anc === 'end' ? tx + 6 : tx}" y="${TY + 36}" text-anchor="${anc}" style="font-size:11px;font-weight:800;fill:var(--ink)">오늘</text>`; }
+  return h + '</svg>';
+}
+function pathCalSvg(q) {
+  const CW = 46, RH = 52, TOP = 22, whole = dgap(dstr(weekStart(new Date(q.start + 'T00:00:00'))), q.end) < 35;
+  const g0 = dstr(weekStart(new Date((whole || q.start > q.td ? q.start : q.td) + 'T00:00:00')));
+  const rows = Math.max(2, Math.min(whole ? 5 : 4, Math.ceil((dgap(g0, q.end) + 1) / 7))), gEnd = addDays(g0, rows * 7 - 1);
+  const by = {}; q.pts.forEach(pt => { (by[pt.d] = by[pt.d] || []).push(pt); });
+  let h = `<svg viewBox="0 0 322 ${TOP + rows * RH}" aria-hidden="true">` + '월화수목금토일'.split('').map((d, i) => `<text x="${i * CW + CW / 2}" y="14" text-anchor="middle" style="font-size:11px;font-weight:700;fill:var(--ink-2)">${d}</text>`).join('');
+  for (let r = 0; r < rows; r++) {
+    const y = TOP + r * RH, rs = addDays(g0, r * 7), re = addDays(rs, 6), a = q.start > rs ? q.start : rs, b = q.end < re ? q.end : re;
+    if (r < rows - 1) h += `<line x1="0" y1="${y + RH - .5}" x2="322" y2="${y + RH - .5}" style="stroke:var(--rule);stroke-width:1"/>`;
+    if (a <= b) { const x0 = dgap(rs, a) * CW + (a === q.start ? CW / 2 - 15 : 0), x1 = (dgap(rs, b) + 1) * CW - (b === q.end ? CW / 2 - 15 : 0); h += `<rect x="${x0}" y="${y + 6}" width="${x1 - x0}" height="26" rx="13" style="fill:var(--postit)"/>`; }
+  }
+  for (let i = 0; i < rows * 7; i++) {
+    const d = addDays(g0, i), cx = (i % 7) * CW + CW / 2, y = TOP + Math.floor(i / 7) * RH, ms = by[d], on = d >= q.start && d <= q.end, num = (i === 0 || d.slice(8) === '01') ? md(d) : String(Number(d.slice(8)));
+    if (ms) { const k = ['done', 'next', 'goal', 'todo'].find(k => ms.some(m => m.k === k)), allDone = ms.every(m => m.k === 'done'), kk = allDone ? 'done' : k === 'done' ? 'todo' : k;
+      h += kk === 'done' ? `<circle cx="${cx}" cy="${y + 19}" r="13" style="fill:var(--check)"/>` : kk === 'goal' ? `<circle cx="${cx}" cy="${y + 19}" r="14" style="fill:var(--ink)"/>` : `<circle cx="${cx}" cy="${y + 19}" r="13" style="fill:var(--paper);stroke:var(--ink);stroke-width:${kk === 'next' ? 3 : 1.5}"/>`;
+      h += `<text x="${cx}" y="${y + 23.5}" text-anchor="middle" style="font-size:${num.length > 2 ? 10.5 : 13}px;font-weight:800;fill:${kk === 'done' ? '#fff' : kk === 'goal' ? 'var(--paper)' : 'var(--ink)'}">${num}</text><text x="${cx}" y="${y + 45}" text-anchor="middle" style="font-size:10.5px;font-weight:800;fill:var(--ink)">${esc(pathCut(ms[0].t, ms.length > 1 ? 3 : 5))}${ms.length > 1 ? '+' + (ms.length - 1) : ''}</text>`; }
+    else { h += `<text x="${cx}" y="${y + 23.5}" text-anchor="middle" style="font-size:${num.length > 2 ? 11 : 13}px;font-weight:${d === q.td ? 800 : 500};fill:${on ? 'var(--postit-ink)' : d < q.td ? 'var(--muted)' : 'var(--ink)'}">${num}</text>`;
+      if (d === q.td) h += `<rect x="${cx - 17}" y="${y + 35}" width="34" height="14" style="fill:#F4907A"/><text x="${cx}" y="${y + 45.5}" text-anchor="middle" style="font-size:10px;font-weight:800;fill:#3A1810">오늘</text>`; }
+  }
+  const after = q.pts.filter(pt => pt.d > gEnd).length;
+  return h + '</svg>' + (q.end > gEnd ? `<div class="pvmore">${after ? '이 뒤로 ' + after + '단계 · ' : ''}${md(q.end)}까지</div>` : '');
+}
+function planPathHtml(p) {
+  const q = pathData(p); if (!q) return '';
+  const dl = dgap(q.td, q.end), both = spread(), cal = pathMode() === 'cal';
+  const sub = md(q.end) + '까지' + (q.st.length ? ` · ${q.st.length}단계 중 ${q.done}` : '');
+  let h = `<div class="lbl mg" style="padding-left:0"><span>가는 길</span>${both ? '' : `<button onclick="pathFlip()">${cal ? '한 줄로' : '달력으로'}</button>`}</div><div class="pvh"><b>${dl > 0 ? 'D-' + dl : dl === 0 ? '오늘' : '지남'}</b><span>${sub}</span></div>`;
+  if (both) return h + `<div class="pvb">${pathLineSvg(q)}</div><div class="pvb" style="padding-top:8px">${pathCalSvg(q)}</div>`;
+  return h + `<button class="pvb" onclick="pathFlip()" aria-label="가는 길 · ${cal ? '한 줄로 보기' : '달력으로 보기'}">${cal ? pathCalSvg(q) : pathLineSvg(q)}</button>`;
+}
 function planBanner() { return `<button class="pbanner" onclick="openPlan('new')"><span><b>새로운 계획이 있으신가요?</b><i>잘하고 싶은 것을 한 줄 적으면 비서가 초안을 짜 드려요</i></span><span class="ch">›</span></button>`; }
 function plansHtml() {
   const ps = openPlans(), closed = livePlans().filter(p => p.closedAt);
@@ -2222,6 +2293,7 @@ function renderPlan() {
   const toRow = r => `rowOpen='${r.id}';showD=true;go('week')`;
   let h = `<div class="mpage">${lbl('목표')}<div class="plt ${p.goal ? '' : 'none'}">${esc(p.goal || '목표를 적어 두면 비서가 읽어요')}</div>`;
   if (p.how) h += lbl('어떻게') + `<div class="plt how">${esc(p.how)}</div>`;
+  h += planPathHtml(p);
   h += lbl('이번 주 루틴') + (ro.length ? ro.map(r => `<button class="mrow tap" onclick="${toRow(r)}"><b>${esc(r.title)}</b><span class="v">주 ${r.routine}회</span><span class="v" style="font-weight:700;color:var(--ink)">${Math.min(checkedCount(r), r.routine)}/${r.routine}</span></button>`).join('') : `<div class="plt none">아직 루틴이 없어요</div>`);
   h += lbl(`이 계획의 할 일 <span class="mono" style="letter-spacing:0">${todo.length}</span>`) + (todo.length ? todo.map(r => `<button class="mrow tap" onclick="${toRow(r)}"><b>${esc(r.title)}</b><span class="v">${B[r.bucket || 'nice']}${r.due ? ' · ' + md(r.due) + '까지만' : ''}</span></button>`).join('') : `<div class="plt none">아직 할 일이 없어요</div>`);
   if (!p.closedAt) h += `<div class="pladd"><input id="plAdd" placeholder="${plRoutine ? '이 계획의 루틴' : '이 계획의 할 일'}" enterkeyhint="done" onkeydown="if(event.key==='Enter')planAddItem('${p.id}')"><button class="${plRoutine ? 'on' : ''}" onclick="plRoutine=!plRoutine;renderPlan()">루틴</button>${plRoutine ? `<select id="plN" aria-label="주 몇 회"><option value="2">주 2회</option><option value="3" selected>주 3회</option><option value="4">주 4회</option><option value="5">주 5회</option><option value="7">매일</option></select>` : ''}<button class="go" onclick="planAddItem('${p.id}')">적기</button></div>`;
