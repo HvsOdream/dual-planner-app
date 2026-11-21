@@ -250,7 +250,8 @@ async function ui(browser, label, ctxOpts) {
 
   // 9. 동기화 병합, 구독 안 한 화면
   C('병합: 서버 메모와 내 메모가 다 남는다', await ev(() => { const m = mergeState(pickState(), { memos: [{ id: 'm_srv', text: '서버', at: '2026-01-01T00:00:00Z', u: '2026-01-01T00:00:00Z' }] }).memos; return m.some(x => x.id === 'm_srv') && m.some(x => x.id === 'm_1'); }));
-  await ev(() => { D.preview = 'free'; });
+  C('1.0은 전부 무료: 메뉴에 구독 줄이 없고, 구독 안내로 가지 않는다', await ev(() => { const p0 = D.preview; D.preview = 'free'; moreSec = ''; go('more'); const noRow = ![...document.querySelectorAll('#moreIdx .mrow b')].some(b => b.textContent === '구독'), open = paid(); openSub(); const stay = (spread() ? rightTab : tab) !== 'sub', noWord = !/구독|무료/.test(document.querySelector('.cover').textContent); D.preview = p0; return SELL === false && noRow && open && stay && noWord; }));
+  await ev(() => { SELL = true; D.preview = 'free'; });
   for (const t of ['today', 'week', 'memo', 'review', 'more']) await ev(t => go(t), t);
   await ev(() => { const d3 = addDays(today(), 2); D.rocks.push({ id: 'fz1', week: weekKey(new Date()), bucket: 'important', role: '', title: '사흘 안 마감', due: d3, done: false, carry: 0, checks: {} }, { id: 'fz2', week: '2026-01-05', bucket: 'light', role: '', title: '날짜 지난 일', due: addDays(today(), -3), done: false, carry: 0, checks: {} }); delete D.freeNote; go('week'); });
   C('구독 전: 비서 포스트잇 한 장은 펴 보이고 나머지는 접힌다', await ev(() => { const ro = document.querySelectorAll('#week .sticky.ro'), fo = document.querySelectorAll('#week .sticky.fold'); return ro.length === 1 && fo.length >= 1 && /사흘 안 마감/.test(ro[0].textContent) && !document.querySelector('#week .sticky.blur.brief'); }), await ev(() => [...document.querySelectorAll('#week .sticky')].map(e => e.className)));
@@ -265,7 +266,7 @@ async function ui(browser, label, ctxOpts) {
   C('글 칸에서 적고 저장한 뒤 아래 탭이 돌아온다', await ev(() => !document.body.classList.contains('kb')));
   await ev(() => { D.plans.forEach(p => { if (p.name === '탭 확인용') p._deleted = true; }); go('today'); });
   // 옆면 인덱스: 오른쪽 띠가 넓은 기기 흉내
-  await ev(() => { D.preview = ''; edgeCheck(72); go('today'); });
+  await ev(() => { SELL = false; D.preview = ''; edgeCheck(72); go('today'); });
   C('옆면 인덱스: 탭이 오른쪽 띠 안에 세로로 선다', await ev(() => { const bs = [...document.querySelectorAll('.tabbar button')].filter(b => getComputedStyle(b).display !== 'none').map(b => b.getBoundingClientRect()); return bs.length >= 4 && bs.every(r => r.left >= innerWidth - 73 && r.right <= innerWidth + 1) && bs[1].top > bs[0].bottom - 1; }));
   C('옆면 인덱스: 본문이 띠를 침범하지 않는다', await ev(() => { const c = document.getElementById('cover').getBoundingClientRect(); return c.right <= innerWidth - 71; }));
   await pg.locator('.tabbar button[data-tab="review"]').click();

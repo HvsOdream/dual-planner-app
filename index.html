@@ -825,7 +825,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.62'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.63'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결', legal: '약관·개인정보처리방침' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -851,8 +851,8 @@ function renderMoreIdx() {
   let top = '';
   if (a || hasProviders()) { const pv = a ? (a.provider === 'apple' ? 'Apple' : 'Google') : '', nm = a ? (a.name || a.email || pv + ' 계정') : '로그인 안 함';
     top += `<button class="mrow macct" onclick="openSec('acct')"><span class="mav">${esc(a ? [...String(a.name || a.email || 'D')][0].toUpperCase() : 'D')}</span><span class="in"><span class="nm"><b>${esc(nm)}</b><i>${a ? pv + '로 로그인됨' : '로그인하면 다른 기기에서도 이어 써요'}</i></span><span class="ch">›</span></span></button>`; }
-  top += row('sub', '구독', subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝', 'openSub()');
-  let h = `<div style="height:8px"></div>` + grp('', top);
+  if (SELL) top += row('sub', '구독', subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝', 'openSub()');
+  let h = `<div style="height:8px"></div>` + (top ? grp('', top) : '');
   h += grp('비서', row('conn', '비서 연결', agentOn() ? '연결됨' : '연결 안 됨', "openSec('conn')") + row('roles', '내 역할', D.roles.length ? D.roles.length + '개' : '정하지 않음', "openSec('roles')") + row('feats', '비서 포스트잇', FEATS.filter(f => featOn(f[0])).length + '종 켜짐', "openSec('feats')"));
   h += grp(isNative() ? '알림·일정' : '일정', (isNative() ? row('notify', '알림', c.on ? '켜짐' + (c.off && c.off.evening ? '' : ' · 저녁 ' + (c.evening || '21:30')) : '꺼짐', "openSec('notify')") : '') + row('cal', '캘린더', nat() ? (st.calNative ? '아이폰 캘린더' : '꺼짐') : (st.calUrl ? '연결됨' : '연결 안 함'), "openSec('cal')"));
   h += grp('모양', row('cover', '표지', (COVERS.find(x => x[0] === curTheme()) || [, ''])[1], "openSec('cover')"));
@@ -920,7 +920,7 @@ function coverParts(tab) {
   else if (tab==='plan') { const pl = planOf(planView.replace('edit:', '')); t1 = planView === 'new' ? '새 계획' : pl ? esc(pl.name) : '계획'; t2 = planView === 'new' ? '할 일' : '계획' + (pl && pl.due ? ` · ${md(pl.due)}까지` : '') + (pl && pl.closedAt ? ' · 닫음' : ''); left = `<button class="ibtn" aria-label="할 일로" onclick="go('week')">‹</button>`; }
   else if (tab==='notis') { t1 = '지난 알림'; t2 = '최근 2주 · 알림과 비서 포스트잇'; left = `<button class="ibtn" aria-label="뒤로" onclick="go(notisBack === 'notis' ? 'today' : notisBack)">‹</button>`; }
   else if (tab==='more' && moreSec && MORE_SECS[moreSec]) { t1 = MORE_SECS[moreSec]; t2 = '메뉴'; left = `<button class="ibtn" aria-label="메뉴로" onclick="moreSec='';render()">‹</button>`; }
-  else if (tab==='more') { t1 = '메뉴'; t2 = yw + ' · ' + (subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝'); }
+  else if (tab==='more') { t1 = '메뉴'; t2 = yw + (SELL ? ' · ' + (subActive() ? '구독 중' : trialLeft() > 0 ? `무료 ${trialShown()}일 남음` : '무료 끝') : ''); }
   else if (tab==='memo') { const n = memoEntries().length; t1 = '메모'; t2 = n ? `${yw} · ${n}장` : yw; }
   else if (tab==='week') { const o = openItems(); t1 = '할 일'; t2 = `${yw} · 열린 일 ${o.length}`; }
   else if (tab==='shelf') { t1 = '책장'; t2 = `속지 ${liveVols().length}권`; left = `<button class="ibtn" aria-label="뒤로" onclick="go('review')">‹</button>`; }
@@ -1471,19 +1471,22 @@ function useDays() { return ((D.settings || {}).useDays || []).slice(); }
 function trialLeft() { const td = today(); return Math.max(0, TRIAL_DAYS - useDays().filter(d => d < td).length); }
 function trialShown() { return Math.max(0, TRIAL_DAYS - useDays().length); } // 오늘 받은 날까지 뺀 남은 날
 function useMark() {
-  if (subActive() || D.preview) return; const td = today(), u = useDays();
+  if (!SELL || subActive() || D.preview) return; const td = today(), u = useDays();
   if (u.includes(td) || u.length >= TRIAL_DAYS || trialLeft() <= 0) return;
   u.push(td); D.settings = Object.assign({}, D.settings, { useDays: u, u: new Date().toISOString() }); D._modified = D.settings.u; _save0();
 }
 function subActive() { return !!(D.sub && D.sub.until && D.sub.until >= today()); }
+// 1.0은 전부 무료로 낸다: 구독 화면·무료 날짜 세기·구독 안내를 모두 숨긴다. 과금을 시작할 때 true로
+let SELL = false;
 function paid() {
+  if (!SELL) return true;
   if (D.preview === 'free') return false;
   if (D.preview === 'paid') return true;
   const v = curVol(); return !!((v && v.paid) || subActive() || trialLeft() > 0);
 }
 function togglePaidPreview() { D.preview = D.preview === 'free' ? 'paid' : D.preview === 'paid' ? '' : 'free'; delete D.paidPreview; _save0(); closeMore(); render(); toast(D.preview === 'free' ? '구독 안 한 화면으로 보는 중' : D.preview === 'paid' ? '구독한 화면으로 보는 중' : '실제 상태로 보는 중'); }
 function subscribe(plan) { plan = plan || subPlan; toast(isNative() ? `${plan === 'year' ? '연' : '월'} 구독 결제는 다음 업데이트에서 열려요` : '구독은 앱에서 할 수 있어요'); }
-function openSub() { if (tab !== 'sub') subBack = tab === 'more' ? 'more' : tab; go('sub'); }
+function openSub() { if (!SELL) return; if (tab !== 'sub') subBack = tab === 'more' ? 'more' : tab; go('sub'); }
 let subBack = 'more';
 function subStatus() { const t = trialLeft(); return subActive() ? `구독 중 · ${D.sub.until.replace(/-/g, '.')}까지` : t > 0 ? `무료 ${useDays().length}일 받았어요 · ${trialShown()}일 남음` : '무료가 끝났어요 · 비서 포스트잇은 하루 한 장만 펴 보여요'; }
 // 구독 페이지: 메뉴 안의 노트 한 장
@@ -1704,7 +1707,7 @@ function briefOf(ds) {
 }
 // 무료 한 달이 끝나 갈 때: 오늘 칸 위에 한 장만
 function trialHtml(ds) {
-  if (ds !== today() || subActive() || D.preview) return '';
+  if (!SELL || ds !== today() || subActive() || D.preview) return '';
   const t = trialLeft(), n = trialShown(), k = t > 0 ? 'trial:' + ds : 'trialend';
   if (n > 3 || noteOff(k)) return '';
   // 무엇을 받아 왔는지: 가격보다 먼저
