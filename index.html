@@ -834,7 +834,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.70'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.71'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결', legal: '약관·개인정보처리방침' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1465,7 +1465,7 @@ function recordNotes(wk) {
 
 // ── 비서 포스트잇 구독: 비서 포스트잇을 받은 날로 20일 무료, 그 뒤 월 구독 또는 연 구독(할인) ──
 // 가격은 여기 한 곳에서만 바꾼다(앱스토어 지역별 가격은 결제 연결 때 StoreKit 값으로 덮어씀)
-const SUB_MONTH = 3900, SUB_YEAR = 22000, TRIAL_DAYS = 14; // 1년 속지 한 가지만 판다(가격은 과금 전에 확정). SUB_MONTH는 쓰지 않음
+const SUB_MONTH = 3900, SUB_YEAR = 26000, TRIAL_DAYS = 14; // 써 보기는 한 달(아래 trialEnd). TRIAL_DAYS는 쓰지 않음 // 1년 속지 한 가지만 판다(가격은 과금 전에 확정). SUB_MONTH는 쓰지 않음
 const won = n => n.toLocaleString('ko-KR') + '원';
 const SUB_OFF = Math.round((1 - SUB_YEAR / (SUB_MONTH * 12)) * 100);
 const SUB_PRICE = `월 ${won(SUB_MONTH)} · 연 ${won(SUB_YEAR)}`;
@@ -1473,9 +1473,10 @@ let subPlan = 'year';
 function ensureTrial() { if (!SELL || trialFrom()) return; D.settings = Object.assign({}, D.settings, { trialFrom: today(), u: new Date().toISOString() }); D._modified = D.settings.u; save(); } // 써 보기는 판매가 켜진 채 처음 연 날부터
 // 쓴 날: 또렷한 비서 포스트잇이 한 장이라도 붙은 날만 센다(열기만 한 날, 비운 날은 안 깎인다). 계정 상태에 같이 저장
 function useDays() { return ((D.settings || {}).useDays || []).slice(); }
-// 속지는 날짜를 산다: 산 날부터 열두 달의 날짜가 열리고, 그 안에서는 기능을 전부 쓴다. 처음 2주는 속지 없이 열린다
+// 속지는 날짜를 산다: 산 날부터 열두 달의 날짜가 열리고, 그 안에서는 기능을 전부 쓴다. 처음 한 달은 속지 없이 열린다
 function trialFrom() { return (D.settings || {}).trialFrom || ''; }
-function trialEnd() { return addDays(trialFrom() || today(), TRIAL_DAYS - 1); }
+function addMonths(ds, n) { const [y, m, d] = ds.split('-').map(Number), last = new Date(y, m - 1 + n + 1, 0).getDate(); return dstr(new Date(y, m - 1 + n, Math.min(d, last))); } // 31일에 시작해도 다음 달 말일로
+function trialEnd() { return addDays(addMonths(trialFrom() || today(), 1), -1); } // 처음 연 날부터 한 달
 function trialLeft() { return Math.max(0, dgap(today(), trialEnd()) + 1); } // 오늘을 넣어 남은 날
 function trialShown() { return trialLeft(); }
 function useMark() { if (!SELL || D.preview) return; const td = today(), u = useDays(); if (u.includes(td)) return; u.push(td); D.settings = Object.assign({}, D.settings, { useDays: u.slice(-400), u: new Date().toISOString() }); D._modified = D.settings.u; _save0(); }
@@ -1485,7 +1486,7 @@ function accessEnd() { const u = (D.sub && D.sub.until) || '', t = trialEnd(); r
 function dayLocked(ds) { if (!SELL || D.preview === 'paid') return false; if (D.preview === 'free') return ds >= today(); return ds > accessEnd(); }
 function kDate(ds) { const [y, m, d] = String(ds || '').split('-').map(Number); return y ? `${m}월 ${d}일` : ''; }
 function lockStop() { if (!dayLocked(today())) return false; toast('새로 적으려면 1년 속지가 있어야 해요'); openSub(); return true; }
-function lockHtml() { const had = !!(D.sub && D.sub.until); return `<div class="stickies" style="padding-top:16px"><div class="sticky wide"><div class="who"><span>비서</span><span>${had ? '속지 끝' : '써 보기 끝'}</span></div><div class="tx"><b>${had ? `속지가 ${kDate(D.sub.until)}에 끝났어요` : '써 보기 2주가 끝났어요'}</b><div class="hint" style="margin-top:4px">적어 둔 할 일과 메모, 지난 기록은 그대로 볼 수 있어요. 오늘부터 다시 쓰려면 1년 속지를 끼워 주세요</div></div><div class="act"><button onclick="openSub()">1년 속지 보기</button></div></div></div>`; }
+function lockHtml() { const had = !!(D.sub && D.sub.until); return `<div class="stickies" style="padding-top:16px"><div class="sticky wide"><div class="who"><span>비서</span><span>${had ? '속지 끝' : '써 보기 끝'}</span></div><div class="tx"><b>${had ? `속지가 ${kDate(D.sub.until)}에 끝났어요` : '써 보기 한 달이 끝났어요'}</b><div class="hint" style="margin-top:4px">적어 둔 할 일과 메모, 지난 기록은 그대로 볼 수 있어요. 오늘부터 다시 쓰려면 1년 속지를 끼워 주세요</div></div><div class="act"><button onclick="openSub()">1년 속지 보기</button></div></div></div>`; }
 function subActive() { return !!(D.sub && D.sub.until && D.sub.until >= today()); }
 // 1.0은 전부 무료로 낸다: 구독 화면·무료 날짜 세기·구독 안내를 모두 숨긴다. 과금을 시작할 때 true로
 let SELL = false;
@@ -1502,7 +1503,7 @@ function openSub() { if (!SELL) return; if (tab !== 'sub') subBack = tab === 'mo
 let subBack = 'more';
 function subUntil() { const [y, m, d] = String((D.sub || {}).until || '').split('-').map(Number); return y ? `${y}년 ${m}월 ${d}일` : ''; }
 function subShort() { return subActive() ? `${D.sub.until.replace(/-/g, '.')}까지` : trialLeft() > 0 ? `써 보는 중 · ${trialLeft()}일 남음` : D.sub && D.sub.until ? '속지 끝' : '써 보기 끝'; }
-function subStatus() { return subActive() ? `1년 속지 · ${subUntil()}까지` : trialLeft() > 0 ? `써 보는 중 · ${kDate(trialEnd())}까지 ${trialLeft()}일 남았어요` : D.sub && D.sub.until ? `속지가 ${kDate(D.sub.until)}에 끝났어요` : '써 보기 2주가 끝났어요'; }
+function subStatus() { return subActive() ? `1년 속지 · ${subUntil()}까지` : trialLeft() > 0 ? `써 보는 중 · ${kDate(trialEnd())}까지 ${trialLeft()}일 남았어요` : D.sub && D.sub.until ? `속지가 ${kDate(D.sub.until)}에 끝났어요` : '써 보기 한 달이 끝났어요'; }
 // 구독 페이지: 메뉴 안의 노트 한 장
 function renderSubPage() {
   const el = document.getElementById('subP'); if (!el) return;
@@ -1513,7 +1514,7 @@ function renderSubPage() {
     <button class="cta" style="margin-top:8px" onclick="subscribe()">${on ? '다음 속지 미리 사기' : '1년 속지 사기'}</button>
     <div class="subst" style="font-size:12px">한 번 사면 열두 달 써요. 자동으로 다시 결제되지 않아요${on ? '<br>미리 사면 지금 속지가 끝난 다음 날부터 이어져요' : ''}</div>
     <div class="lbl" style="margin-top:8px">속지가 있는 날짜에는</div>
-    <div class="subst" style="font-size:13px;line-height:1.8">오늘 장과 달력, 비서 포스트잇과 알림, 계획까지 전부 써요. 처음 2주는 속지 없이 써 볼 수 있어요</div>
+    <div class="subst" style="font-size:13px;line-height:1.8">오늘 장과 달력, 비서 포스트잇과 알림, 계획까지 전부 써요. 처음 한 달은 속지 없이 써 볼 수 있어요</div>
     <div class="lbl" style="margin-top:8px">속지가 끝나면</div>
     <div class="subst" style="font-size:13px;line-height:1.8">그 뒤 날짜의 장은 열리지 않아요. 적어 둔 할 일과 메모, 지난 기록과 책장은 계속 볼 수 있어요. 마감 날짜는 속지 끝 뒤로도 적을 수 있어요</div>
     <div class="acts" style="padding:12px 0;gap:20px"><button class="cta ghost" style="width:auto;margin:0" onclick="toast('구매 복원은 결제 연결 뒤에 열려요')">구매 복원</button></div>
@@ -1719,7 +1720,7 @@ function trialHtml(ds) {
   if (!SELL || ds !== today() || D.preview) return '';
   const note = (k, who, msg, hint) => noteOff(k) ? '' : `<div class="stickies"><div class="sticky wide"><div class="who"><span>비서</span><span>${who}</span></div><div class="tx">${msg}<div class="hint" style="margin-top:2px">${hint}</div></div><div class="act"><button onclick="openSub()">속지 보기</button><button onclick="dropNote('${k}')">나중에</button></div></div></div>`;
   if (subActive()) { const n = dgap(ds, D.sub.until) + 1; return n > 14 ? '' : note('subend:' + D.sub.until, n + '일 남음', `속지가 <b>${kDate(D.sub.until)}</b>에 끝나요`, '미리 사면 그 다음 날부터 열두 달이 이어져요'); }
-  const n = trialLeft(); if (n < 1 || n > 3) return '';
+  const n = trialLeft(); if (n < 1 || n > 5) return '';
   return note('trial:' + ds, n > 1 ? n + '일 남음' : '마지막 날', n > 1 ? `써 보기가 <b>${n}일</b> 남았어요` : '오늘이 써 보기 마지막 날이에요', `${kDate(trialEnd())} 뒤의 날짜는 1년 속지가 있어야 열려요 · ${won(SUB_YEAR)}`);
 }
 // 브리핑에 적는 짧은 제목: 머리표([신진])와 콜론·괄호 뒤 설명은 뗀다(원래 제목은 할 일에 그대로)
