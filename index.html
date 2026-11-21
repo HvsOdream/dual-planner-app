@@ -254,9 +254,9 @@ body.kb .tabbar { display: none; }
 .plt { font-size: 16px; font-weight: 600; line-height: 1.55; padding: 6px 0 10px; border-bottom: 1px solid var(--rule); white-space: pre-wrap; word-break: break-word; } .plt.how { font-size: 15px; font-weight: 500; } .plt.none { color: var(--faint); font-weight: 400; font-size: 14px; }
 .bundle .bnh { font-size: 16px; font-weight: 800; padding: 6px 0 2px; } .bnl { display: block; font-size: 12px; opacity: .75; padding-top: 6px; } .bnn { display: block; width: 100%; height: 40px; font: inherit; font-size: 16px; font-weight: 700; color: inherit; background: transparent; border: 0; border-bottom: 1.5px dashed currentColor; border-radius: 0; outline: none; padding: 0; }
 .bnr { display: flex; align-items: center; gap: 6px; min-height: 44px; border-bottom: 1px solid var(--postit-edge); } .bnt { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .bnd { flex: none; height: 28px; padding: 0 10px; border: 1.5px solid currentColor; border-radius: 14px; font-size: 12px; font-weight: 700; color: inherit; } .bnd.ask { border-style: dashed; } .bnx { flex: none; width: 32px; height: 44px; color: inherit; opacity: .6; }
-.bundle svg { display: block; width: 100%; height: auto; margin-top: 10px; overflow: visible; } .bnf { font-size: 12px; opacity: .8; padding: 4px 0 2px; }
+.bundle svg { display: block; width: 100%; max-width: 440px; height: auto; margin-top: 10px; overflow: visible; } .bnf { font-size: 12px; opacity: .8; padding: 4px 0 2px; }
 .pvh { display: flex; align-items: baseline; gap: 10px; padding: 2px 0 4px; } .pvh b { font-size: 32px; font-weight: 800; letter-spacing: -.5px; } .pvh span { font-size: 13px; color: var(--ink-2); }
-.pvb { display: block; width: 100%; padding: 0 0 6px; border-bottom: 1px solid var(--rule); text-align: left; color: var(--ink); } .pvb svg { display: block; width: 100%; height: auto; overflow: visible; } .pvmore { font-size: 12px; color: var(--ink-2); padding: 6px 0 0; }
+.pvb { display: block; width: 100%; padding: 0 0 6px; border-bottom: 1px solid var(--rule); text-align: left; color: var(--ink); } .pvb svg { display: block; width: 100%; max-width: 440px; height: auto; overflow: visible; } .pvmore { font-size: 12px; color: var(--ink-2); padding: 6px 0 0; }
 .plf { display: block; width: 100%; min-height: 44px; padding: 0; font: inherit; font-size: 16px; color: var(--ink); background: transparent; border: none; border-bottom: 1px solid var(--rule); border-radius: 0; outline: none; } .plf.nm { font-size: 17px; font-weight: 700; } textarea.plf { line-height: 1.6; padding: 8px 0; resize: none; overflow: hidden; }
 .plf::placeholder { color: var(--faint); font-weight: 400; }
 .pbtns { display: flex; align-items: center; gap: 18px; padding-top: 16px; } .pbtns button { height: 44px; font-size: 15px; text-decoration: underline; text-underline-offset: 3px; color: var(--ink-2); } .pbtns .go { font-weight: 700; color: var(--ink); } .pbtns .sp1 { flex: 1; }
@@ -825,7 +825,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.63'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.64'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결', legal: '약관·개인정보처리방침' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
