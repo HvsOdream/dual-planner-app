@@ -259,6 +259,7 @@ body.kb .tabbar { display: none; }
 .bundle svg { display: block; width: 100%; max-width: 440px; height: auto; margin-top: 10px; overflow: visible; } .bnf { font-size: 12px; opacity: .8; padding: 4px 0 2px; }
 #qaBox { position: fixed; right: 8px; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 95; } .qab { height: 32px; padding: 0 12px; border-radius: 16px; background: #D7452E; color: #fff; font-size: 12px; font-weight: 800; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
 .qap { width: 252px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px 4px; box-shadow: 0 8px 24px rgba(0,0,0,.2); font-size: 13px; color: var(--ink); } .qap h4 { margin: 0; font-size: 14px; } .qap p { margin: 0 0 8px; color: var(--ink-2); font-size: 12px; } .qap .l { font-size: 11px; font-weight: 700; color: var(--ink-2); } .qap .r { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; } .qap .r button { height: 30px; padding: 0 10px; border: 1.5px solid var(--ink); border-radius: 15px; font-size: 12px; font-weight: 700; color: var(--ink); }
+mark.hl { background: linear-gradient(transparent 52%, var(--postit) 52%); color: inherit; font-weight: 800; padding: 0 2px; }
 .pvh { display: flex; align-items: baseline; gap: 10px; padding: 2px 0 4px; } .pvh b { font-size: 32px; font-weight: 800; letter-spacing: -.5px; } .pvh span { font-size: 13px; color: var(--ink-2); }
 .pvb { display: block; width: 100%; padding: 0 0 6px; border-bottom: 1px solid var(--rule); text-align: left; color: var(--ink); } .pvb svg { display: block; width: 100%; max-width: 440px; height: auto; overflow: visible; } .pvmore { font-size: 12px; color: var(--ink-2); padding: 6px 0 0; }
 .plf { display: block; width: 100%; min-height: 44px; padding: 0; font: inherit; font-size: 16px; color: var(--ink); background: transparent; border: none; border-bottom: 1px solid var(--rule); border-radius: 0; outline: none; } .plf.nm { font-size: 17px; font-weight: 700; } textarea.plf { line-height: 1.6; padding: 8px 0; resize: none; overflow: hidden; }
@@ -834,7 +835,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.71'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.72'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결', legal: '약관·개인정보처리방침' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1465,7 +1466,7 @@ function recordNotes(wk) {
 
 // ── 비서 포스트잇 구독: 비서 포스트잇을 받은 날로 20일 무료, 그 뒤 월 구독 또는 연 구독(할인) ──
 // 가격은 여기 한 곳에서만 바꾼다(앱스토어 지역별 가격은 결제 연결 때 StoreKit 값으로 덮어씀)
-const SUB_MONTH = 3900, SUB_YEAR = 26000, TRIAL_DAYS = 14; // 써 보기는 한 달(아래 trialEnd). TRIAL_DAYS는 쓰지 않음 // 1년 속지 한 가지만 판다(가격은 과금 전에 확정). SUB_MONTH는 쓰지 않음
+const SUB_MONTH = 3900, SUB_YEAR = 26000, SUB_AGAIN = 22000, TRIAL_DAYS = 14; // SUB_AGAIN: 속지를 산 적이 있는 사람이 다시 살 때의 값(임시) // 써 보기는 한 달(아래 trialEnd). TRIAL_DAYS는 쓰지 않음 // 1년 속지 한 가지만 판다(가격은 과금 전에 확정). SUB_MONTH는 쓰지 않음
 const won = n => n.toLocaleString('ko-KR') + '원';
 const SUB_OFF = Math.round((1 - SUB_YEAR / (SUB_MONTH * 12)) * 100);
 const SUB_PRICE = `월 ${won(SUB_MONTH)} · 연 ${won(SUB_YEAR)}`;
@@ -1503,16 +1504,19 @@ function openSub() { if (!SELL) return; if (tab !== 'sub') subBack = tab === 'mo
 let subBack = 'more';
 function subUntil() { const [y, m, d] = String((D.sub || {}).until || '').split('-').map(Number); return y ? `${y}년 ${m}월 ${d}일` : ''; }
 function subShort() { return subActive() ? `${D.sub.until.replace(/-/g, '.')}까지` : trialLeft() > 0 ? `써 보는 중 · ${trialLeft()}일 남음` : D.sub && D.sub.until ? '속지 끝' : '써 보기 끝'; }
-function subStatus() { return subActive() ? `1년 속지 · ${subUntil()}까지` : trialLeft() > 0 ? `써 보는 중 · ${kDate(trialEnd())}까지 ${trialLeft()}일 남았어요` : D.sub && D.sub.until ? `속지가 ${kDate(D.sub.until)}에 끝났어요` : '써 보기 한 달이 끝났어요'; }
+function subStatus() { return subActive() ? `1년 속지 · ${subUntil()}까지` : trialLeft() > 0 ? `써 보는 중 · <mark class="hl">${trialLeft()}일 남았어요</mark> · ${kDate(trialEnd())}까지` : D.sub && D.sub.until ? `속지가 ${kDate(D.sub.until)}에 끝났어요` : '써 보기 한 달이 끝났어요'; }
 // 구독 페이지: 메뉴 안의 노트 한 장
+function subPrice() { return D.sub && D.sub.until ? SUB_AGAIN : SUB_YEAR; } // 산 적이 있으면 다시 사는 값
 function renderSubPage() {
   const el = document.getElementById('subP'); if (!el) return;
-  const on = subActive(), next = on ? subRange(addDays(D.sub.until, 1)) : subRange(today()), nu = next.until.split('-').map(Number);
-  el.innerHTML = `<div class="lbl">지금</div><div class="subst">${subStatus()}</div>
+  const on = subActive(), had = !!(D.sub && D.sub.until), td = today(), next = on ? subRange(addDays(D.sub.until, 1)) : subRange(td), nu = next.until.split('-').map(Number), pr = subPrice();
+  // 써 보는 중: 남은 날짜를 달력에 형광펜으로 긋는다(오늘부터 마지막 날까지)
+  const te = trialEnd(), left = !on && !had && trialLeft() > 0 && dgap(td, te) >= 1 ? `<div class="pvb" style="border-bottom:0;padding:6px 0 0">${pathCalSvg({ pts: [{ d: te, t: '마지막 날', k: 'goal' }], start: td, end: te, td, span: dgap(td, te), maxRows: 6 })}</div>` : '';
+  el.innerHTML = `<div class="lbl">지금</div><div class="subst">${subStatus()}</div>${left}
     <div class="lbl" style="margin-top:8px">1년 속지</div>
-    <div class="plan on" style="cursor:default"><span class="pk">●</span><span class="pn"><b>1년 속지</b><i>${on ? '지금 속지 뒤로 열두 달' : '오늘부터 열두 달'} · ${nu[0]}년 ${nu[1]}월 ${nu[2]}일까지</i></span><span class="pp">${won(SUB_YEAR)}</span></div>
-    <button class="cta" style="margin-top:8px" onclick="subscribe()">${on ? '다음 속지 미리 사기' : '1년 속지 사기'}</button>
-    <div class="subst" style="font-size:12px">한 번 사면 열두 달 써요. 자동으로 다시 결제되지 않아요${on ? '<br>미리 사면 지금 속지가 끝난 다음 날부터 이어져요' : ''}</div>
+    <div class="plan on" style="cursor:default"><span class="pk">●</span><span class="pn"><b>1년 속지${had ? ' <em>다시 사는 값</em>' : ''}</b><i>${on ? '지금 속지 뒤로 열두 달' : '오늘부터 열두 달'} · ${nu[0]}년 ${nu[1]}월 ${nu[2]}일까지</i></span><span class="pp">${had && pr < SUB_YEAR ? `<s style="font-weight:400;color:var(--muted);font-size:12px;margin-right:6px">${won(SUB_YEAR)}</s>` : ''}${won(pr)}</span></div>
+    <button class="cta" style="margin-top:8px" onclick="subscribe()">${on ? '다음 속지 미리 사기' : had ? '새 속지 사기' : '1년 속지 사기'}</button>
+    <div class="subst" style="font-size:12px">한 번 사면 열두 달 써요. 자동으로 다시 결제되지 않아요${on ? '<br>미리 사면 지금 속지가 끝난 다음 날부터 이어져요' : ''}${!had && SUB_AGAIN < SUB_YEAR ? `<br>다음 해에 다시 살 때는 ${won(SUB_AGAIN)}이에요` : ''}</div>
     <div class="lbl" style="margin-top:8px">속지가 있는 날짜에는</div>
     <div class="subst" style="font-size:13px;line-height:1.8">오늘 장과 달력, 비서 포스트잇과 알림, 계획까지 전부 써요. 처음 한 달은 속지 없이 써 볼 수 있어요</div>
     <div class="lbl" style="margin-top:8px">속지가 끝나면</div>
@@ -1719,7 +1723,7 @@ function briefOf(ds) {
 function trialHtml(ds) {
   if (!SELL || ds !== today() || D.preview) return '';
   const note = (k, who, msg, hint) => noteOff(k) ? '' : `<div class="stickies"><div class="sticky wide"><div class="who"><span>비서</span><span>${who}</span></div><div class="tx">${msg}<div class="hint" style="margin-top:2px">${hint}</div></div><div class="act"><button onclick="openSub()">속지 보기</button><button onclick="dropNote('${k}')">나중에</button></div></div></div>`;
-  if (subActive()) { const n = dgap(ds, D.sub.until) + 1; return n > 14 ? '' : note('subend:' + D.sub.until, n + '일 남음', `속지가 <b>${kDate(D.sub.until)}</b>에 끝나요`, '미리 사면 그 다음 날부터 열두 달이 이어져요'); }
+  if (subActive()) { const n = dgap(ds, D.sub.until) + 1; return n > 14 ? '' : note('subend:' + D.sub.until, n + '일 남음', `속지가 <b>${kDate(D.sub.until)}</b>에 끝나요`, `미리 사면 그 다음 날부터 열두 달이 이어져요 · 다시 사는 값 ${won(SUB_AGAIN)}`); }
   const n = trialLeft(); if (n < 1 || n > 5) return '';
   return note('trial:' + ds, n > 1 ? n + '일 남음' : '마지막 날', n > 1 ? `써 보기가 <b>${n}일</b> 남았어요` : '오늘이 써 보기 마지막 날이에요', `${kDate(trialEnd())} 뒤의 날짜는 1년 속지가 있어야 열려요 · ${won(SUB_YEAR)}`);
 }
@@ -2229,9 +2233,9 @@ function pathLineSvg(q, c) {
   return h + '</svg>';
 }
 function pathCalSvg(q) {
-  const CW = 46, RH = 52, TOP = 22, whole = dgap(dstr(weekStart(new Date(q.start + 'T00:00:00'))), q.end) < 35;
+  const CW = 46, RH = 52, TOP = 22, whole = !!q.maxRows || dgap(dstr(weekStart(new Date(q.start + 'T00:00:00'))), q.end) < 35;
   const g0 = dstr(weekStart(new Date((whole || q.start > q.td ? q.start : q.td) + 'T00:00:00')));
-  const rows = Math.max(2, Math.min(whole ? 5 : 4, Math.ceil((dgap(g0, q.end) + 1) / 7))), gEnd = addDays(g0, rows * 7 - 1);
+  const rows = Math.max(2, Math.min(q.maxRows || (whole ? 5 : 4), Math.ceil((dgap(g0, q.end) + 1) / 7))), gEnd = addDays(g0, rows * 7 - 1);
   const by = {}; q.pts.forEach(pt => { (by[pt.d] = by[pt.d] || []).push(pt); });
   let h = `<svg viewBox="0 0 322 ${TOP + rows * RH}" aria-hidden="true">` + '월화수목금토일'.split('').map((d, i) => `<text x="${i * CW + CW / 2}" y="14" text-anchor="middle" style="font-size:11px;font-weight:700;fill:var(--ink-2)">${d}</text>`).join('');
   for (let r = 0; r < rows; r++) {
