@@ -255,6 +255,8 @@ body.kb .tabbar { display: none; }
 .bundle .bnh { font-size: 16px; font-weight: 800; padding: 6px 0 2px; } .bnl { display: block; font-size: 12px; opacity: .75; padding-top: 6px; } .bnn { display: block; width: 100%; height: 40px; font: inherit; font-size: 16px; font-weight: 700; color: inherit; background: transparent; border: 0; border-bottom: 1.5px dashed currentColor; border-radius: 0; outline: none; padding: 0; }
 .bnr { display: flex; align-items: center; gap: 6px; min-height: 44px; border-bottom: 1px solid var(--postit-edge); } .bnt { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .bnd { flex: none; height: 28px; padding: 0 10px; border: 1.5px solid currentColor; border-radius: 14px; font-size: 12px; font-weight: 700; color: inherit; } .bnd.ask { border-style: dashed; } .bnx { flex: none; width: 32px; height: 44px; color: inherit; opacity: .6; }
 .bundle svg { display: block; width: 100%; max-width: 440px; height: auto; margin-top: 10px; overflow: visible; } .bnf { font-size: 12px; opacity: .8; padding: 4px 0 2px; }
+#qaBox { position: fixed; right: 8px; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 95; } .qab { height: 32px; padding: 0 12px; border-radius: 16px; background: #D7452E; color: #fff; font-size: 12px; font-weight: 800; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+.qap { width: 252px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px 4px; box-shadow: 0 8px 24px rgba(0,0,0,.2); font-size: 13px; color: var(--ink); } .qap h4 { margin: 0; font-size: 14px; } .qap p { margin: 0 0 8px; color: var(--ink-2); font-size: 12px; } .qap .l { font-size: 11px; font-weight: 700; color: var(--ink-2); } .qap .r { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; } .qap .r button { height: 30px; padding: 0 10px; border: 1.5px solid var(--ink); border-radius: 15px; font-size: 12px; font-weight: 700; color: var(--ink); }
 .pvh { display: flex; align-items: baseline; gap: 10px; padding: 2px 0 4px; } .pvh b { font-size: 32px; font-weight: 800; letter-spacing: -.5px; } .pvh span { font-size: 13px; color: var(--ink-2); }
 .pvb { display: block; width: 100%; padding: 0 0 6px; border-bottom: 1px solid var(--rule); text-align: left; color: var(--ink); } .pvb svg { display: block; width: 100%; max-width: 440px; height: auto; overflow: visible; } .pvmore { font-size: 12px; color: var(--ink-2); padding: 6px 0 0; }
 .plf { display: block; width: 100%; min-height: 44px; padding: 0; font: inherit; font-size: 16px; color: var(--ink); background: transparent; border: none; border-bottom: 1px solid var(--rule); border-radius: 0; outline: none; } .plf.nm { font-size: 17px; font-weight: 700; } textarea.plf { line-height: 1.6; padding: 8px 0; resize: none; overflow: hidden; }
@@ -570,7 +572,7 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
 </style>
 </head>
 <body>
-<script>try{var _t=new URLSearchParams(location.search).get('theme')||((JSON.parse(localStorage.getItem('dpa_v1')||'{}').settings||{}).theme);document.documentElement.dataset.theme=_t||'navy';var _e=(JSON.parse(localStorage.getItem('dpa_v1')||'{}').settings||{}).edge;if(_e==='tab')document.documentElement.dataset.edge='tab'}catch(e){}</script>
+<script>try{var _t=new URLSearchParams(location.search).get('theme')||((JSON.parse(localStorage.getItem(/[?&]qa\b/.test(location.search)?'dpa_qa':'dpa_v1')||'{}').settings||{}).theme);document.documentElement.dataset.theme=_t||'navy';var _e=(JSON.parse(localStorage.getItem(/[?&]qa\b/.test(location.search)?'dpa_qa':'dpa_v1')||'{}').settings||{}).edge;if(_e==='tab')document.documentElement.dataset.edge='tab'}catch(e){}</script>
 
 <div class="intro" id="intro" aria-live="polite">
   <div class="cv" onclick="introTap()">
@@ -638,7 +640,12 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
 
 <script>
 'use strict';
-const KEY = 'dpa_v1';
+// QA 연습장(웹에서만): 주소 끝에 ?qa 를 붙이면 본 데이터·본 플래너와 떨어진 연습장이 열린다(저장 칸도, 서버의 플래너도 따로).
+// 거기서는 날짜를 앞뒤로 옮기고, 예시를 채우고 비우고, 휴대폰·펼친 크기 창을 띄우고, 구독 화면을 켜 볼 수 있다
+const QA = (() => { try { return /[?&]qa\b/.test(location.search) && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); } catch (e) { return false; } })();
+function qaOff() { try { return QA ? Number(localStorage.getItem('dpa_qa_off') || 0) : 0; } catch (e) { return 0; } }
+if (qaOff()) { const R = Date, ms = qaOff() * 86400000; window.Date = class extends R { constructor(...a) { if (a.length) super(...a); else super(R.now() + ms); } static now() { return R.now() + ms; } }; }
+const KEY = QA ? 'dpa_qa' : 'dpa_v1';
 const DOW = ['월','화','수','목','금','토','일'];
 const CHECK = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D7452E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5 L10 18 L20 6"></path></svg>`;
 
@@ -825,7 +832,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.64'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.65'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결', legal: '약관·개인정보처리방침' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -863,7 +870,7 @@ function renderMoreIdx() {
   idx.style.display = moreSec ? 'none' : ''; secs.style.display = moreSec ? '' : 'none';
   secs.querySelectorAll('.msec').forEach(e => { e.style.display = e.dataset.sec === moreSec ? '' : 'none'; });
 }
-function renderMore() { renderMoreIdx(); setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0"><button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; }
+function renderMore() { renderMoreIdx(); setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0">${isNative() ? '' : `<button onclick="location.href=location.pathname+'?qa'">QA 연습장</button>`}<button onclick="togglePaidPreview()">${D.preview === 'free' ? '구독한 화면으로' : D.preview === 'paid' ? '실제 상태로' : '구독 안 한 화면으로'}</button><span style="font-size:11px;color:var(--muted)">개발용 · 안전영역 ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; }
 function closeMore() { if (tab === 'more') go('today'); }
 function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='memo') renderMemo(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); else if (t==='roles') renderRoles(); else if (t==='sub') renderSubPage(); else if (t==='priv') renderPrivPage(); else if (t==='notis') renderNotis(); else if (t==='plan') renderPlan(); }
 function markSeen() { const td = today(); if (D.seenDay !== td) { D.seenPrev = D.seenDay || ''; D.seenDay = td; _save0(); } }
@@ -1478,6 +1485,7 @@ function useMark() {
 function subActive() { return !!(D.sub && D.sub.until && D.sub.until >= today()); }
 // 1.0은 전부 무료로 낸다: 구독 화면·무료 날짜 세기·구독 안내를 모두 숨긴다. 과금을 시작할 때 true로
 let SELL = false;
+if (QA) { try { SELL = localStorage.getItem('dpa_qa_sell') === '1'; } catch (e) {} }
 function paid() {
   if (!SELL) return true;
   if (D.preview === 'free') return false;
@@ -2064,6 +2072,43 @@ function openWrite() {
   document.body.appendChild(el); setTimeout(() => { const t = document.getElementById('wrIn'); if (t) t.focus(); }, 60);
 }
 function closeWrite() { const el = document.getElementById('wrBox'); if (el) el.remove(); }
+// PC 키보드: 적기 장에서 Ctrl(⌘)+Enter = 할 일로, Esc = 닫기(날짜 고르기·적기 장). 글을 적는 중이 아니면 N = 적기, 1~5 = 탭
+document.addEventListener('keydown', e => {
+  if (e.isComposing) return;
+  const t = e.target, typing = t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
+  if (e.key === 'Escape') { if (document.getElementById('dpick')) { closeDate(true); e.preventDefault(); } else if (document.getElementById('wrBox')) { closeWrite(); e.preventDefault(); } return; }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && t && t.id === 'wrIn') { e.preventDefault(); saveWrite('todo'); return; }
+  if (typing || e.ctrlKey || e.metaKey || e.altKey || document.querySelector('.intro,.login,#dpick,#wrBox')) return;
+  if (e.key === 'n' || e.key === 'N') { e.preventDefault(); openWrite(); return; }
+  const i = e.key.length === 1 ? '12345'.indexOf(e.key) : -1; if (i >= 0) { e.preventDefault(); go(['today', 'week', 'memo', 'review', 'more'][i]); }
+});
+// ── QA 연습장 도구(?qa로 열었을 때만) ──
+function qaDraw(open) {
+  let el = document.getElementById('qaBox'); if (!QA) return; if (!el) { el = document.createElement('div'); el.id = 'qaBox'; document.body.appendChild(el); }
+  const off = qaOff(), d = new Date(), b = (t, f) => `<button onclick="${f}">${t}</button>`;
+  el.innerHTML = !open ? `<button class="qab" onclick="qaDraw(true)" aria-label="QA 도구 열기">QA${off ? ' ' + (off > 0 ? '+' : '') + off + '일' : ''}</button>`
+    : `<div class="qap"><div style="display:flex;justify-content:space-between;align-items:center"><h4>QA 연습장</h4><button onclick="qaDraw(false)" aria-label="닫기" style="width:32px;height:32px;color:var(--ink-2)">✕</button></div><p>본 데이터와 따로 저장돼요</p>
+      <div class="l">날짜 · 지금 ${md(today())} (${DOW[(d.getDay() + 6) % 7]})${off ? ' · 실제보다 ' + (off > 0 ? '+' : '') + off + '일' : ''}</div><div class="r">${b('−1일', 'qaDay(-1)')}${b('+1일', 'qaDay(1)')}${b('+7일', 'qaDay(7)')}${off ? b('원래대로', 'qaDay(0)') : ''}</div>
+      <div class="l">데이터</div><div class="r">${b('예시 채우기', 'qaSeed()')}${b('비우기', 'qaClear()')}</div>
+      <div class="l">창 크기</div><div class="r">${b('휴대폰', 'qaWin(390,844)')}${b('펼친 화면', 'qaWin(1000,720)')}</div>
+      <div class="l">구독 화면 · 지금 ${SELL ? '켜짐' : '꺼짐(전부 무료)'}</div><div class="r">${b(SELL ? '끄기' : '켜기', 'qaSell()')}${b('연습장 나가기', 'qaExit()')}</div></div>`;
+}
+function qaDay(n) { try { if (!n) localStorage.removeItem('dpa_qa_off'); else localStorage.setItem('dpa_qa_off', String(qaOff() + n)); } catch (e) {} location.reload(); }
+function qaClear() { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); }
+function qaWin(w, h) { window.open(location.pathname + '?qa', 'dpqa' + w, `width=${w},height=${h}`); }
+function qaSell() { SELL = !SELL; try { localStorage.setItem('dpa_qa_sell', SELL ? '1' : ''); } catch (e) {} render(); qaDraw(true); }
+function qaExit() { location.href = location.pathname; }
+function qaSeed() {
+  const td = today(), now = new Date().toISOString(), mk = (t, b, due, plan, done, role) => D.rocks.push({ id: uid(), week: weekKey(new Date()), bucket: b, role: role || '', title: t, due: due || '', done: !!done, doneAt: done ? td : '', carry: 0, checks: {}, c: td, plan: plan || '', u: now });
+  const p1 = uid('p_'), p2 = uid('p_');
+  D.plans.push({ id: p1, name: '[예시] 앱 출시', goal: '3주 뒤 스토어 출시', due: addDays(td, 21), how: '동결 → 후보 빌드 → 심사 → 출시', at: new Date(Date.now() - 2 * 86400000).toISOString(), u: now }, { id: p2, name: '[예시] 강의 원고', goal: '세 모듈 원고와 촬영', due: addDays(td, 60), how: '', at: now, u: now });
+  mk('[예시] 일정 확정', 'important', addDays(td, -1), p1, true, ''); mk('[예시] 기능 동결', 'important', addDays(td, 2), p1); mk('[예시] 후보 빌드', 'important', addDays(td, 8), p1); mk('[예시] 심사 제출', 'important', addDays(td, 12), p1); mk('[예시] 출시', 'important', addDays(td, 21), p1);
+  mk('[예시] 모듈1 원고', 'important', addDays(td, 6), p2); mk('[예시] 모듈2 원고', 'important', addDays(td, 20), p2); mk('[예시] 모듈3 원고', 'important', addDays(td, 34), p2); mk('[예시] 촬영', 'important', addDays(td, 55), p2);
+  mk('[예시] 논문 심사', 'urgent', addDays(td, 3)); mk('[예시] 학술대회 연사 확정 메일', 'light', addDays(td, 3)); mk('[예시] 학술대회 세션 편성표 보내기', 'light', addDays(td, 5)); mk('[예시] 학술대회 좌장 섭외', 'light'); mk('[예시] 학술대회 안내문 인쇄', 'light'); mk('[예시] 세탁소 들르기', 'light'); mk('[예시] 지난주에 미룬 보고서', 'urgent', addDays(td, -3)); mk('[예시] 언젠가 할 책장 정리', 'nice');
+  D.memos.push({ id: uid('m_'), text: '[예시] 두고 볼 생각 한 줄', at: now, u: now });
+  save(); render(); toast('예시를 채웠어요'); qaDraw(false);
+}
+if (QA) setTimeout(() => qaDraw(false), 0);
 function saveWrite(kind) {
   const el = document.getElementById('wrIn'), v = ((el && el.value) || '').trim(); if (!v) { if (el) el.focus(); return; }
   if (kind === 'memo') { const now = new Date().toISOString(); D.memos = D.memos || []; D.memos.push({ id: uid('m_'), text: v, at: now, u: now }); closeWrite(); save(); render(); toast('메모에 적었어요'); return; }
