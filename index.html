@@ -742,7 +742,7 @@ function toast(m) { const t = document.getElementById('toast'); t.classList.remo
 let tab = 'today', curWeek = weekKey(new Date()), addOpen = false, addRole = null, addRoutine = false;
 // 펼친 화면: 왼쪽 쪽은 늘 오늘, 오른쪽 쪽은 rightTab
 let rightTab = 'week';
-const SPREAD_MQ = window.matchMedia('(min-width: 720px) and (min-aspect-ratio: 5/4)');
+const SPREAD_MQ = window.matchMedia('(min-width: 720px) and (min-aspect-ratio: 5/4), (min-width: 1100px)') // 넓은 PC 창은 세로로 길어도 두 쪽;
 function spread() { return SPREAD_MQ.matches; }
 function syncPages() {
   const sp = spread(); document.body.classList.toggle('spread', sp);
@@ -832,7 +832,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.66'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.67'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: '계정', feats: '비서 포스트잇', roles: '내 역할', cal: '캘린더', notify: '알림', cover: '표지', conn: '비서 연결', legal: '약관·개인정보처리방침' };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -2188,15 +2188,17 @@ function dgap(a, b) { return Math.round((new Date(b + 'T00:00:00') - new Date(a 
 // 이름표: 계획(묶음) 이름과 겹치는 앞머리 낱말은 떼고 보여 준다(「학술대회 준비」의 "학술대회 좌장 섭외" → "좌장 섭외")
 function pathCut(t, n, nm) { let x = shortT(t); if (nm) { const ws = String(nm).split(/\s+/).filter(w => w.length >= 2); let y = x; for (let k = 0; k < 3; k++) { const w = ws.find(w => y.startsWith(w)); if (!w) break; y = y.slice(w.length).replace(/^[\s·:,\-]+/, ''); } if (y.length >= 2) x = y; } return x.length > n ? x.slice(0, n - 1) + '…' : x; }
 function pathData(p) {
-  const st = planSteps(p.id), td = today(); if (!st.length && !p.due) return null;
-  const dues = st.map(r => r.due), end = [p.due || '', dues[dues.length - 1] || ''].sort().pop();
+  const st = planSteps(p.id), td = today(), un = openItems().filter(r => r.plan === p.id && !r.routine && !r.due);
+  const gs = un.filter(r => r.guess && r.guess >= td); // 묶을 때 비서가 짐작해 둔 날짜: 정하기 전까지 점선으로만 보인다
+  if (!st.length && !gs.length && !p.due) return null;
+  const dues = st.map(r => r.due), end = [p.due || '', dues[dues.length - 1] || ''].concat(gs.map(r => r.guess)).sort().pop();
   const made = p.at ? dstr(new Date(p.at)) : td, start = [made, dues[0] || td, td].sort()[0];
   if (dgap(start, end) < 1) return null;
   const nx = st.find(r => !r.done);
-  const pts = st.map(r => ({ d: r.due, t: r.title, k: r.done ? 'done' : r === nx ? 'next' : 'todo' }));
-  if (p.due && !dues.includes(p.due)) pts.push({ d: p.due, t: '끝', k: 'goal' });
+  const pts = st.map(r => ({ d: r.due, t: r.title, k: r.done ? 'done' : r === nx ? 'next' : 'todo' })).concat(gs.map(r => ({ d: r.guess, t: r.title, k: 'dash' }))).sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0);
+  if (p.due && !pts.some(pt => pt.d === p.due && pt.k !== 'dash')) pts.push({ d: p.due, t: '끝', k: 'goal' });
   const last = pts[pts.length - 1]; if (last.d === end && last.k === 'todo') last.k = 'goal';
-  return { st, pts, start, end, td, nm: p.name, span: dgap(start, end), done: st.filter(r => r.done).length, undated: openItems().filter(r => r.plan === p.id && !r.routine && !r.due).length };
+  return { st, pts, start, end, td, nm: p.name, span: dgap(start, end), done: st.filter(r => r.done).length, undated: un.length };
 }
 const PATH_TONE = { paper: 'var(--paper)', ink: 'var(--ink)', ink2: 'var(--ink-2)', track: 'var(--rule)' }, PATH_POSTIT = { paper: 'var(--postit)', ink: 'var(--postit-ink)', ink2: 'var(--postit-muted)', track: 'var(--postit-edge)' };
 function pathDot(k, x, y, c) {
@@ -2237,8 +2239,8 @@ function pathCalSvg(q) {
   }
   for (let i = 0; i < rows * 7; i++) {
     const d = addDays(g0, i), cx = (i % 7) * CW + CW / 2, y = TOP + Math.floor(i / 7) * RH, ms = by[d], on = d >= q.start && d <= q.end, num = (i === 0 || d.slice(8) === '01') ? md(d) : String(Number(d.slice(8)));
-    if (ms) { const k = ['done', 'next', 'goal', 'todo'].find(k => ms.some(m => m.k === k)), allDone = ms.every(m => m.k === 'done'), kk = allDone ? 'done' : k === 'done' ? 'todo' : k;
-      h += kk === 'done' ? `<circle cx="${cx}" cy="${y + 19}" r="13" style="fill:var(--check)"/>` : kk === 'goal' ? `<circle cx="${cx}" cy="${y + 19}" r="14" style="fill:var(--ink)"/>` : `<circle cx="${cx}" cy="${y + 19}" r="13" style="fill:var(--paper);stroke:var(--ink);stroke-width:${kk === 'next' ? 3 : 1.5}"/>`;
+    if (ms) { const k = ['done', 'next', 'goal', 'todo'].find(k => ms.some(m => m.k === k)), allDone = ms.every(m => m.k === 'done'), kk = allDone ? 'done' : !k ? 'dash' : k === 'done' ? 'todo' : k;
+      h += kk === 'done' ? `<circle cx="${cx}" cy="${y + 19}" r="13" style="fill:var(--check)"/>` : kk === 'goal' ? `<circle cx="${cx}" cy="${y + 19}" r="14" style="fill:var(--ink)"/>` : `<circle cx="${cx}" cy="${y + 19}" r="13" style="fill:var(--paper);stroke:var(--ink);stroke-width:${kk === 'next' ? 3 : kk === 'dash' ? 2 : 1.5}${kk === 'dash' ? ';stroke-dasharray:3 3' : ''}"/>`;
       h += `<text x="${cx}" y="${y + 23.5}" text-anchor="middle" style="font-size:${num.length > 2 ? 10.5 : 13}px;font-weight:800;fill:${kk === 'done' ? '#fff' : kk === 'goal' ? 'var(--paper)' : 'var(--ink)'}">${num}</text><text x="${cx}" y="${y + 45}" text-anchor="middle" style="font-size:10.5px;font-weight:800;fill:var(--ink)">${esc(pathCut(ms[0].t, ms.length > 1 ? 3 : 5, q.nm))}${ms.length > 1 ? '+' + (ms.length - 1) : ''}</text>`; }
     else { h += `<text x="${cx}" y="${y + 23.5}" text-anchor="middle" style="font-size:${num.length > 2 ? 11 : 13}px;font-weight:${d === q.td ? 800 : 500};fill:${on ? 'var(--postit-ink)' : d < q.td ? 'var(--muted)' : 'var(--ink)'}">${num}</text>`;
       if (d === q.td) h += `<rect x="${cx - 17}" y="${y + 35}" width="34" height="14" style="fill:#F4907A"/><text x="${cx}" y="${y + 45.5}" text-anchor="middle" style="font-size:10px;font-weight:800;fill:#3A1810">오늘</text>`; }
@@ -2249,7 +2251,7 @@ function pathCalSvg(q) {
 function planPathHtml(p) {
   const q = pathData(p); if (!q) return '';
   const dl = dgap(q.td, q.end), both = spread(), cal = pathMode() === 'cal';
-  const sub = md(q.end) + '까지' + (q.st.length ? ` · ${q.st.length}단계 중 ${q.done}` : '') + (q.undated ? ` · 날짜 없는 일 ${q.undated}` : '');
+  const sub = md(q.end) + '까지' + (q.st.length ? ` · ${q.st.length}단계 중 ${q.done}` : '') + (q.undated ? ` · 날짜 미정 ${q.undated}` : '');
   let h = `<div class="lbl mg" style="padding-left:0"><span>가는 길</span>${both ? '' : `<button onclick="pathFlip()">${cal ? '한 줄로' : '달력으로'}</button>`}</div><div class="pvh"><b>${dl > 0 ? 'D-' + dl : dl === 0 ? '오늘' : '지남'}</b><span>${sub}</span></div>`;
   if (both) return h + `<div class="pvb">${pathLineSvg(q)}</div><div class="pvb" style="padding-top:8px">${pathCalSvg(q)}</div>`;
   return h + `<button class="pvb" onclick="pathFlip()" aria-label="가는 길 · ${cal ? '한 줄로 보기' : '달력으로 보기'}">${cal ? pathCalSvg(q) : pathLineSvg(q)}</button>`;
@@ -2372,7 +2374,7 @@ function renderPlan() {
   if (p.how) h += lbl('어떻게') + `<div class="plt how">${esc(p.how)}</div>`;
   h += planPathHtml(p);
   h += lbl('이번 주 루틴') + (ro.length ? ro.map(r => `<button class="mrow tap" onclick="${toRow(r)}"><b>${esc(r.title)}</b><span class="v">주 ${r.routine}회</span><span class="v" style="font-weight:700;color:var(--ink)">${Math.min(checkedCount(r), r.routine)}/${r.routine}</span></button>`).join('') : `<div class="plt none">아직 루틴이 없어요</div>`);
-  h += lbl(`이 계획의 할 일 <span class="mono" style="letter-spacing:0">${todo.length}</span>`) + (todo.length ? todo.map(r => `<button class="mrow tap" onclick="${toRow(r)}"><b>${esc(r.title)}</b><span class="v">${B[r.bucket || 'nice']}${r.due ? ' · ' + md(r.due) + '까지만' : ''}</span></button>`).join('') : `<div class="plt none">아직 할 일이 없어요</div>`);
+  h += lbl(`이 계획의 할 일 <span class="mono" style="letter-spacing:0">${todo.length}</span>`) + (todo.length ? todo.map(r => r.due ? `<button class="mrow tap" onclick="${toRow(r)}"><b>${esc(r.title)}</b><span class="v">${B[r.bucket || 'nice']} · ${md(r.due)}까지만</span></button>` : `<div class="mrow"><button class="tap" style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;text-align:left;align-self:stretch" onclick="${toRow(r)}"><b>${esc(r.title)}</b><span class="v">${B[r.bucket || 'nice']}</span></button><button class="bnd ask" onclick="planDue('${r.id}')">${r.guess ? md(r.guess) + '쯤?' : '언제까지?'}</button></div>`).join('') : `<div class="plt none">아직 할 일이 없어요</div>`);
   if (!p.closedAt) h += `<div class="pladd"><input id="plAdd" placeholder="${plRoutine ? '이 계획의 루틴' : '이 계획의 할 일'}" enterkeyhint="done" onkeydown="if(event.key==='Enter')planAddItem('${p.id}')"><button class="${plRoutine ? 'on' : ''}" onclick="plRoutine=!plRoutine;renderPlan()">루틴</button>${plRoutine ? `<select id="plN" aria-label="주 몇 회"><option value="2">주 2회</option><option value="3" selected>주 3회</option><option value="4">주 4회</option><option value="5">주 5회</option><option value="7">매일</option></select>` : ''}<button class="go" onclick="planAddItem('${p.id}')">적기</button></div>`;
   h += `<div class="pbtns"><button onclick="editPlan('${p.id}')">고치기</button><span class="sp1"></span><button onclick="closePlan('${p.id}')">${p.closedAt ? '다시 열기' : '계획 닫기'}</button></div></div>`;
   el.innerHTML = h;
@@ -2471,7 +2473,7 @@ function bundleTake() {
   const g = D.bundleSug, rs = bundleRows(); if (!g || rs.length < 2) return;
   const nm = String(g.name || '').trim().slice(0, 24); if (!nm) { const e = document.getElementById('bnName'); if (e) e.focus(); toast('묶음 이름을 적어 주세요'); return; }
   const now = new Date().toISOString(), had = openPlans().find(q => q.name === nm), q = had || { id: uid('p_'), at: now, u: now, name: nm, goal: '', due: '', how: '' }; if (!had) D.plans.push(q);
-  rs.forEach(r => { r.plan = q.id; if ((g.due || {})[r.id]) r.due = g.due[r.id]; r.u = now; });
+  rs.forEach(r => { r.plan = q.id; if ((g.due || {})[r.id]) r.due = g.due[r.id]; else if (!r.due && (g.guess || {})[r.id]) r.guess = g.guess[r.id]; r.u = now; });
   if (!had && g.end && !rs.some(r => r.due && r.due > g.end)) q.due = g.end;
   D.bundleSug = { day: g.day }; save(); toast(`「${nm}」로 ${rs.length}줄을 묶었어요`); openPlan(q.id);
 }
@@ -2500,7 +2502,8 @@ function rowBucket(id, b) {
   save(); render(); toast(msg);
 }
 function rowDueT(id, v) { const r = rock(id); if (!r) return; if (v) r.dueT = v; else delete r.dueT; r.u = new Date().toISOString(); save(); render(); }
-function rowDue(id, v) { const r = rock(id); if (!r) return; if (!v && r.bucket === 'important') { toast('B는 끝 날짜가 있어야 해요'); render(); return; } r.due = v || null; save(); render(); }
+function planDue(id) { const r = rock(id); if (!r) return; openDate(r.due || r.guess || '', { allowNone: true, title: '언제까지' }, v => { if (!v) return; r.due = v; delete r.guess; r.u = new Date().toISOString(); save(); render(); }); }
+function rowDue(id, v) { const r = rock(id); if (!r) return; if (!v && r.bucket === 'important') { toast('B는 끝 날짜가 있어야 해요'); render(); return; } r.due = v || null; if (v) delete r.guess; save(); render(); }
 function itemRow(r, n) {
   const td = today(), picked = (dayOf(td).picks||[]).includes(r.id);
   const dl = (!r.done && r.due && !r.routine) ? dleft(r.due) : null;
