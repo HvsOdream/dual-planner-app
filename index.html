@@ -178,6 +178,9 @@ a { color: inherit; }
 .sticky.blur .tx { filter: blur(4.5px); opacity: .75; user-select: none; pointer-events: none; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .sticky.blur .unlock { position: relative; margin-top: 8px; font-size: 12px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; opacity: .8; }
 .subst { font-size: 14px; color: var(--ink-2); margin: 2px 0 10px; }
+.dgtx { white-space: pre-wrap; font-size: 12.5px; line-height: 1.65; color: var(--ink-2); border: 1px dashed var(--rule); border-radius: 6px; padding: 10px 12px; margin: 2px 0 6px; max-height: 190px; overflow: auto; -webkit-overflow-scrolling: touch; }
+.dgseg { display: flex; border: 1px solid var(--ink-2); border-radius: 8px; overflow: hidden; } .dgseg button { flex: 1; height: 40px; font-size: 14px; color: var(--ink); background: none; } .dgseg button.on { background: var(--ink); color: var(--paper); font-weight: 700; }
+.dgmore { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: space-between; margin-top: 14px; border-top: 1px solid var(--rule); font-size: 13.5px; color: var(--ink-2); background: none; text-align: left; }
 .feats { margin: 12px 0 4px; border-top: 1px solid var(--rule); }
 .dd { color: var(--check); font-weight: 800; margin-left: 2px; }
 .rq { font-size: 18px; font-weight: 800; margin: 6px 0 4px; } .rh { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
@@ -622,6 +625,7 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
       <div class="msec" data-sec="notify"><div id="notifyBox"></div></div>
       <div class="msec" data-sec="cover"><div id="coverBox"></div></div>
       <div class="msec" data-sec="legal"><div><div style="height:8px"></div><div class="mgrp"><a class="mrow" href="legal/terms.html" target="_blank"><span class="in"><b data-t>이용약관</b><span class="ch">›</span></span></a><a class="mrow" href="legal/privacy.html" target="_blank"><span class="in"><b data-t>개인정보처리방침</b><span class="ch">›</span></span></a></div></div></div>
+      <div class="msec" data-sec="digest"><div id="digestBox"></div></div>
       <div class="msec" data-sec="conn">
         <div class="lbl" style="padding-left:0" data-t>상태</div>
         <div id="connBox" style="font-size:14px;line-height:1.8;margin:2px 0 4px"></div>
@@ -903,13 +907,14 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.84'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.85'; // VERSION 파일과 같이 올린다
 let moreSec = '';
-const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), legal: T('약관·개인정보처리방침') };
+const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), digest: T('매일 아침 정리 시작하기'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
 // 메뉴 첫 화면: 아이폰 설정처럼 묶음마다 둥근 카드 하나, 줄마다 작은 아이콘. 맨 위는 계정·구독 카드
 const MICON = {
   conn: ['<path d="M7.5 10.5a3 3 0 0 0 4.2 0l2.3-2.3a3 3 0 0 0-4.2-4.2l-.8.8"/><path d="M10.5 7.5a3 3 0 0 0-4.2 0L4 9.8A3 3 0 0 0 8.2 14l.8-.8"/>', '#F6CF52'],
+  digest: ['<circle cx="9" cy="9" r="3"/><path d="M9 2.5v1.6M9 13.9v1.6M2.5 9h1.6M13.9 9h1.6M4.4 4.4l1.1 1.1M12.5 12.5l1.1 1.1M4.4 13.6l1.1-1.1M12.5 5.5l1.1-1.1"/>', '#FFC98A'],
   roles: ['<circle cx="9" cy="6" r="2.6"/><path d="M3.8 15c.6-2.6 2.7-4 5.2-4s4.6 1.4 5.2 4"/>', '#F4907A'],
   feats: ['<path d="M3.5 3.5h11v7.5l-3.5 3.5h-7.5z"/><path d="M14.5 11h-3.5v3.5"/>', '#FFF59A'],
   notify: ['<path d="M4.5 12.5h9c-.9-1-1.3-2.2-1.3-4.3a3.2 3.2 0 0 0-6.4 0c0 2.1-.4 3.3-1.3 4.3z"/><path d="M7.7 14.8a1.5 1.5 0 0 0 2.6 0"/>', '#A9D56E'],
@@ -931,7 +936,7 @@ function renderMoreIdx() {
     top += `<button class="mrow macct" onclick="openSec('acct')"><span class="mav">${esc(a ? [...String(a.name || a.email || 'D')][0].toUpperCase() : 'D')}</span><span class="in"><span class="nm"><b>${esc(nm)}</b><i>${a ? T('{p}로 로그인됨', { p: pv }) : T('로그인하면 다른 기기에서도 이어 써요')}</i></span><span class="ch">›</span></span></button>`; }
   if (SELL) top += row('sub', T('속지'), subShort(), 'openSub()');
   let h = `<div style="height:8px"></div>` + (top ? grp('', top) : '');
-  h += grp(T('비서'), row('conn', T('비서 연결'), agentOn() ? T('연결됨') : T('연결 안 됨'), "openSec('conn')") + row('roles', T('내 역할'), D.roles.length ? T('{n}개', { n: D.roles.length }) : T('정하지 않음'), "openSec('roles')") + row('feats', T('비서 포스트잇'), T('{n}종 켜짐', { n: FEATS.filter(f => featOn(f[0])).length }), "openSec('feats')"));
+  h += grp(T('비서'), row('conn', T('비서 연결'), agentOn() ? T('연결됨') : T('연결 안 됨'), "openSec('conn')") + row('digest', T('매일 아침 정리'), '', "openSec('digest')") + row('roles', T('내 역할'), D.roles.length ? T('{n}개', { n: D.roles.length }) : T('정하지 않음'), "openSec('roles')") + row('feats', T('비서 포스트잇'), T('{n}종 켜짐', { n: FEATS.filter(f => featOn(f[0])).length }), "openSec('feats')"));
   h += grp(isNative() ? T('알림·일정') : T('일정'), (isNative() ? row('notify', T('알림'), c.on ? T('켜짐') + (c.off && c.off.evening ? '' : T(' · 저녁 {t}', { t: c.evening || '21:30' })) : T('꺼짐'), "openSec('notify')") : '') + row('cal', T('캘린더'), nat() ? (st.calNative ? T('아이폰 캘린더') : T('꺼짐')) : (st.calUrl ? T('연결됨') : T('연결 안 함')), "openSec('cal')"));
   h += grp(T('모양'), row('cover', T('표지'), T((COVERS.find(x => x[0] === curTheme()) || [, ''])[1]), "openSec('cover')"));
   h += grp(T('정보'), row('info', T('내 정보가 가는 곳'), aiOk() ? T('비서 AI 켬') : T('비서 AI 끔'), 'openPrivacy()') + row('doc', T('약관·개인정보처리방침'), '', "openSec('legal')") + `<a class="mrow" href="mailto:withsky0@gmail.com">${mIc('mail')}<span class="in"><b>${T('문의')}</b><span class="ch">›</span></span></a>`);
@@ -941,7 +946,34 @@ function renderMoreIdx() {
   idx.style.display = moreSec ? 'none' : ''; secs.style.display = moreSec ? '' : 'none';
   secs.querySelectorAll('.msec').forEach(e => { e.style.display = e.dataset.sec === moreSec ? '' : 'none'; });
 }
-function renderMore() { renderMoreIdx(); setConn(''); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0">${isNative() ? '' : `<button onclick="location.href=location.pathname+'?qa'">${T('QA 연습장')}</button>`}<button onclick="togglePaidPreview()">${D.preview === 'free' ? T('속지 끼운 화면으로') : D.preview === 'paid' ? T('실제 상태로') : T('속지 없는 화면으로')}</button><span style="font-size:11px;color:var(--muted)">${T('개발용 · 안전영역')} ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; }
+function renderMore() { renderMoreIdx(); setConn(''); renderDigestBox(); renderAccount(); renderCalBox(); renderSubBox(); renderRoleBox(); renderNotifyBox(); renderCoverBox(); document.getElementById('devBox').innerHTML = isDev() ? `<div class="acts" style="padding-top:0">${isNative() ? '' : `<button onclick="location.href=location.pathname+'?qa'">${T('QA 연습장')}</button>`}<button onclick="togglePaidPreview()">${D.preview === 'free' ? T('속지 끼운 화면으로') : D.preview === 'paid' ? T('실제 상태로') : T('속지 없는 화면으로')}</button><span style="font-size:11px;color:var(--muted)">${T('개발용 · 안전영역')} ${(()=>{ const c = getComputedStyle(document.getElementById('saProbe')); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseInt(x)).join('/'); })()} · ${innerWidth}×${innerHeight}</span></div>` : ''; }
+// 매일 아침 정리: 지시문을 복사해 쓰는 AI 비서에 한 번 붙여 넣으면, 그 비서가 매일 아침 메일·캘린더를 읽고 오늘 포스트잇으로 적는다. 앱이 하는 일은 지시문을 건네는 것뿐
+let dgAgent = 'claude', dgWork = false;
+function digestText(a) {
+  if (a === 'chatgpt') return [T('매일 아침 7시에 아래를 해 줘.'), T('1. 내 메일(최근 3일)과 캘린더(앞으로 7일)를 읽는다.'), T('2. 내가 놓치면 곤란한 것만 찾는다: 준비가 필요한 일정(비자·서류·사전 신청·예약), 장소가 달라 이동 시간이 빠듯한 일정, 겹치는 일정, 기한이 있는 요청, 답장하지 않은 메일.'), T('3. 광고·소식지·수백 명에게 간 단체 메일은 뺀다. 자동 발송 안내는 결제·만료·삭제만 남겨 한 줄로 묶는다.'), T('4. 다섯 줄 이내로 알려 준다. 한 줄은 "무엇을 · 언제까지 · 근거" 순서로 쓴다.'), T('5. 메일을 보내거나 일정을 바꾸지 않는다.'), T('6. 알릴 것이 없으면 없다고만 한다.')].join('\n');
+  return [T('매일 아침 7시에 아래를 해 줘.'), T('1. 듀얼플래너 커넥터로 내 플래너를 먼저 읽는다(planner_read).'), T('2. 내 메일(최근 3일)과 캘린더(앞으로 7일)를 읽는다.'), T('3. 내가 놓치면 곤란한 것만 찾는다: 준비가 필요한 일정(비자·서류·사전 신청·예약), 장소가 달라 이동 시간이 빠듯한 일정, 겹치는 일정, 기한이 있는 요청, 답장하지 않은 메일.'), T('4. 플래너에 이미 있는 일은 뺀다. 광고·소식지·수백 명에게 간 단체 메일도 뺀다. 자동 발송 안내는 결제·만료·삭제만 남겨 한 줄로 묶는다.'), T('5. 다섯 건 이내로 듀얼플래너에 오늘 메모로 적는다(planner_add, kind=note). 한 건은 "무엇을 · 언제까지 · 근거" 순서로 한 줄로 쓴다.'), T('6. 메일을 보내거나 일정을 바꾸지 않는다. 할 일로 넣지 않는다. 내가 고른다.'), T('7. 적을 것이 없으면 아무것도 적지 않는다.')].join('\n');
+}
+function workMailText() { return [T('지금 열린 메일함에서 최근 2주 메일을 읽고 아래를 찾아 줘.'), T('- 내가 해야 할 일과 마감'), T('- 답장하지 않은 메일'), T('- 답장은 했지만 서류를 빠뜨린 메일'), T('광고와 단체 메일은 빼고, 듀얼플래너에 오늘 메모로 적어 줘(planner_add, kind=note). 한 건은 "무엇을 · 언제까지 · 보낸 사람" 순서로 한 줄로 써 줘. 메일을 보내지는 마.')].join('\n'); }
+async function digestOpen() {
+  const t = digestText(dgAgent); await copyText(t, T('지시문을 복사했어요'));
+  const q = encodeURIComponent(t), app = dgAgent === 'chatgpt' ? '' : 'claude://claude.ai/new?q=' + q, web = dgAgent === 'chatgpt' ? 'https://chatgpt.com/?q=' + q : 'https://claude.ai/new?q=' + q;
+  try { if (isNative()) { const n = nat(), u = app || web; if (n && n.openUrl) await n.openUrl({ url: u }); else location.href = u; } else window.open(web, '_blank'); } catch(e) {}
+}
+function renderDigestBox() {
+  const el = document.getElementById('digestBox'); if (!el) return;
+  const gpt = dgAgent === 'chatgpt', pre = t => `<div class="dgtx">${esc(t)}</div>`, steps = a => `<div class="subst" style="font-size:13px;line-height:1.7;margin:10px 0 6px">${a.join('<br>')}</div>`;
+  const seg = (k, lab) => `<button class="${dgAgent === k ? 'on' : ''}" onclick="dgAgent='${k}';renderDigestBox()">${lab}</button>`;
+  let h = `<div class="subst" style="margin:6px 0 12px;line-height:1.6">${T('내 AI 비서가 매일 아침 메일과 캘린더를 읽고, 챙길 일을 알려 줘요.')}</div>`;
+  h += `<div class="lbl" style="padding-left:0">${T('쓰는 AI 비서')}</div><div class="dgseg">${seg('claude', 'Claude')}${seg('chatgpt', 'ChatGPT')}</div>`;
+  if (!gpt && !agentOn()) h += `<div class="subst" style="font-size:13px;margin:8px 0 0">${T('플래너에 적으려면 비서 연결이 먼저예요.')} <a href="#" onclick="openSec('conn');return false" style="text-decoration:underline">${T('비서 연결')}</a></div>`;
+  h += `<div class="lbl" style="padding-left:0;margin-top:10px">${T('지시문')}</div><div class="subst" style="font-size:13.5px;line-height:1.6;margin:0 0 8px;color:var(--ink)"><b>${T('딱 한 번만 보내 주시면 돼요.')}</b> ${T('그 뒤로는 AI 비서가 매일 아침 알아서 해요.')}</div>${pre(digestText(dgAgent))}`;
+  h += `<button class="cta" style="height:40px" onclick="copyText(digestText(dgAgent),T('지시문을 복사했어요'))">${T('지시문 복사')}</button><button class="cta ghost" style="height:36px" onclick="digestOpen()">${T('복사하고 AI 비서 열기')}</button>`;
+  h += steps(gpt ? [T('1. 지시문을 복사해요'), T('2. AI 비서에 붙여 넣고 보내요'), T('3. 아침에 온 정리에서 남길 줄만 메모에 옮겨 적어요')] : [T('1. 지시문을 복사해요'), T('2. AI 비서에 붙여 넣고 보내요'), T('3. 내일 아침부터 오늘 포스트잇으로 적혀요')]);
+  h += `<div class="subst" style="font-size:12px;color:var(--muted);line-height:1.6">${gpt ? T('ChatGPT는 플래너에 직접 적지 못해요. 예약 실행은 AI 비서의 유료 요금제에서 돼요.') : T('예약 실행은 AI 비서의 유료 요금제에서 돼요.')}</div>`;
+  h += `<button class="dgmore" onclick="dgWork=!dgWork;renderDigestBox()"><span>${T('회사·학교 메일을 따로 쓰시나요?')}</span><span aria-hidden="true">${dgWork ? '⌄' : '›'}</span></button>`;
+  if (dgWork) h += `<div class="lbl" style="padding-left:0">${T('업무 메일 털기')}</div><div class="subst" style="font-size:13px;line-height:1.6;margin:2px 0 8px">${T('회사·학교 메일은 AI 비서에 연결하지 못하는 경우가 많아요. 웹메일을 연 화면에서 브라우저의 AI 비서에게 시키면 돼요.')}</div>${pre(workMailText())}<button class="cta" style="height:40px" onclick="copyText(workMailText(),T('지시문을 복사했어요'))">${T('지시문 복사')}</button>` + steps([T('1. PC 브라우저에서 회사·학교 웹메일을 열어요'), T('2. 브라우저의 AI 비서를 부르고 지시문을 붙여 넣어요'), T('3. 찾은 것은 오늘 포스트잇으로 적혀요')]) + `<div class="subst" style="font-size:12px;color:var(--muted);line-height:1.6">${T('일주일에 한두 번이면 충분해요. 메일은 읽기만 하고 보내지 않아요.')}</div>`;
+  el.innerHTML = h;
+}
 function closeMore() { if (tab === 'more') go('today'); }
 function renderPage(t) { if (t==='today') renderToday(); else if (t==='week') renderWeek(); else if (t==='memo') renderMemo(); else if (t==='review') renderReview(); else if (t==='shelf') renderShelf(); else if (t==='vol') renderVol(); else if (t==='close') renderClose(); else if (t==='refill') renderRefill(); else if (t==='more') renderMore(); else if (t==='roles') renderRoles(); else if (t==='sub') renderSubPage(); else if (t==='priv') renderPrivPage(); else if (t==='notis') renderNotis(); else if (t==='plan') renderPlan(); }
 function markSeen() { const td = today(); if (D.seenDay !== td) { D.seenPrev = D.seenDay || ''; D.seenDay = td; _save0(); } }
