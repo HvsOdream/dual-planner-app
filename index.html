@@ -900,7 +900,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.77'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.78'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1506,7 +1506,7 @@ function recordNotes(wk) {
     const notes = ds.filter(d => D.days[d] && D.days[d].note).length;
     const prom = live().filter(r => ds.includes(r.promotedAt || '')).length;
     const pt = ds.reduce((k, d) => k + partOn(d).length, 0);
-    if (done.length || notes || prom || pt) h += aNote({ label: T('이번 주 숫자'), text: `${T('끝낸 일 {n}개', { n: done.length })}${pt ? T(', 일부 진행 {pt}번', { pt }) : ''}${top ? `${T(', 가장 많이 한 역할은')} ${top}(${by[top]})` : ''}${T('. 한 줄 일기 {notes}일.', { notes })}${prom ? ` ${T('B에서 A로 넘어간 일 {prom}개, 다음엔 조금 일찍.', { prom })}` : ''}` });
+    if (done.length || notes || prom || pt) h += aNote({ label: T('이번 주 숫자'), text: `${T('끝낸 일 {n}개', { n: done.length })}${pt ? T(', 일부 진행 {pt}번', { pt }) : ''}${top ? T(', 가장 많이 한 역할은 {top}({n})', { top, n: by[top] }) : ''}${T('. 한 줄 일기 {notes}일.', { notes })}${prom ? ` ${T('B에서 A로 넘어간 일 {prom}개, 다음엔 조금 일찍.', { prom })}` : ''}` });
   }
   if (featOn('time') && rolesSet()) {
     const er = evRoles(), hrs = {}; let tot = 0, none = 0;
@@ -1994,17 +1994,18 @@ function notifText(k, ds) {
     const b = briefOf(ds), parts = [];
     const ap = apptsOn(ds), fa = b.timed.map(e => ({ t: e.start, n: e.title })).concat(ap.map(r => ({ t: atOn(r, ds), n: r.title }))).sort((x, y) => x.t < y.t ? -1 : 1)[0];
     const n = b.ev.length + ap.length, hm = t => { const [h, m] = t.split(':').map(Number); return LANG !== 'ko' ? t : T('{h}시', { h }) + (m ? ' ' + T('{m}분', { m }) : ''); };
-    if (fa) parts.push(`${n > 1 ? `${T('일정 {n}개,', { n })} ` : ''}${T('첫 일정은 {t} {b}예요.', { t: fa.t, b: short(fa.n) })}`); else if (b.ev.length) parts.push(`${T('종일 일정:')} ${short(b.ev[0].title)}.`);
+    if (fa) parts.push(n > 1 ? T('일정 {n}개, 첫 일정은 {t} {b}예요.', { n, t: fa.t, b: short(fa.n) }) : T('첫 일정은 {t} {b}예요.', { t: fa.t, b: short(fa.n) })); else if (b.ev.length) parts.push(T('종일 일정: {a}.', { a: short(b.ev[0].title) }));
     // 마감('까지')과 그날의 일(픽업·상담)은 다르게 말한다. 그다음 오늘 먼저 할 일과 어제 남긴 한 줄
     const dl = b.due.filter(r => !r.on), on = b.due.filter(r => r.on), yn = r => (((D.days[addDays(ds, -1)] || {}).partNote || {})[r.id]) || '';
-    if (dl.length) parts.push(`${T('오늘 마감:')} ${dl.map(r => short(r.title)).join(', ')}.`);
-    if (on.length) parts.push(`${T('오늘 있는 일:')} ${on.map(r => short(r.title)).join(', ')}.`);
+    if (dl.length) parts.push(T('오늘 마감: {a}.', { a: dl.map(r => short(r.title)).join(', ') }));
+    if (on.length) parts.push(T('오늘 있는 일: {a}.', { a: on.map(r => short(r.title)).join(', ') }));
     const rk = r => yn(r) ? 0 : r.due ? 1 : 2, top = b.picks.filter(r => !b.due.includes(r) && !r.appt).sort((x, y) => rk(x) - rk(y) || ((x.due || '9') < (y.due || '9') ? -1 : 1))[0];
-    if (top && !(b.gap && b.gapTop)) parts.push(`${dl.length || on.length ? T('그리고') + ' ' : T('오늘은') + ' '}'${short(top.title)}'${top.due ? (top.due < ds ? ' ' + T('(마감 지남)') : ` (D-${Math.round((new Date(top.due) - new Date(ds)) / 86400000)})`) : ''}${yn(top) ? ` ${T('— 어제 "{a}"까지 했어요.', { a: short(yn(top)) })}` : dl.length || on.length ? '.' : T('부터.')}`);
+    if (top && !(b.gap && b.gapTop)) { const x = `'${short(top.title)}'` + (top.due ? (top.due < ds ? ' ' + T('(마감 지남)') : ` (D-${Math.round((new Date(top.due) - new Date(ds)) / 86400000)})`) : ''), and = dl.length || on.length, a = short(yn(top)); // 문장 하나가 열쇠 하나(영어는 어순이 다르다)
+      parts.push(yn(top) ? (and ? T('그리고 {x} — 어제 "{a}"까지 했어요.', { x, a }) : T('오늘은 {x} — 어제 "{a}"까지 했어요.', { x, a })) : and ? T('그리고 {x}.', { x }) : T('오늘은 {x}부터.', { x })); }
     { const dn = r => Math.round((new Date(r.due) - new Date(ds)) / 86400000), nx = open.filter(r => r !== top && !b.due.includes(r) && !r.routine && r.due && r.due > ds && (dn(r) === 3 || dn(r) === 1) && !(b.gap && b.gapTop === r)).sort((x, y) => (!!x.on - !!y.on) || (x.due < y.due ? -1 : 1))[0];
-      if (nx) parts.push(`${T('다가오는')} ${nx.on ? T('일') : T('마감')}: '${short(nx.title)}' D-${dn(nx)}.`); } // 다가오는 마감은 사흘 전과 전날, 두 번만 말한다(매일 세면 보채는 알림이 된다)
+      if (nx) parts.push(nx.on ? T("다가오는 일: '{a}' D-{n}.", { a: short(nx.title), n: dn(nx) }) : T("다가오는 마감: '{a}' D-{n}.", { a: short(nx.title), n: dn(nx) })); } // 다가오는 마감은 사흘 전과 전날, 두 번만 말한다(매일 세면 보채는 알림이 된다)
     // 빈 시간은 넣을 일이 있을 때만, 그 일과 함께 말한다
-    let gp = 0; if (b.gap && b.gapTop) gp = parts.push(`${fa && b.gap[1] <= fa.t ? T('그 전에') + ' ' : ''}${hm(b.gap[0])}~${T('{a}가 비어 있어요. 그 시간에 \'{b}\' 어때요?', { a: hm(b.gap[1]), b: short(b.gapTop.title) })}`);
+    let gp = 0; if (b.gap && b.gapTop) gp = parts.push(fa && b.gap[1] <= fa.t ? T("그 전에 {f}~{a}가 비어 있어요. 그 시간에 '{b}' 어때요?", { f: hm(b.gap[0]), a: hm(b.gap[1]), b: short(b.gapTop.title) }) : T("{f}~{a}가 비어 있어요. 그 시간에 '{b}' 어때요?", { f: hm(b.gap[0]), a: hm(b.gap[1]), b: short(b.gapTop.title) }));
     else if (!parts.length && b.picks.length) parts.push(T('오늘 할 것 {n}개가 기다려요.', { n: b.picks.length }));
     if (parts.length) return { title: T('오늘 브리핑'), body: (gp > 2 ? [parts[0], parts[gp - 1]] : parts.slice(0, 2)).join(' ') }; // 아침 알림은 두 마디까지만(빈 시간 제안은 남긴다)
   }
@@ -2012,16 +2013,16 @@ function notifText(k, ds) {
     const due = open.filter(r => r.due === ds);
     if (due.length) return { title: T('오늘 마감 {n}개', { n: due.length }), body: due.map(r => short(r.title)).join(' · ') };
     const soon = open.filter(r => r.due && r.due > ds && Math.round((new Date(r.due) - new Date(ds)) / 86400000) <= 3).sort((a, b) => a.due < b.due ? -1 : 1);
-    if (soon.length) { const r = soon[0], n = Math.round((new Date(r.due) - new Date(ds)) / 86400000); return { title: T('오늘'), body: `${short(r.title)} D-${n}${soon.length > 1 ? ` ${T('외 {a}개', { a: soon.length - 1 })}` : ''}${T('. 오늘 칸에 올려 둘까요')}` }; }
+    if (soon.length) { const r = soon[0], n = Math.round((new Date(r.due) - new Date(ds)) / 86400000); return { title: T('오늘'), body: soon.length > 1 ? T('{t} D-{n} 외 {a}개. 오늘 칸에 올려 둘까요', { t: short(r.title), n, a: soon.length - 1 }) : T('{t} D-{n}. 오늘 칸에 올려 둘까요', { t: short(r.title), n }) }; }
     const picks = ds === td ? (dayOf(ds).picks || []).map(rock).filter(r => r && !r.done) : [];
     if (picks.length) return { title: T('오늘 할 것 {n}개', { n: picks.length }), body: picks.map(r => short(r.title)).join(' · ') };
   }
   if (k === 'evening') {
     const tmr = open.filter(r => r.due === plusDays(ds, 1));
-    const pre = tmr.length ? `${T('내일까지:')} ${short(tmr[0].title)}${tmr.length > 1 ? ` ${T('외 {a}개', { a: tmr.length - 1 })}` : ''}. ` : '';
+    const pre = tmr.length ? (tmr.length > 1 ? T('내일까지: {t} 외 {a}개.', { t: short(tmr[0].title), a: tmr.length - 1 }) : T('내일까지: {t}.', { t: short(tmr[0].title) })) + ' ' : '';
     if (ds === td) {
       const picks = (dayOf(ds).picks || []).map(rock).filter(Boolean), done = picks.filter(r => r.done || (r.checks && r.checks[ds])).length;
-      const pn = partOn(ds).length; if (picks.length || pn) return { title: pn ? `${T('오늘 {a}개 중 끝 {done} · 일부 진행', { a: picks.length + pn, done })} ${pn}` : done ? T('오늘 {n}개 중 {done}개 끝', { n: picks.length, done }) : T('오늘 {n}개, 끝낸 것만 체크하세요', { n: picks.length }), body: pre + (done < picks.length ? T('남은 건 내일로 넘겨 둘게요') : T('한 줄 일기만 남았어요')) };
+      const pn = partOn(ds).length; if (picks.length || pn) return { title: pn ? T('오늘 {a}개 중 끝 {done} · 일부 진행 {pn}', { a: picks.length + pn, done, pn }) : done ? T('오늘 {n}개 중 {done}개 끝', { n: picks.length, done }) : T('오늘 {n}개, 끝낸 것만 체크하세요', { n: picks.length }), body: pre + (done < picks.length ? T('남은 건 내일로 넘겨 둘게요') : T('한 줄 일기만 남았어요')) };
     }
     if (pre) return { title: T('오늘 닫기'), body: T('{pre}한 줄 일기도 잊지 말고요', { pre }) };
   }
