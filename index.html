@@ -783,8 +783,24 @@ function parseDueEn(t, loose) {
 }
 // 적어 둔 '내일·모레'(tomorrow)는 하루 지나면 틀린 말이 되므로 날짜로 바꿔 둔다
 function relFix(t, due, td) { t = t.replace(/(^|\s)(내일|모레)(?=\s|$)/, (m, a, w) => due === addDays(td, w === '내일' ? 1 : 2) ? a + md(due) : m); if (due !== addDays(td, 1)) return t; const c = t.replace(/^\s*(?:tomorrow|tmrw)[\s,:-]+|[\s,]+(?:tomorrow|tmrw)\s*[.!]?\s*$/i, ''); return c.trim().length >= 2 && c !== t ? c.trim() : t.replace(/(^|\s)(tomorrow|tmrw)(?=[\s,.]|$)/i, (m, a) => a + md(due)); } // 영어: 맨 앞·맨 뒤의 tomorrow는 덜어 내고(날짜는 옆에 따로 보인다), 가운데 있으면 날짜로 바꾼다
+// 중국어(번체·간체): 前·之前·以前·截止·為止가 있으면 날짜(今天·明天·後天, 週五·星期五·禮拜五·下週一, 12/3 = 12월 3일, 12月3日)와 시각(下午5點, 14:00, 3點半)을 마감으로 읽는다
+// 숫자 날짜는 달/날 순서다(영어와 반대). 날짜·시각이 제목 맨 앞에 오는 말이라, 앞머리에 붙은 마감은 제목에서 덜어 낸다
+function parseDueZh(t, loose) {
+  const DAY = '(?:今天|今晚|明天|後天|后天|(?:下下?)?(?:週|周|星期|禮拜|礼拜)[一二三四五六日天]|\\d{1,2}\\s*[\\/月]\\s*\\d{1,2}\\s*[日號号]?)', TM = '(?:(?:上午|早上|中午|下午|晚上)?\\s*(?:\\d{1,2}:\\d{2}|\\d{1,2}\\s*[點点時时](?:半|\\s*\\d{1,2}\\s*分)?))', CUE = '(?:之前|以前|前|截止|為止|为止)';
+  const cue = new RegExp(CUE).test(t), has = new RegExp(DAY).test(t); if (!cue && !loose) return null; if (!cue && !has) return null;
+  const td = today(), p2 = x => String(x).padStart(2, '0'); let d = '', m;
+  if (/今天|今晚/.test(t)) d = td; else if (/明天/.test(t)) d = addDays(td, 1); else if (/後天|后天/.test(t)) d = addDays(td, 2);
+  else if ((m = t.match(/(\d{1,2})\s*[\/月]\s*(\d{1,2})/)) && Number(m[1]) >= 1 && Number(m[1]) <= 12 && Number(m[2]) >= 1 && Number(m[2]) <= 31) { const y = Number(td.slice(0, 4)); d = `${y}-${p2(m[1])}-${p2(m[2])}`; if (d < td) d = `${y + 1}-${p2(m[1])}-${p2(m[2])}`; }
+  else if ((m = t.match(/(下)?(?:週|周|星期|禮拜|礼拜)([一二三四五六日天])/))) { const idx = '日一二三四五六'.indexOf(m[2] === '天' ? '日' : m[2]), wd = new Date(td + 'T00:00').getDay(); d = addDays(td, m[1] ? ((idx + 6) % 7) - ((wd + 6) % 7) + 7 : (idx - wd + 7) % 7); }
+  let tm = ''; const c = t.match(/(\d{1,2}):(\d{2})/), k = t.match(/(上午|早上|中午|下午|晚上)?\s*(\d{1,2})\s*[點点時时](?:\s*(\d{1,2})\s*分|(半))?/);
+  if (c && Number(c[1]) < 24) tm = p2(c[1]) + ':' + c[2];
+  else if (k) { let h = Number(k[2]); const pm = k[1] === '下午' || k[1] === '晚上'; if (pm && h < 12) h += 12; if (!k[1] && h >= 1 && h <= 7) h += 12; if (h < 24) tm = p2(h) + ':' + p2(k[3] ? Number(k[3]) : k[4] ? 30 : 0); }
+  if (!d && tm) d = td; if (!d) return null;
+  const cut = t.replace(new RegExp('^\\s*' + DAY + '\\s*' + TM + '?\\s*' + CUE + '\\s*'), '').trim();
+  return { due: d, t: tm, cut: cue && cut.length >= 2 && cut !== t.trim() ? cut : '' };
+}
 function parseDue(t, loose) {
-  t = String(t || ''); if (LANG !== 'ko') { const e = parseDueEn(t, loose); if (e) return e; } const cue = /(마감|까지|제출|전에(?=\s)|(?:시|분|반|요일|일)\s*전(?=\s)|전(?:에|까지)?\s*$)/.test(t); if (!cue && !loose) return null;
+  t = String(t || ''); if (LANG === 'en') { const e = parseDueEn(t, loose); if (e) return e; } else if (LANG !== 'ko') { const z = parseDueZh(t, loose); if (z) return z; } const cue = /(마감|까지|제출|전에(?=\s)|(?:시|분|반|요일|일)\s*전(?=\s)|전(?:에|까지)?\s*$)/.test(t); if (!cue && !loose) return null;
   // 신호가 없을 때(loose)는 날짜가 분명한 것만: ○요일, 11/20, 11월 20일, '금 저녁'처럼 요일 뒤에 때가 오는 것
   if (!cue && !/(?:^|\s)(?:다음\s*주\s*)?[월화수목금토일]요일|\d{1,2}\s*(?:\/|월)\s*\d{1,2}|(?:^|\s)[월화수목금토]\s*(?:저녁|아침|오전|오후|밤|점심|\d)|^\s*(?:내일|모레)\s/.test(t)) return null;
   const td = today(), p2 = x => String(x).padStart(2, '0'); let d = '', m;
@@ -907,7 +923,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.87'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.88'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), digest: T('매일 아침 정리 시작하기'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
