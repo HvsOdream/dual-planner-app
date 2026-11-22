@@ -3,6 +3,12 @@
 버전은 루트 `VERSION` 한 곳에서 올린다. iOS 빌드 번호는 GitHub Actions 실행 번호라 자동으로 올라간다.
 빌드 전 규칙: `VERSION` 올리고 → 아래에 한 줄 적고 → Actions에서 iOS TestFlight 실행.
 
+## 0.7.80 — 2026-11-22 (영어: 원어민 페르소나 지적 반영 1차)
+- 화면은 그대로 한국어. 영국 마케터 페르소나(Claude 새 대화)가 짚은 문구 101곳 가운데 뜻이 분명한 40여 곳을 영어 사전에 반영
+- 영어 날짜: 요일을 앞에(`Mon 23 Nov`, `Sun 22 Nov`), 달은 풀어서(`November 2026`), 남은 날은 `tomorrow`·`in 3 days`
+- 영어 문구: `Do today` → `Move to today`, `Nice to do` → `If you've got time`, `Lopsided roles` → `Out of balance`, `Urgent · light` → `Urgent but quick`, 미국식 낱말(`Mom`, `checked`) → 영국·공통 표현
+- 용어(역할·계획·비서 포스트잇·오늘의 회고)와 동작에 관한 지적은 정해야 할 일로 남김 → 프로젝트 문서 `persona-en-2026-11-22-hannah.md`
+
 ## 0.7.79 — 2026-11-22 (영어: 첫 실행 흐름 읽어 보며 손봄)
 - 화면은 그대로 한국어. 영어로 첫 실행 → 아홉 줄 적기 → 정리 → 탭·메뉴를 돌려 읽고 고침
 - 영어: 남은 날 `D-1` → `1 day`(영어권은 D-3을 쓰지 않음), 제목 맨 앞·맨 뒤의 `tomorrow`는 덜어 냄(`Call Mum tomorrow` → `Call Mum`, 날짜는 옆에 따로), 예시 `12/5` → `5 Dec`, `To today` → `Do today` 등

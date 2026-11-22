@@ -727,9 +727,10 @@ function weekDates(ws) { return Array.from({length:7},(_,i)=>{ const x=new Date(
 function weekNo(d) { const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()+3-(x.getDay()+6)%7); const y = new Date(x.getFullYear(),0,4); return 1+Math.round(((x-y)/86400000-3+(y.getDay()+6)%7)/7); }
 const MON_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function md(ds) { const [y,m,d] = ds.split('-').map(Number); return LANG === 'en' ? d + ' ' + MON_EN[m - 1] : m+'/'+d; }
-function dTag(n) { return LANG === 'en' ? (n === 1 ? '1 day' : n + ' days') : 'D-' + n; } // 남은 날: 영어권은 D-3을 쓰지 않는다
-function dayHead(m, d, w) { return LANG === 'en' ? w + ', ' + d + ' ' + MON_EN[m - 1] : T('{a}월 {b}일 {c}요일', { a: m, b: d, c: w }); }
-function ymLabel(y, m) { return LANG === 'en' ? MON_EN[m - 1] + ' ' + y : T('{y}년 {b}월', { y, b: m }); }
+function dTag(n) { return LANG === 'en' ? (n === 1 ? 'tomorrow' : 'in ' + n + ' days') : 'D-' + n; } // 남은 날: 영어권은 D-3을 쓰지 않는다
+function mdw(ds) { const w = wdn(new Date(ds + 'T00:00').getDay()); return LANG === 'en' ? w + ' ' + md(ds) : md(ds) + ' ' + w; } // 12/5 금 · Fri 5 Dec
+function dayHead(m, d, w) { return LANG === 'en' ? w + ' ' + d + ' ' + MON_EN[m - 1] : T('{a}월 {b}일 {c}요일', { a: m, b: d, c: w }); }
+function ymLabel(y, m) { return LANG === 'en' ? ['January','February','March','April','May','June','July','August','September','October','November','December'][m - 1] + ' ' + y : T('{y}년 {b}월', { y, b: m }); }
 function ymdLabel(y, m, d) { return LANG === 'en' ? d + ' ' + MON_EN[m - 1] + ' ' + y : T('{y}년 {m}월 {d}일', { y, m, d }); }
 function dayOf(ds) { if (!D.days[ds]) D.days[ds] = { intent:'', note:'', picks:[], inbox:[] }; return D.days[ds]; }
 const BUCKETS = [['urgent',T('A 급함·중요')],['important',T('B 중요')],['light',T('C 급함·가벼움')],['nice',T('D 나중에')]];
@@ -901,7 +902,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.79'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.80'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1199,7 +1200,7 @@ function sheetHtml() {
   const dayOfR = r => { if (r.appt && r.at) return r.at.slice(0, 10); for (const d of Object.keys(D.days).sort()) if (d >= td && (D.days[d].picks || []).includes(r.id)) return d; return ''; };
   const by = {}; rs.forEach(r => { const d = dayOfR(r); (by[d] = by[d] || []).push(r); });
   const offer = isNative() && !notifyCfg().on && rs.some(r => r.due); // 마감이 생긴 바로 이때 알림을 권한다(켤 계기가 없어 끝까지 안 켜는 사람이 많았다)
-  const lab = d => !d ? T('할 일 목록에 (필요한 날 오늘로)') : d === td ? T('오늘') : `${md(d)} ${wdn(new Date(d + 'T00:00').getDay())}`;
+  const lab = d => !d ? T('할 일 목록에 (필요한 날 오늘로)') : d === td ? T('오늘') : mdw(d);
   const rows = Object.keys(by).sort((a, b) => !a ? 1 : !b ? -1 : a < b ? -1 : 1).map(d => `<div class="shd">${lab(d)}</div>` + by[d].map(r => `<div class="shr"><span class="sht">${esc(r.title)}</span>${r.due ? `<span class="shm">${r.due === d ? (r.on ? (r.dueT || '') : T('{a}마감', { a: (r.dueT ? r.dueT + ' ' : '') })) : T('{due}{b}까지', { due: md(r.due), b: (r.dueT ? ' ' + r.dueT : '') })}</span>` : ''}${!d ? `<button class="pill" style="color:inherit" onclick="pick('${r.id}')">${T('오늘로')}</button>` : ''}</div>`).join('')).join('');
   return `<div class="stickies" style="padding-top:12px"><div class="sticky wide"><div class="who"><span>${T('비서')}</span><span>${T('이렇게 놓았어요 · {n}개', { n: rs.length })}</span></div>${rows}
     <div class="bev" style="white-space:normal;opacity:.8;margin-top:6px">${offer ? T('알림을 켜면 마감 사흘 전과 전날, 그날 아침에 알려 드려요. 안 열어도 챙길 수 있게요') : T('그날 아침에 알려 드리고, 남은 일은 다음 날로 넘겨 둘게요')}</div>

@@ -22,7 +22,7 @@ for (const f of fs.readdirSync(path.join(ROOT, 'lang')).filter(f => f.endsWith('
   const box = { window: {} };
   try { vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'lang', f), 'utf8'), box); } catch (e) { console.log(`✗ ${f}: 문법 오류 — ${e.message}`); bad++; continue; }
   const d = box.window.DP_DICT || {}, miss = [...keys].filter(k => !(k in d)), stale = Object.keys(d).filter(k => !keys.has(k));
-  const hole = Object.keys(d).filter(k => { const want = (k.split('@')[0].match(/\{\w+\}/g) || []).sort().join(), vals = [].concat(d[k]); return vals.some(v => (String(v).match(/\{\w+\}/g) || []).sort().join() !== want); });
+  const hole = Object.keys(d).filter(k => { const want = (k.split('@')[0].match(/\{\w+\}/g) || []).sort().join(), vals = [].concat(d[k]); const vs = v => (String(v).match(/\{\w+\}/g) || []).sort(); return vals.some((v, i) => Array.isArray(d[k]) && i < vals.length - 1 ? vs(v).some(x => !want.split(',').includes(x)) : vs(v).join() !== want); }); // 하나일 때 쓰는 문장은 값을 덜 써도 된다("Tomorrow: …")
   console.log(`${f}: 번역 ${Object.keys(d).length} · 빠짐 ${miss.length} · 남음 ${stale.length} · {값} 안 맞음 ${hole.length}`);
   miss.slice(0, 40).forEach(k => console.log('   + ' + JSON.stringify(k)));
   stale.forEach(k => console.log('   − ' + JSON.stringify(k))); hole.forEach(k => console.log('   ! ' + JSON.stringify(k)));
