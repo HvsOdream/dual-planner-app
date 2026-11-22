@@ -680,6 +680,7 @@ function wdn(i) { return (WDS[LANG] || WDS.ko)[i]; } // 요일 이름. i는 Date
 function applyLang() { document.documentElement.lang = LANG;
   document.querySelectorAll('[data-t]').forEach(e => { const k = e.dataset.t || e.textContent.trim(); e.dataset.t = k; e.textContent = T(k); });
   document.querySelectorAll('[data-t-aria]').forEach(e => { const k = e.dataset.tAria || e.getAttribute('aria-label'); e.dataset.tAria = k; e.setAttribute('aria-label', T(k)); });
+  if (LANG === 'en') document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('a[href^="legal/"]'); if (a) a.setAttribute('href', a.getAttribute('href').replace(/^(legal\/(?:terms|privacy))\.html$/, '$1.en.html')); }, true); // 영어 화면에서는 약관·방침의 영어판을 연다
   const lf = document.getElementById('loginFine'); if (lf && LANG !== 'ko') lf.innerHTML = T('로그인하면 폰과 다른 기기에서 같은 플래너를 써요') + '<br>' + T('계속하면 {a}과 {b}에 동의하게 돼요', { a: `<a href="legal/terms.html" target="_blank">${T('이용약관')}</a>`, b: `<a href="legal/privacy.html" target="_blank">${T('개인정보처리방침')}</a>` }); }
 const DOW = [1, 2, 3, 4, 5, 6, 0].map(wdn);
 const CHECK = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D7452E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5 L10 18 L20 6"></path></svg>`;
@@ -902,7 +903,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.82'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.83'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
