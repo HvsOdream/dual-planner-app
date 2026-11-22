@@ -35,13 +35,14 @@ function template(tl, anc) {
   for (let run of runs) {
     let a = run.findIndex(x => x.t && KO.test(x.t)), b = run.length - 1 - [...run].reverse().findIndex(x => x.t && KO.test(x.t)); if (a < 0) continue;
     while (a > 0 && run[a - 1].e && !/^\s/.test(run[a].t)) a--; while (b < run.length - 1 && run[b + 1].e && !/\s$/.test(run[b].t)) b++; // 글자에 딱 붙은 값은 문장에 넣는다
+    const cutOff = a > 0 || b < run.length - 1; // 문장 앞뒤에 남는 글자(' · ' 등)가 있으면 통째로 바꾸지 않는다(0.7.75에서 9곳이 떨어졌다)
     run = run.slice(a, b + 1);
     const first = run[0], last = run[run.length - 1], lead = first.t ? /^\s*/.exec(first.t)[0] : '', tail = last.t ? /\s*$/.exec(last.t)[0] : '';
     const cook = t => t.replace(/\\`/g, '`').replace(/\\\$/g, '$').replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
     const parts = run.map((x, i) => x.e ? x.e : cook(x.t.slice(i === 0 ? lead.length : 0, x.t.length - (i === run.length - 1 ? tail.length : 0))));
     if (parts.some(p => typeof p === 'string' && /\\u|\\x/.test(p))) { left.push('이스케이프: ' + js.slice(first.start, last.end).slice(0, 60)); continue; }
     const c = call(parts);
-    if (whole && !lead && !tail) { edits.push([tl.start, tl.end, c]); return; }
+    if (whole && !lead && !tail && !cutOff) { edits.push([tl.start, tl.end, c]); return; }
     edits.push([first.start + lead.length, last.end - tail.length, '${' + c + '}']); }
   // 태그 안의 placeholder·aria-label·title·alt
   tl.quasis.forEach(qu => { const re = /\b(placeholder|aria-label|title|alt)="([^"]*[가-힣][^"]*)"/g; let m; while ((m = re.exec(qu.value.raw))) { const s = qu.start + m.index + m[1].length + 2; if (!edits.some(([x, y]) => s < y && s + m[2].length > x)) edits.push([s, s + m[2].length, '${' + call([m[2]]) + '}']); } });

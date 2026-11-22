@@ -293,8 +293,10 @@ async function llm(env, messages, maxTokens, model, meter) {
 }
 function jsonIn(text) { const a = text.indexOf('{'), b = text.lastIndexOf('}'); if (a < 0 || b <= a) return null; try { return JSON.parse(text.slice(a, b + 1)); } catch { return null; } }
 // 사용자가 적은 글의 언어: 한글이 대부분이면 ko, 아니면 가나가 있으면 ja, 그 밖은 en
-function langOf(texts) { const t = (texts || []).join(' '); const ko = (t.match(/[가-힣]/g) || []).length, ja = (t.match(/[\u3040-\u30ff]/g) || []).length, la = (t.match(/[A-Za-z]/g) || []).length; return ko >= (la + ja) / 2 ? 'ko' : ja > 0 ? 'ja' : 'en'; }
-const LANG_NAME = { en: '영어', ja: '일본어' };
+// 답할 언어: 사용자가 적은 글의 언어를 따른다. 글이 거의 없거나 한자뿐이라 가리기 어려울 때만 앱 언어(hint)를 쓴다
+function langOf(texts, hint) { const t = (texts || []).join(' '); const ko = (t.match(/[가-힣]/g) || []).length, ja = (t.match(/[\u3040-\u30ff]/g) || []).length, han = (t.match(/[\u4e00-\u9fff]/g) || []).length, la = (t.match(/[A-Za-z]/g) || []).length, h = ['en', 'ja', 'zh-Hans', 'zh-Hant'].includes(hint) ? hint : '';
+  if (h && ko + ja + han + la < 6) return h; if (ko > 0 && ko >= (la + ja + han) / 2) return 'ko'; if (ja > 0) return 'ja'; if (han > la) return h === 'ja' ? 'ja' : h.startsWith('zh') ? h : 'zh-Hans'; return ko + la === 0 ? 'ko' : 'en'; }
+const LANG_NAME = { en: '영어', ja: '일본어', 'zh-Hans': '중국어 간체', 'zh-Hant': '중국어 번체' };
 async function group(req, env, token) {
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
   if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
@@ -337,7 +339,7 @@ async function group(req, env, token) {
     { role: 'user', content: '기존 역할: 없음\n할 일:\n- id=c1: 서윤 담임 김지은 선생님께 상담 답장\n- id=c2: 박 과장에게 출하 검사표 보내기\n- id=c3: 전기기사 기출 2회분 풀기\n- id=c4: 언니랑 엄마 생신 선물 정하기\n- id=c5: 요가 주 3회\n- id=c6: [일정] 주간 회의\n- id=c7: [일정] 서윤 피아노 픽업' },
     { role: 'assistant', content: '{"groups":[{"name":"품질관리","ids":["c2","c6"]},{"name":"부모","ids":["c1","c7"]},{"name":"수험생","ids":["c3"]},{"name":"가족","ids":["c4"]},{"name":"나 자신","ids":["c5"]}],"people":[{"name":"서윤","guess":"딸"},{"name":"김지은","guess":"선생님"},{"name":"박 과장","guess":"동료"}]}' }
   ];
-  const lang = langOf(items.map(x => x.title));
+  const lang = langOf(items.map(x => x.title), body.lang);
   const user = (lang !== 'ko' ? `글 언어: ${LANG_NAME[lang]} — 역할 이름과 관계를 ${LANG_NAME[lang]}로 쓴다\n` : '') + (me ? '하는 일(사용자가 직접 적음): ' + me + ' — 일하는 자리의 역할 이름은 이 말에서 가져온다. 직함은 바꾸거나 넓히지 않고, 길면 앞의 등급 말(Senior, 수석 등)만 뺀다. 두 자리가 적혀 있으면(예: 교수 겸 학과장) 책임이 다른 역할로 나눈다. 여기에 없는 직책은 지어내지 않는다\n' : '') + '기존 역할: ' + (roles.join(', ') || '없음') + '\n사람(사용자가 적은 설명. 그 사람이 나오는 할 일은 이 설명으로 역할을 정한다): ' + (people.map(([n, r]) => n + '=' + r).join(', ') || '없음') + '\n할 일:\n' + items.map(x => `- id=${x.id}: ${x.title}`).join('\n');
   const msgs = [{ role: 'system', content: sys }, ...example, { role: 'user', content: user }];
   const meter = { calls: [] };
@@ -411,7 +413,8 @@ async function planDraft(req, env, token) {
     '각 줄은 30자 안쪽의 한국어 명사형 문장. 사용자가 다른 언어로 적었으면 그 언어로 쓴다.',
     '설명 없이 JSON 하나만 출력한다: {"goal":"...","steps":[{"t":"...","due":"YYYY-MM-DD"}],"routine":{"t":"...","per":3}}'
   ].join('\n');
-  const user = `오늘: ${td}\n하고 싶은 것: ${want}\n언제까지: ${due || '정하지 않음'}\n지금 상황: ${state || '적지 않음'}` + (busy.length ? `\n이미 있는 일(겹치지 않게만 참고):\n${busy.join('\n')}` : '') + (more ? `\n다시 짤 때 바라는 점: ${more}` : '');
+  const plang = langOf([want, state], b.lang);
+  const user = (plang !== 'ko' ? `글 언어: ${LANG_NAME[plang]} — goal·steps·routine을 ${LANG_NAME[plang]}로 쓴다(한 줄은 짧은 명령형 구절)\n` : '') + `오늘: ${td}\n하고 싶은 것: ${want}\n언제까지: ${due || '정하지 않음'}\n지금 상황: ${state || '적지 않음'}` + (busy.length ? `\n이미 있는 일(겹치지 않게만 참고):\n${busy.join('\n')}` : '') + (more ? `\n다시 짤 때 바라는 점: ${more}` : '');
   const msgs = [{ role: 'system', content: sys }, { role: 'user', content: user }], meter = { calls: [] };
   let out;
   try {
@@ -448,7 +451,8 @@ async function bundle(req, env, token) {
     'guess: 묶음에 넣은 줄 가운데 날짜가 없는 줄마다, 끝내면 좋을 날짜를 짐작해 준다(오늘 이후, end가 있으면 그 전). 날짜가 있는 줄은 넣지 않는다.',
     '설명 없이 JSON 하나만 출력한다: {"name":"...","ids":["id"],"end":"YYYY-MM-DD","endTitle":"...","guess":{"id":"YYYY-MM-DD"}}'
   ].join('\n');
-  const user = `오늘: ${td}\n할 일:\n${items.map(x => `- id=${x.id}: ${x.title}${x.due ? ' (' + x.due + '까지)' : ''}`).join('\n')}\n일정:\n${events.length ? events.map(e => `- ${e.date} ${e.title}`).join('\n') : '없음'}\n이미 있는 계획: ${plans.join(', ') || '없음'}`;
+  const blang = langOf(items.map(x => x.title), b.lang);
+  const user = (blang !== 'ko' ? `글 언어: ${LANG_NAME[blang]} — name을 ${LANG_NAME[blang]}로, 사용자가 쓴 낱말로 1~4단어\n` : '') + `오늘: ${td}\n할 일:\n${items.map(x => `- id=${x.id}: ${x.title}${x.due ? ' (' + x.due + '까지)' : ''}`).join('\n')}\n일정:\n${events.length ? events.map(e => `- ${e.date} ${e.title}`).join('\n') : '없음'}\n이미 있는 계획: ${plans.join(', ') || '없음'}`;
   const msgs = [{ role: 'system', content: sys }, { role: 'user', content: user }], meter = { calls: [] };
   let out;
   try {
@@ -530,7 +534,7 @@ async function review(req, env, token) {
     '할 일이 대부분 한국어가 아니면 summary와 후보 제목을 그 언어로 쓴다(영어면 짧고 담백한 2인칭 평서문, 칭찬·감탄 없이). 규칙은 위와 같다.',
     '설명 없이 JSON 하나만: {"summary":"...","cands":[{"title":"...","role":"...","due":"YYYY-MM-DD"}]}'
   ].join('\n');
-  const rlang = langOf((b.open || []).concat(b.done || []).map(x => String((x && x.title) || '')));
+  const rlang = langOf((b.open || []).concat(b.done || []).map(x => String((x && x.title) || '')), b.lang);
   const user = (rlang !== 'ko' ? `글 언어: ${LANG_NAME[rlang]} — summary와 후보를 ${LANG_NAME[rlang]}로 쓴다\n` : '') + `오늘: ${String(b.today || '').slice(0, 10)} / 다음 주 시작: ${String(b.next || '').slice(0, 10)}\n역할: ${cut(b.roles, 8, String).join(', ') || '없음'}\n이번 주 끝낸 일:\n${done.join('\n') || '- 없음'}\n남은 일:\n${open.join('\n') || '- 없음'}\n먼저 볼 일: ${firstLine || '없음'}\n캘린더 시간: ${hours || '없음'}\n한 줄 일기:\n${notes.join('\n') || '- 없음'}`;
   const ex = [
     { role: 'user', content: '오늘: 2026-11-22 / 다음 주 시작: 2026-11-23\n역할: 영업 과장, 하은 아빠, 나 자신\n이번 주 끝낸 일:\n- 거래처 3곳 견적 회신 (영업 과장)\n- 주간 영업 회의 자료 (영업 과장)\n- 하은 피아노 학원 상담 (하은 아빠)\n남은 일:\n- 신규 거래처 제안서 (영업 과장) 마감 지남(2026-11-20)\n- 치과 예약 (나 자신)\n먼저 볼 일: 신규 거래처 제안서 (마감 지남 11/20)\n캘린더 시간: 영업 과장 11시간, 하은 아빠 1시간\n한 줄 일기:\n- 없음' },
