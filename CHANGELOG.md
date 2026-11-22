@@ -3,6 +3,11 @@
 버전은 루트 `VERSION` 한 곳에서 올린다. iOS 빌드 번호는 GitHub Actions 실행 번호라 자동으로 올라간다.
 빌드 전 규칙: `VERSION` 올리고 → 아래에 한 줄 적고 → Actions에서 iOS TestFlight 실행.
 
+## 0.7.79 — 2026-11-22 (영어: 첫 실행 흐름 읽어 보며 손봄)
+- 화면은 그대로 한국어. 영어로 첫 실행 → 아홉 줄 적기 → 정리 → 탭·메뉴를 돌려 읽고 고침
+- 영어: 남은 날 `D-1` → `1 day`(영어권은 D-3을 쓰지 않음), 제목 맨 앞·맨 뒤의 `tomorrow`는 덜어 냄(`Call Mum tomorrow` → `Call Mum`, 날짜는 옆에 따로), 예시 `12/5` → `5 Dec`, `To today` → `Do today` 등
+- 앱 안 언어 고르기 칸은 두지 않기로 함(기기 언어를 따르고, iOS 설정의 앱별 언어를 씀)
+
 ## 0.7.78 — 2026-11-22 (영어 알림 문장)
 - 화면·알림 모두 한국어는 그대로(알림 문구 48가지를 앞 판과 대조해 차이 0). 아침·저녁 알림과 「이번 주 숫자」에서 조각을 이어 만들던 문장을 문장 하나짜리 열쇠로 합침
 - 영어 알림: `Due today: A. and 'B' (D-1).` → `Due today: A. Then 'B' (past due).`, `3 events today. First up: … at 09:00.`, `Due tomorrow: A and 1 more.`
