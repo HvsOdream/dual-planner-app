@@ -817,4 +817,5 @@ window.DP_DICT = {
   "내일까지: {t} 외 {a}개.": "Due tomorrow: {t} and {a} more.",
   "내일까지: {t}.": "Due tomorrow: {t}.",
   "오늘 {a}개 중 끝 {done} · 일부 진행 {pn}": "{done} of {a} done today · {pn} partly",
+  "날짜만 놓았어요. 급한지 중요한지는 직접 정해요": "I only placed them by date. How urgent or important each one is, is yours to decide",
 };
