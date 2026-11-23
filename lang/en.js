@@ -114,7 +114,7 @@ window.DP_DICT = {
   "어제 남은 일 {carriedN}개를 오늘 칸으로 넘겨 뒀어요": "Carried {carriedN} unfinished from yesterday into today",
   "줄을 누르면 칸·마감을 고칠 수 있어요": "Tap a line to change its box or due date",
   "어느 칸에 적을지": "Which box",
-  "여러 줄 · 사진": "Several at once · from a photo",
+  "한꺼번에 추가하기": "Add several at once",
   "곧 마감": "Due soon",
   "할 일 ›": "To-do ›",
   "끝냄": "Done",
