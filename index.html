@@ -923,7 +923,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.89'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.90'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), digest: T('매일 아침 정리 시작하기'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1070,13 +1070,12 @@ function itemHtml(r, ds, opts) {
 }
 function doneOn(ds) { return live().filter(r => (r.checks && r.checks[ds]) || r.doneAt === ds); }
 // 오늘 칸에 바로 적을 때 어느 칸(A·B·C)에 넣을지: 고른 것을 기억해 둔다(기본 A)
-let quickB = 'urgent', _qbTap = false; const QB_NAME = { urgent: T('급함·중요'), important: T('중요 · 할 일 탭에 적어요'), light: T('급함·가벼움') }, QB_PH = { urgent: T('새 할 일 적기'), important: T('중요한 일 적기 · 언제까지인지도'), light: T('가벼운 일 적기') };
+let quickB = 'urgent', _qbTap = false; const QB_NAME = { urgent: T('급함·중요'), important: T('중요 · 날짜가 없으면 오늘까지'), light: T('급함·가벼움') }, QB_PH = { urgent: T('새 할 일 적기'), important: T('중요한 일 적기'), light: T('가벼운 일 적기') };
 function setQuickB(b) { quickB = b; _qbTap = false; document.querySelectorAll('.qb button').forEach(x => x.classList.toggle('on', x.dataset.b === b)); const n = document.getElementById('qbName'); if (n) n.textContent = QB_NAME[b]; const e = document.getElementById('quickIn'); if (e) { e.placeholder = QB_PH[b]; e.focus(); } }
 // B는 언제까지만 할지 묻는다. 안 고르면 C에 적는다
 // 여러 줄을 한 번에 넣었을 때: 날짜 없는 B를 하나씩 묻는다. 안 고르면 C로(오늘 칸에는 넣지 않는다)
 function askDues(rs) { const q = rs.filter(r => r && r.bucket === 'important' && !r.due && !r.routine); const next = () => { const r = q.shift(); if (!r) return; const t = r.title.length > 14 ? r.title.slice(0, 14) + '…' : r.title;
   openDate('', { title: T('B · {t} · 언제까지', { t }), cancel: () => { r.bucket = 'light'; r.u = new Date().toISOString(); save(); render(); toast(T('날짜가 없어 C에 적었어요')); setTimeout(next, 0); } }, v => { r.due = v; r.u = new Date().toISOString(); save(); render(); setTimeout(next, 0); }); }; next(); }
-function askDue(r, pre) { openDate(pre || '', { title: T('언제까지만'), cancel: () => { r.bucket = 'light'; r.u = new Date().toISOString(); const d = dayOf(today()); if (!d.picks.includes(r.id)) d.picks.push(r.id); save(); render(); toast(T('날짜가 없어 C에 적었어요')); } }, v => { r.due = v; r.u = new Date().toISOString(); save(); render(); toast(`${T('할 일 탭 B에 적었어요 ·')} ${fmtDue(r)}`); }); }
 function addToday(blur) {
   const el = document.getElementById('quickIn'); let t = (el.value||'').trim(); if (!t) return;
   const pt = parseTime(t); if (pt) t = pt[1];
@@ -1086,8 +1085,9 @@ function addToday(blur) {
   { const g = pd || lo; if (g && g.due > today()) r.title = relFix(r.title, g.due, today()); }
   const far = lo && lo.due > today() && r.bucket !== 'important' ? lo : null; // '수요일 픽업'처럼 다른 날이 적힌 일은 그날 칸에 놓는다
   if (far) { r.due = far.due; r.on = 1; if (far.t) r.dueT = far.t; const fd = dayOf(far.due); fd.picks = fd.picks || []; fd.picks.push(r.id); }
-  el.value = ''; D.rocks.push(r); if (r.bucket !== 'important' && !far) dayOf(today()).picks.push(r.id); markStarted(); save(); render();
-  if (r.bucket === 'important') { if (r.due) toast(`${T('할 일 탭 B에 적었어요 ·')} ${fmtDue(r)}`); else askDue(r, lo && lo.due); return; } // 고른 칸은 바꿀 때까지 그대로 둔다
+  let bToday = false; if (r.bucket === 'important' && !r.due) { if (lo && lo.due) { r.due = lo.due; if (lo.t) r.dueT = lo.t; } else { r.due = today(); r.tb = 1; bToday = true; } } // tb: 오늘 칸에서 적은 B. 할 일 탭의 B(기한을 두고 가는 긴 일)와 달리 'A로 올릴까요' 권유에 넣지 않는다 // 오늘 칸에서 B를 날짜 없이 적으면 묻지 않는다: 오늘 하려고 적은 것이니 오늘 칸에 올리고 마감은 오늘. 글에 날짜가 있으면 그날까지로 할 일 탭 B에
+  el.value = ''; D.rocks.push(r); if ((r.bucket !== 'important' && !far) || bToday) dayOf(today()).picks.push(r.id); markStarted(); save(); render();
+  if (r.bucket === 'important') { if (bToday) toast(T('오늘 칸에 적었어요 · 마감 오늘')); else { toast(`${T('할 일 탭 B에 적었어요 ·')} ${fmtDue(r)}`); return; } } // 고른 칸은 바꿀 때까지 그대로 둔다
   if (pd) toast(`${T('마감')} ${fmtDue(r)}`); else if (far) toastAsk(T('{d} {a}요일 칸에 적었어요', { d: md(far.due), a: wdn(new Date(far.due + 'T00:00').getDay()) }), T('오늘로'), () => { const d = dayOf(today()); if (!d.picks.includes(r.id)) d.picks.push(r.id); save(); render(); toast(T('오늘 칸에도 적었어요')); });
   if (!blur) setTimeout(()=>{ const e=document.getElementById('quickIn'); if (e) e.focus(); }, 30);
 }
@@ -1517,7 +1517,7 @@ function aNote(o) {
 }
 function promoteB() {
   const t = new Date().toISOString(); let n = 0;
-  openItems().filter(r => r.bucket === 'important' && r.due && dleft(r.due) >= 0 && dleft(r.due) <= 3).forEach(r => { r.bucket = 'urgent'; r.promotedAt = today(); r.u = t; n++; });
+  openItems().filter(r => r.bucket === 'important' && !r.tb && r.due && dleft(r.due) >= 0 && dleft(r.due) <= 3).forEach(r => { r.bucket = 'urgent'; r.promotedAt = today(); r.u = t; n++; });
   save(); render(); toast(T('B {n}개를 A로 올렸어요', { n }));
 }
 function dleft(ds) { return Math.round((new Date(ds) - new Date(today())) / 86400000); }
@@ -1527,7 +1527,7 @@ function weekNotes() {
   if (featOn('due') && !noteOff('due:' + td)) {
     const soon = openItems().filter(r => r.due && dleft(r.due) >= 0 && dleft(r.due) <= 3).sort((a, b) => a.due < b.due ? -1 : 1);
     if (soon.length) {
-      const bs = soon.filter(r => r.bucket === 'important'), picks = dayOf(td).picks || [];
+      const bs = soon.filter(r => r.bucket === 'important' && !r.tb), picks = dayOf(td).picks || [];
       const html = soon.slice(0, 5).map(r => bRow(r, dleft(r.due) ? dTag(dleft(r.due)) : T('오늘'), dleft(r.due) <= 1, picks.includes(r.id) ? `<span class="bdone">${T('오늘 칸 ✓')}</span>` : `<button onclick="pickHere('${r.id}')">${T('오늘로')}</button>`)).join('') + (bs.length ? `<div class="bev" style="padding:6px 0 0">${T('B {n}개가 사흘 안에 마감이에요. A로 올릴까요', { n: bs.length })}</div>` : '');
       h += aNote({ label: T('마감 임박'), meta: T('{n}개', { n: soon.length }), cls: 'wide brief', text: soon.map(r => shortT(r.title)).join(' / '), html, acts: (bs.length ? `<button onclick="promoteB()">${T('B {n}개 A로', { n: bs.length })}</button>` : '') + `<button onclick="dropNote('due:${td}')">${T('떼기')}</button>` });
     }
@@ -2634,7 +2634,7 @@ function rowBucket(id, b) {
 }
 function rowDueT(id, v) { const r = rock(id); if (!r) return; if (v) r.dueT = v; else delete r.dueT; r.u = new Date().toISOString(); save(); render(); }
 function planDue(id) { const r = rock(id); if (!r) return; openDate(r.due || r.guess || '', { allowNone: true, title: T('언제까지') }, v => { if (!v) return; r.due = v; delete r.guess; r.u = new Date().toISOString(); save(); render(); }); }
-function rowDue(id, v) { const r = rock(id); if (!r) return; if (!v && r.bucket === 'important') { toast(T('B는 끝 날짜가 있어야 해요')); render(); return; } r.due = v || null; if (v) delete r.guess; save(); render(); }
+function rowDue(id, v) { const r = rock(id); if (!r) return; if (!v && r.bucket === 'important') { toast(T('B는 끝 날짜가 있어야 해요')); render(); return; } r.due = v || null; if (v) delete r.guess; if (v && r.tb && v > today()) delete r.tb; save(); render(); } // 오늘 칸의 B에 뒷날 마감을 주면 할 일 탭의 B가 된다
 function itemRow(r, n) {
   const td = today(), picked = (dayOf(td).picks||[]).includes(r.id);
   const dl = (!r.done && r.due && !r.routine) ? dleft(r.due) : null;

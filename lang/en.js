@@ -691,10 +691,8 @@ window.DP_DICT = {
   "오래 멈춘 {n}개({names})는 D에 넣어 둘까요. 지우지 않아요": ["Move the {n} long-stalled item ({names}) to D? Nothing gets deleted", "Move the {n} long-stalled items ({names}) to D? Nothing gets deleted"],
   "연속 {s}일": ["{s}-day streak", "{s}-day streak"],
   "급함·중요": "Urgent · important",
-  "중요 · 할 일 탭에 적어요": "Important · goes to the To-do tab",
   "급함·가벼움": "Urgent but quick",
   "새 할 일 적기": "Add a to-do",
-  "중요한 일 적기 · 언제까지인지도": "Add something important · and by when",
   "가벼운 일 적기": "Add a quick one",
   "{d} {a}요일 칸에 적었어요": "Added under {a} {d}",
   "{n} 칸": "Box {n}",
@@ -861,4 +859,7 @@ window.DP_DICT = {
   "2. 브라우저의 AI 비서를 부르고 지시문을 붙여 넣어요": "2. Call up the assistant in your browser and paste the prompt",
   "3. 찾은 것은 오늘 포스트잇으로 적혀요": "3. What it finds shows up as sticky notes on Today",
   "일주일에 한두 번이면 충분해요. 메일은 읽기만 하고 보내지 않아요.": "Once or twice a week is enough. It only reads email and never sends any.",
+  "중요 · 날짜가 없으면 오늘까지": "Important · due today if no date",
+  "중요한 일 적기": "Add something important",
+  "오늘 칸에 적었어요 · 마감 오늘": "Added to Today · due today",
 };
