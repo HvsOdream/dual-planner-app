@@ -923,7 +923,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.88'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.89'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), digest: T('매일 아침 정리 시작하기'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -2520,9 +2520,9 @@ function pickDate(v) { const cb = dp && dp.cb; closeDate(); if (cb) cb(v); }
 function dpMonth(n) { const d = new Date(dp.month + 'T00:00'); d.setMonth(d.getMonth() + n); dp.month = dstr(d).slice(0, 7) + '-01'; renderDate(); }
 function renderDate() {
   let el = document.getElementById('dpick'); if (!el) { el = document.createElement('div'); el.id = 'dpick'; el.className = 'dpick'; el.onclick = e => { if (e.target === el) closeDate(true); }; document.body.appendChild(el); }
-  const td = today(), wd = new Date(td + 'T00:00').getDay(), first = new Date(dp.month + 'T00:00'), y = first.getFullYear(), m = first.getMonth(), lead = (first.getDay() + 6) % 7, n = new Date(y, m + 1, 0).getDate(), p2 = x => String(x).padStart(2, '0');
+  const td = today(), wd = new Date(td + 'T00:00').getDay(), first = new Date(dp.month + 'T00:00'), y = first.getFullYear(), m = first.getMonth(), lead = first.getDay(), n = new Date(y, m + 1, 0).getDate(), p2 = x => String(x).padStart(2, '0'); // 날짜 고르는 창은 일요일부터(일월화수목금토)
   const quick = [[T('오늘'), td], [T('내일'), addDays(td, 1)], [T('이번 주 금'), addDays(td, (5 - wd + 7) % 7)], [T('다음 주 월'), addDays(td, ((8 - wd) % 7) || 7)]].filter((q, i, a) => a.findIndex(z => z[1] === q[1]) === i);
-  let cells = DOW.map(w => `<span class="cw">${w}</span>`).join('') + '<span></span>'.repeat(lead);
+  let cells = [0, 1, 2, 3, 4, 5, 6].map(i => `<span class="cw">${wdn(i)}</span>`).join('') + '<span></span>'.repeat(lead);
   for (let d = 1; d <= n; d++) { const ds = `${y}-${p2(m + 1)}-${p2(d)}`; cells += `<button class="cd ${ds === td ? 'td' : ''} ${ds === dp.val ? 'sel' : ''} ${ds < td ? 'out' : ''}" aria-label="${kDate(ds)}" onclick="pickDate('${ds}')"><span>${d}</span></button>`; }
   el.innerHTML = `<div class="dpbox" role="dialog" aria-label="${T('{title} 고르기', { title: dp.title })}"><div class="dph"><b>${dp.title}</b><span>${dp.val ? T('지금 {a}', { a: dLabel(dp.val) }) : T('아직 정하지 않음')}</span><i></i></div>
     <div class="dpq" style="grid-template-columns:repeat(${quick.length},minmax(0,1fr))">${quick.map(([l, v]) => `<button onclick="pickDate('${v}')">${l}<i>${md(v)}</i></button>`).join('')}</div>
