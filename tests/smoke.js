@@ -476,12 +476,37 @@ async function lang(browser) {
   for (const [q, want] of [['?lang=zh-Hans', '今天|待办|备忘|日历|菜单'], ['?lang=zh-TW', '今天|待辦|備忘|月曆|選單']]) { const { ctx, pg, errs } = await open(q); C(q + ' 탭 이름', (await tabs(pg)) === want && !errs.length, [await tabs(pg), errs]); await ctx.close(); }
 }
 
+// 처음 켠 기기: 소개 네 장 → 쏟아 적기 → 「오늘 할 것」 짚기. 씨앗 데이터 없이 연다
+async function firstRun(browser) {
+  const ctx = await browser.newContext(Object.assign({ timezoneId: 'Asia/Seoul' }, devices['iPhone 14'])), pg = await ctx.newPage();
+  const errs = []; pg.on('pageerror', e => errs.push(e.message));
+  await ctx.route('**/*', r => (r.request().url().startsWith('file:') ? r.continue() : r.abort()));
+  await pg.goto(PAGE); await pg.waitForTimeout(1500);
+  const C = (name, ok, detail) => check('[첫 실행] ' + name, ok, detail), ev = fn => pg.evaluate(fn);
+  C('소개가 뜬다', await ev(() => !!document.querySelector('#tour .sk')));
+  let fit = true; for (let i = 0; i < 4; i++) { fit = fit && await ev(() => { const t = document.getElementById('tour'); return !!t && t.scrollHeight - t.clientHeight <= 2; }); await pg.click('#tour .nx'); await pg.waitForTimeout(100); }
+  C('네 장을 넘기면 닫히고, 장마다 한 화면에 들어온다', fit && await ev(() => !document.getElementById('tour') && D.guide.tour === 1), fit);
+  await ev(() => document.querySelectorAll('.intro,.login').forEach(e => e.remove()));
+  await pg.fill('#dumpIn', '금요일까지 보고서 제출\n건강검진 예약'); await pg.click('#today .sticky .go'); await pg.waitForTimeout(300);
+  C('처음 쏟아 적으면 오늘 할 것을 짚는다', await ev(() => !!document.getElementById('coach') && document.body.classList.contains('coaching')));
+  await ev(() => document.querySelectorAll('.dpick').forEach(e => e.remove())); await pg.click('#coach button');
+  C('「알겠어요」를 누르면 다시 뜨지 않는다', await ev(() => { _dump = 'more'; render(); document.getElementById('dumpIn').value = '세금 서류'; weekDump(); return !document.getElementById('coach') && D.guide.coach === 1; }));
+  await pg.reload(); await pg.waitForTimeout(1300);
+  C('다시 켜면 소개가 안 뜬다', await ev(() => !document.getElementById('tour')));
+  await ev(() => { document.querySelectorAll('.intro,.login,.dpick').forEach(e => e.remove()); moreSec = ''; go('more'); }); await pg.click('#moreIdx .mrow:has-text("사용법 다시 보기")');
+  C('메뉴 › 사용법 다시 보기로 다시 연다', await ev(() => !!document.getElementById('tour')));
+  C('비서를 연결한 다음 날에만 매일 아침 정리를 권한다', await ev(() => { tourEnd(); D.agent = { at: new Date().toISOString() }; D.settings = Object.assign({}, D.settings, { calUrl: 'x' }); D.guide.skip = {}; const a = helloNext(); D.guide.agentDay = addDays(today(), -1); const b = helloNext(); return !a && !!b && b.id === 'digest'; }));
+  C('첫 실행에 스크립트 오류가 없다', !errs.length, errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch(process.env.PW_CHROME ? { executablePath: process.env.PW_CHROME } : {});
   try {
     await ui(browser, '접은 화면', devices['iPhone 14']);
     await ui(browser, '펼친 화면', { viewport: { width: 1100, height: 800 } });
     await lang(browser);
+    await firstRun(browser);
     await server();
   } catch (e) { fails.push('점검이 중간에 멈춤 → ' + (e && e.message || e).toString().split('\n').slice(0, 3).join(' ') + ' / 마지막 통과: ' + passed[passed.length - 1]); }
   await browser.close();
