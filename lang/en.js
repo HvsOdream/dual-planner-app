@@ -830,8 +830,8 @@ window.DP_DICT = {
   "3. 내가 놓치면 곤란한 것만 찾는다: 준비가 필요한 일정(비자·서류·사전 신청·예약), 장소가 달라 이동 시간이 빠듯한 일정, 겹치는 일정, 기한이 있는 요청, 답장하지 않은 메일.": "3. Look only for things I can't afford to miss: events that need preparation (visas, documents, sign-ups, bookings), back-to-back events in different places with too little travel time, overlapping events, requests with a deadline, and emails I haven't answered.",
   "4. 플래너에 이미 있는 일은 뺀다. 광고·소식지·수백 명에게 간 단체 메일도 뺀다. 자동 발송 안내는 결제·만료·삭제만 남겨 한 줄로 묶는다.": "4. Skip anything already in my planner. Skip ads, newsletters and mass emails sent to hundreds of people too. From automated notices keep only payments, expirations and deletions, and group them into one line.",
   "5. 다섯 건 이내로 듀얼플래너에 오늘 메모로 적는다(planner_add, kind=note). 한 건은 \"무엇을 · 언제까지 · 근거\"를 한 줄로 쓰고, 그 뒤에 내가 하면 좋을 일을 비서가 제안하듯 한마디 붙인다(예: \"출발 전에 신청해 두시면 좋겠어요\").": "5. Write five items or fewer to DUAL Planner as notes for today (planner_add, kind=note). Write each item as one line, \"what · by when · source\", then add a short suggestion of what I could do, the way an assistant would (e.g. \"Worth applying before you leave\").",
-  "6. 메일을 보내거나 일정을 바꾸지 않는다. 할 일로 넣지 않는다. 내가 고른다.": "6. Don't send email or change any event. Don't add them as to-dos. I'll choose.",
-  "7. 적을 것이 없으면 아무것도 적지 않는다.": "7. If there is nothing to write, write nothing.",
+  "7. 메일을 보내거나 일정을 바꾸지 않는다. 할 일로 넣지 않는다. 내가 고른다.": "7. Don't send email or change any event. Don't add them as to-dos. I'll choose.",
+  "8. 적을 것이 없으면 아무것도 적지 않는다.": "8. If there is nothing to write, write nothing.",
   "지금 열린 메일함에서 최근 2주 메일을 읽고 아래를 찾아 줘.": "Read the last two weeks of email in the inbox that's open now, and find the following.",
   "- 내가 해야 할 일과 마감": "- Things I need to do, and their deadlines",
   "- 답장하지 않은 메일": "- Emails I haven't answered",
@@ -862,4 +862,7 @@ window.DP_DICT = {
   "중요 · 날짜가 없으면 오늘까지": "Important · due today if no date",
   "중요한 일 적기": "Add something important",
   "오늘 칸에 적었어요 · 마감 오늘": "Added to Today · due today",
+  "6. 메모마다 할 일로 옮길 때 쓸 초안을 같이 붙인다: todo(근거와 제안 말투를 뺀 \"무엇을 한다\" 한 줄), bucket(A·B·C·D), role, plan, due, 시각이 정해진 약속이면 at.": "6. Attach a to-do draft to each note for when I move it: todo (one line of \"what to do\", without the source or the suggestion), bucket (A/B/C/D), role, plan, due, and at if it has a set time.",
+  "메모마다 할 일로 옮길 때 쓸 초안도 같이 붙여 줘: todo(\"무엇을 한다\" 한 줄), bucket(A·B·C·D), role, due.": "Attach a to-do draft to each note too: todo (one line of \"what to do\"), bucket (A/B/C/D), role, due.",
+  "비서 메모 {n}건": ["{n} assistant note", "{n} assistant notes"],
 };

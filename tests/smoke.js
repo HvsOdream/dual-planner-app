@@ -203,6 +203,20 @@ async function ui(browser, label, ctxOpts) {
   await pg.fill('#memoIn', '점검 메모\n둘째 줄'); await pg.locator('#memoGo').click();
   C('메모 적기', await ev(() => memoEntries().length) === n0 + 1);
   C('비서 메모는 자동으로 들어오지 않는다', await ev(() => !memoEntries().some(e => e.note)));
+  // 비서 메모: 새 메모는 오늘 맨 위 한 줄, 펴서 읽고 접으면 아래로. 초안이 붙은 메모는 할 일 모양으로 옮겨진다
+  await ev(() => { go('today'); });
+  C('새 비서 메모는 오늘 맨 위 한 줄로 알린다', await ev(() => { const b = document.querySelector('#today .notebar'); return !!b && /1/.test(b.textContent) && !document.querySelector('#today .stickies .sticky .tx') || !!b && ![...document.querySelectorAll('#today .sticky .tx')].some(e => e.textContent === findNote('i_note').text); }));
+  await pg.locator('#today .notebar').click();
+  C('한 줄을 누르면 메모가 펴지고 읽은 것으로 적힌다', await ev(() => findNote('i_note').seen === true && !!document.querySelector('#today .notebar + .stickies .sticky')));
+  await pg.locator('#today .notebar').click();
+  C('접으면 한 줄은 사라지고 메모는 아래 포스트잇 자리에 남는다', await ev(() => !document.querySelector('#today .notebar') && [...document.querySelectorAll('#today .sticky .tx')].some(e => e.textContent === findNote('i_note').text)));
+  await ev(() => { dayOf(today()).inbox.unshift({ id: 'i_dr', text: '동의대 특강이 모레입니다. KTX를 미리 예매해 두시면 좋겠어요.', kind: 'note', src: 'mcp', at: '07:00', draft: { title: '동의대 특강 KTX 예매', bucket: 'light', due: addDays(today(), 1), at: addDays(today(), 1) + 'T16:00', end: '17:00' } }); save(); render(); });
+  C('초안이 붙은 메모에는 「할 일로」와 초안 한 줄이 보인다', await ev(() => { noteBar(); const s = document.querySelector('#today .notebar + .stickies .sticky'); return !!s && /동의대 특강 KTX 예매 · C/.test((s.querySelector('.dr') || {}).textContent || '') && /moveToRock/.test(s.querySelector('.act').innerHTML); }));
+  await ev(() => moveToRock('i_dr'));
+  C('할 일로: 제목은 초안, 메모 문장은 근거로', await ev(() => { const r = D.rocks.find(x => x.title === '동의대 특강 KTX 예매'); return !!r && r.bucket === 'light' && /KTX를 미리/.test(r.why) && r.at === addDays(today(), 1) + 'T16:00' && r.atEnd === '17:00' && r.due === addDays(today(), 1) && findNote('i_dr').moved; }));
+  await ev(() => { const r = D.rocks.find(x => x.title === '동의대 특강 KTX 예매'); go('week'); rowOpen = r.id; render(); });
+  C('줄을 펴면 근거(비서 메모)가 보인다', await ev(() => /KTX를 미리/.test((document.querySelector('#week .bhint.why') || {}).textContent || '')));
+  await ev(() => { rowOpen = null; go('memo'); });
   await ev(() => noteToMemo('i_note')); C('메모로: 누른 비서 메모만 들어온다', await ev(() => memoEntries().filter(e => e.note).length === 1));
   await ev(() => { const m = liveMemos()[0]; memoToRock(m.id, 'light'); }); C('메모를 할 일로(여러 줄은 남는다)', await ev(() => D.rocks.some(r => r.title === '점검 메모' && r.bucket === 'light') && liveMemos().some(m => m.toRock)));
   await ev(() => delMemo('i_note')); C('메모 탭에서 지우면 빠진다', await ev(() => !memoEntries().some(e => e.note)));
@@ -375,6 +389,8 @@ async function server() {
   await call('items', 'POST', { src: 'mcp', items: [{ text: '비서가 적은 메모', kind: 'memo' }, { text: '그날 메모', kind: 'note' }, { text: '통화', kind: 'item', bucket: 'C', at: '2030-01-02T10:00', end: '11:00' }] });
   S = await call('state', 'GET');
   const ap = S.rocks.find(r => r.title === '통화');
+  await call('items', 'POST', { src: 'mcp', items: [{ text: '학지사 Zoom 회의가 오늘 4시입니다. 회의 ID는 메일에 있어요.', kind: 'note', todo: '학지사 Zoom 회의', bucket: 'A', role: '교수', at: '2030-01-02 16:00' }] });
+  { const S2 = await call('state', 'GET'), n = Object.values(S2.days).flatMap(d => d.inbox || []).find(x => /학지사/.test(x.text)); C('메모에 할 일 초안이 붙는다(kind=note + todo)', !!n && n.draft && n.draft.title === '학지사 Zoom 회의' && n.draft.bucket === 'urgent' && n.draft.at === '2030-01-02T16:00' && n.draft.role === '교수', n); }
   C('비서가 메모장에 적는다(kind=memo)', S.memos.some(m => m.text === '비서가 적은 메모' && m.by));
   C('그날 메모는 그날 포스트잇으로(kind=note)', Object.values(S.days).some(d => (d.inbox || []).some(x => x.text === '그날 메모' && x.kind === 'note')));
   C('약속 끝 시각(end)', !!ap && ap.at === '2030-01-02T10:00' && ap.atEnd === '11:00', ap);

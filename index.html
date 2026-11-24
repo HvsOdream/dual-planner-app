@@ -185,6 +185,9 @@ a { color: inherit; }
 .dd { color: var(--check); font-weight: 800; margin-left: 2px; }
 .rq { font-size: 18px; font-weight: 800; margin: 6px 0 4px; } .rh { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
 .qb { display: flex; align-items: center; gap: 6px; padding: 2px 0 8px 12px; } .qb button { min-width: 34px; height: 26px; border: 1.5px solid var(--rule); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--ink-2); } .qb button.on { background: var(--ink); border-color: var(--ink); color: var(--paper); } .qb span { margin-left: 4px; font-size: 12px; color: var(--muted); }
+.notebar { display: flex; align-items: center; justify-content: space-between; width: calc(100% - 56px); margin: 0 4px 8px 52px; padding: 10px 12px; background: var(--postit); color: var(--postit-ink); font-size: 15px; border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,.14); text-align: left; } .notebar span { font-size: 12px; text-decoration: underline; color: var(--postit-muted); }
+.sticky .act3 { flex-wrap: wrap; gap: 8px; } .sticky .act3 button { padding: 0 9px !important; }
+.sticky .dr { font-size: 12px; font-weight: 600; margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(74,42,51,.3); word-break: keep-all; overflow-wrap: anywhere; } .bhint.why { white-space: pre-wrap; color: var(--ink-2); }
 .morenotes { display: block; margin: 2px 0 6px 52px; font-size: 12px; color: var(--muted); text-decoration: underline; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; } .chips button { padding: 8px 14px; border: 1.5px solid var(--rule); border-radius: 18px; font-size: 14px; color: var(--ink-2); }
 .chips button.on { border-color: var(--accent); background: var(--accent); color: var(--paper); font-weight: 700; }
@@ -923,7 +926,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.91'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.92'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), digest: T('매일 아침 정리 시작하기'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -967,9 +970,9 @@ function renderMore() { renderMoreIdx(); setConn(''); renderDigestBox(); renderA
 let dgAgent = 'claude', dgWork = false;
 function digestText(a) {
   if (a === 'chatgpt') return [T('매일 아침 7시에 아래를 해 줘.'), T('1. 내 메일(최근 3일)과 캘린더(앞으로 7일)를 읽는다.'), T('2. 내가 놓치면 곤란한 것만 찾는다: 준비가 필요한 일정(비자·서류·사전 신청·예약), 장소가 달라 이동 시간이 빠듯한 일정, 겹치는 일정, 기한이 있는 요청, 답장하지 않은 메일.'), T('3. 광고·소식지·수백 명에게 간 단체 메일은 뺀다. 자동 발송 안내는 결제·만료·삭제만 남겨 한 줄로 묶는다.'), T('4. 다섯 건 이내로 알려 준다. 한 건은 "무엇을 · 언제까지 · 근거"를 한 줄로 쓰고, 그 뒤에 내가 하면 좋을 일을 비서가 제안하듯 한마디 붙인다(예: "출발 전에 신청해 두시면 좋겠어요").'), T('5. 메일을 보내거나 일정을 바꾸지 않는다.'), T('6. 알릴 것이 없으면 없다고만 한다.')].join('\n');
-  return [T('매일 아침 7시에 아래를 해 줘.'), T('1. 듀얼플래너 커넥터로 내 플래너를 먼저 읽는다(planner_read).'), T('2. 내 메일(최근 3일)과 캘린더(앞으로 7일)를 읽는다.'), T('3. 내가 놓치면 곤란한 것만 찾는다: 준비가 필요한 일정(비자·서류·사전 신청·예약), 장소가 달라 이동 시간이 빠듯한 일정, 겹치는 일정, 기한이 있는 요청, 답장하지 않은 메일.'), T('4. 플래너에 이미 있는 일은 뺀다. 광고·소식지·수백 명에게 간 단체 메일도 뺀다. 자동 발송 안내는 결제·만료·삭제만 남겨 한 줄로 묶는다.'), T('5. 다섯 건 이내로 듀얼플래너에 오늘 메모로 적는다(planner_add, kind=note). 한 건은 "무엇을 · 언제까지 · 근거"를 한 줄로 쓰고, 그 뒤에 내가 하면 좋을 일을 비서가 제안하듯 한마디 붙인다(예: "출발 전에 신청해 두시면 좋겠어요").'), T('6. 메일을 보내거나 일정을 바꾸지 않는다. 할 일로 넣지 않는다. 내가 고른다.'), T('7. 적을 것이 없으면 아무것도 적지 않는다.')].join('\n');
+  return [T('매일 아침 7시에 아래를 해 줘.'), T('1. 듀얼플래너 커넥터로 내 플래너를 먼저 읽는다(planner_read).'), T('2. 내 메일(최근 3일)과 캘린더(앞으로 7일)를 읽는다.'), T('3. 내가 놓치면 곤란한 것만 찾는다: 준비가 필요한 일정(비자·서류·사전 신청·예약), 장소가 달라 이동 시간이 빠듯한 일정, 겹치는 일정, 기한이 있는 요청, 답장하지 않은 메일.'), T('4. 플래너에 이미 있는 일은 뺀다. 광고·소식지·수백 명에게 간 단체 메일도 뺀다. 자동 발송 안내는 결제·만료·삭제만 남겨 한 줄로 묶는다.'), T('5. 다섯 건 이내로 듀얼플래너에 오늘 메모로 적는다(planner_add, kind=note). 한 건은 "무엇을 · 언제까지 · 근거"를 한 줄로 쓰고, 그 뒤에 내가 하면 좋을 일을 비서가 제안하듯 한마디 붙인다(예: "출발 전에 신청해 두시면 좋겠어요").'), T('6. 메모마다 할 일로 옮길 때 쓸 초안을 같이 붙인다: todo(근거와 제안 말투를 뺀 "무엇을 한다" 한 줄), bucket(A·B·C·D), role, plan, due, 시각이 정해진 약속이면 at.'), T('7. 메일을 보내거나 일정을 바꾸지 않는다. 할 일로 넣지 않는다. 내가 고른다.'), T('8. 적을 것이 없으면 아무것도 적지 않는다.')].join('\n');
 }
-function workMailText() { return [T('지금 열린 메일함에서 최근 2주 메일을 읽고 아래를 찾아 줘.'), T('- 내가 해야 할 일과 마감'), T('- 답장하지 않은 메일'), T('- 답장은 했지만 서류를 빠뜨린 메일'), T('광고와 단체 메일은 빼고, 듀얼플래너에 오늘 메모로 적어 줘(planner_add, kind=note). 한 건은 "무엇을 · 언제까지 · 보낸 사람"을 한 줄로 쓰고, 그 뒤에 내가 하면 좋을 일을 비서가 제안하듯 한마디 붙여 줘. 메일을 보내지는 마.')].join('\n'); }
+function workMailText() { return [T('지금 열린 메일함에서 최근 2주 메일을 읽고 아래를 찾아 줘.'), T('- 내가 해야 할 일과 마감'), T('- 답장하지 않은 메일'), T('- 답장은 했지만 서류를 빠뜨린 메일'), T('광고와 단체 메일은 빼고, 듀얼플래너에 오늘 메모로 적어 줘(planner_add, kind=note). 한 건은 "무엇을 · 언제까지 · 보낸 사람"을 한 줄로 쓰고, 그 뒤에 내가 하면 좋을 일을 비서가 제안하듯 한마디 붙여 줘. 메일을 보내지는 마.'), T('메모마다 할 일로 옮길 때 쓸 초안도 같이 붙여 줘: todo("무엇을 한다" 한 줄), bucket(A·B·C·D), role, due.')].join('\n'); }
 async function digestOpen() {
   const t = digestText(dgAgent); await copyText(t, T('지시문을 복사했어요'));
   const q = encodeURIComponent(t), app = dgAgent === 'chatgpt' ? '' : 'claude://claude.ai/new?q=' + q, web = dgAgent === 'chatgpt' ? 'https://chatgpt.com/?q=' + q : 'https://claude.ai/new?q=' + q;
@@ -1091,6 +1094,8 @@ function addToday(blur) {
   if (pd) toast(`${T('마감')} ${fmtDue(r)}`); else if (far) toastAsk(T('{d} {a}요일 칸에 적었어요', { d: md(far.due), a: wdn(new Date(far.due + 'T00:00').getDay()) }), T('오늘로'), () => { const d = dayOf(today()); if (!d.picks.includes(r.id)) d.picks.push(r.id); save(); render(); toast(T('오늘 칸에도 적었어요')); });
   if (!blur) setTimeout(()=>{ const e=document.getElementById('quickIn'); if (e) e.focus(); }, 30);
 }
+let _noteOpen = false, _noteTop = {}; // 새 비서 메모는 오늘 맨 위 한 줄로 알린다. 펴서 읽으면 읽은 것으로 적고, 접으면 아래 포스트잇 자리로 내려간다
+function noteBar() { _noteOpen = !_noteOpen; if (_noteOpen) stuckNotes().forEach(x => { if (x.kind === 'note' && !x.seen) { const n = findNote(x.id); if (n) { n.seen = true; _noteTop[x.id] = 1; } } }); else _noteTop = {}; save(); renderToday(); }
 let _moreNotes = false, _retro = null; // 접어 둔 포스트잇 / 오늘의 회고(null이면 저녁 알림 시각 뒤에 펼친다)
 function renderToday() {
   if (dayLocked(today())) { document.getElementById('today').innerHTML = lockHtml(); return; }
@@ -1098,7 +1103,7 @@ function renderToday() {
   carryIn();
   const ds = today(), day = dayOf(ds);
   const picks = (day.picks||[]).map(rock).filter(r => r && !r._deleted && !(r.at && r.at.slice(0, 10) > ds));
-  const inbox = stuckNotes();
+  const inbox = stuckNotes(), fresh = inbox.filter(x => x.kind === 'note' && (!x.seen || _noteTop[x.id])), restN = inbox.filter(x => !fresh.includes(x));
   const doneN = picks.filter(r=>r.checks&&r.checks[ds]).length;
   // 오늘 고를 만한 것: A 전부 + 3일 안에 끝나는 B (아직 안 고른 것)
   const soon = dstr(new Date(Date.now()+3*86400000));
@@ -1110,7 +1115,7 @@ function renderToday() {
   const pkOn = ds === today() && !back && pickShow();
   const tops = [trialHtml(ds), ds === today() && _dump ? helloHtml() : '', tp && !back ? briefHtml(ds) : '', notifStickies(ds), pkOn ? pickHtml() : '', ds === today() && !_dump ? sheetHtml() : '', back ? `<div class="stickies">${backHtml()}</div>` : '', back || tp || pkOn ? '' : briefHtml(ds), ds === today() && !_dump ? helloHtml() : '', back ? '' : niceHtml(ds)].filter(Boolean);
   const eveIds = tops.length && tops[0] === notifStickies(ds) && eveHtml(ds) ? eveRest(ds).map(r => r.id) : [];
-  let h = `<div class="sp"></div>${tops[0] || ''}${tops.length > 1 ? `<button class="morenotes" onclick="_moreNotes=!_moreNotes;renderToday()">${T('포스트잇 {a}장 더', { a: tops.length - 1 })} ${_moreNotes ? T('접기') : T('보기')}</button><div id="moreNotes" style="display:${_moreNotes ? 'block' : 'none'}">${tops.slice(1).join('')}</div>` : ''}
+  let h = `<div class="sp"></div>${fresh.length ? `<button class="notebar" aria-expanded="${_noteOpen}" onclick="noteBar()"><b>${T('비서 메모 {n}건', { n: fresh.length })}</b><span>${_noteOpen ? T('접기') : T('펼치기')}</span></button>${_noteOpen ? stickiesHtml(fresh, [], true) : ''}` : ''}${tops[0] || ''}${tops.length > 1 ? `<button class="morenotes" onclick="_moreNotes=!_moreNotes;renderToday()">${T('포스트잇 {a}장 더', { a: tops.length - 1 })} ${_moreNotes ? T('접기') : T('보기')}</button><div id="moreNotes" style="display:${_moreNotes ? 'block' : 'none'}">${tops.slice(1).join('')}</div>` : ''}
   ${calHtml(ds)}
   <div class="sp"></div>
   <div class="lbl"><span>${T('오늘 할 것')} <span style="font-weight:400;color:var(--muted)">${picks.length ? doneN+'/'+picks.length : ''}</span></span><button onclick="const e=document.getElementById('quickIn');if(e){e.scrollIntoView({block:'center'});e.focus()}">${T('+ 추가')}</button></div>`;
@@ -1132,8 +1137,8 @@ function renderToday() {
   }
   const gs = guidesNow(), eveOn = !!eveHtml(ds), tmd = addDays(ds, 1), tfirst = (D.days[tmd] || {}).first || '';
   const retro = _retro === null ? nowHM() >= eveTime() : _retro, marks = [day.note ? T('일기 ✓') : '', photoUrl(ds) ? T('사진 ✓') : '', tfirst ? T('내일 첫 줄 ✓') : ''].filter(Boolean).join(' · ');
-  h += `${inbox.length || gs.length || groupHtml() ? '<div class="sp"></div>' : ''}
-  ${stickiesHtml(inbox, gs)}
+  h += `${restN.length || gs.length || groupHtml() ? '<div class="sp"></div>' : ''}
+  ${stickiesHtml(restN, gs)}
   <div class="sp"></div>
   <div class="lbl"><span>${T('오늘의 회고')} <span style="font-weight:400;color:var(--muted)">${marks}</span></span><button onclick="_retro=${!retro};renderToday()">${retro ? T('접기') : T('펼치기')}</button></div>
   ${retro ? `${eveOn ? '' : `<input class="wr" placeholder="${T('한 줄 일기: 오늘 어땠나요')}" aria-label="${T('한 줄 일기')}" value="${esc(day.note)}" onchange="dayOf('${ds}').note=this.value;save()">`}
@@ -1701,17 +1706,20 @@ function applyGroups() {
   if (e) setEvRoles(evp);
   D.groupSug = null; markRoles(); save(); render(); toast(`${T('역할 {n}개 · 할 일 {k}개', { n: D.roles.length, k })}${e ? ` ${T('· 일정 {e}개', { e })}` : ''}${T('에 붙였어요')}`);
 }
-function stickiesHtml(list, gs) {
+// 비서가 메모에 붙여 둔 할 일 초안을 한 줄로: 제목 · 칸 · 역할 · 계획 · 날짜
+function draftLine(d) { const b = BUCKETS.find(k => k[0] === d.bucket), q = planOf(d.plan); return [esc(d.title), b ? b[1].split(' ')[0] : '', d.role && D.roles.includes(d.role) ? esc(d.role) : '', q ? esc(q.name) : '', d.at ? (d.at.slice(0, 10) === today() ? '' : md(d.at.slice(0, 10)) + ' ') + d.at.slice(11, 16) + (d.end ? '–' + d.end : '') : d.due ? T('{due}까지만', { due: md(d.due) }) : ''].filter(Boolean).join(' · '); }
+function stickiesHtml(list, gs, bare) {
   gs = gs || [];
-  if (!list.length && !gs.length && !groupHtml()) return '';
+  const grp = bare ? '' : groupHtml();
+  if (!list.length && !gs.length && !grp) return '';
   const td = today();
-  let h = `<div class="stickies">` + groupHtml() + gs.map(guideHtml).join('');
+  let h = `<div class="stickies">` + grp + gs.map(guideHtml).join('');
   list.forEach(x => {
     const when = (x.ds === td ? '' : md(x.ds) + ' ') + (x.at || '');
     const todo = x.kind !== 'note';
     h += `<div class="sticky"><div class="who"><span>${esc(todo ? agentLabel(x.src || (D.agent||{}).name) : T('비서 메모'))}</span><span>${esc(when)}</span></div>
-      <div class="tx">${esc(x.text)}</div>
-      <div class="act">${todo ? `<button onclick="moveToRock('${x.id}')">${T('할 일로')}</button>` : `<button onclick="noteToMemo('${x.id}')">${T('메모로')}</button>`}<button onclick="dropInbox('${x.id}')">${T('떼기')}</button></div></div>`;
+      <div class="tx">${esc(x.text)}</div>${!todo && x.draft && x.draft.title ? `<div class="dr">→ ${draftLine(x.draft)}</div>` : ''}
+      <div class="act${!todo && x.draft && x.draft.title ? ' act3' : ''}">${todo || (x.draft && x.draft.title) ? `<button onclick="moveToRock('${x.id}')">${T('할 일로')}</button>` : ''}${todo ? '' : `<button onclick="noteToMemo('${x.id}')">${T('메모로')}</button>`}<button onclick="dropInbox('${x.id}')">${T('떼기')}</button></div></div>`;
   });
   return h + `</div>`;
 }
@@ -2279,13 +2287,23 @@ function firstToPick(ds) { const d = dayOf(ds); const r = { id: uid(), week: '',
 // 비서 메모를 메모장에 둘지는 내가 정한다: 「메모로」를 누른 것만 메모 탭에 그날 날짜로 남는다
 function noteToMemo(id) { const x = findNote(id); if (!x) return; x.memo = true; x.hid = false; x.moved = true; x.dropped = true; save(); render(); toast(T('메모에 옮겼어요')); }
 function dropInbox(id) { const x = findNote(id); if (!x) return; x.moved = true; x.dropped = true; save(); render(); }
+function applyDraft(r, x, keepB) {
+  const d = x.draft; r.title = d.title; r.why = x.text; r.from = 'note'; r.vol = (curVol() || {}).id;
+  if (!keepB && BUCKETS.some(k => k[0] === d.bucket)) r.bucket = d.bucket;
+  if (d.role && D.roles.includes(d.role)) r.role = d.role;
+  if (planOf(d.plan)) r.plan = d.plan;
+  if (/^\d{4}-\d\d-\d\d$/.test(d.due || '')) r.due = d.due;
+  if (/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(d.at || '')) { r.at = d.at; r.due = r.due || d.at.slice(0, 10); if (/^\d\d:\d\d$/.test(d.end || '') && d.end > d.at.slice(11, 16)) r.atEnd = d.end; }
+  if (r.bucket === 'important' && !r.due) r.due = dstr(new Date(Date.now() + 6 * 86400000));
+}
 function moveToRock(id) {
   const x = findNote(id); if (!x) return;
   const map = { A: 'urgent', B: 'important', C: 'light', D: 'nice' }; const b = BUCKETS.some(k => k[0] === x.bucket) ? x.bucket : (map[x.bucket] || 'important');
   const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: (x.role && D.roles.includes(x.role)) ? x.role : '', title: x.text, done: false, carry: 0, checks: {} };
   if (x.due) r.due = x.due;
+  if (x.kind === 'note' && x.draft && x.draft.title) applyDraft(r, x); // 비서 메모는 문장째 옮기지 않는다: 초안대로 할 일 모양으로 바꾸고, 메모 문장은 근거로 딸려 간다
   D.rocks.push(r); x.moved = true; save(); render();
-  toast(T('할 일에 기록했어요 · {a}', { a: (BUCKETS.find(k => k[0] === b) || [, ''])[1] }));
+  toast(T('할 일에 기록했어요 · {a}', { a: (BUCKETS.find(k => k[0] === r.bucket) || [, ''])[1] }));
 }
 
 // ── 할 일 (상시 목록: 급한 일 · 중요한 일 · 하면 좋은 일) ──
@@ -2556,7 +2574,7 @@ let rowOpen = null, todayOpen = null;
 function titleEd(r) { return `<span class="tx txed" contenteditable="plaintext-only" role="textbox" aria-label="${T('할 일 이름')}" enterkeyhint="done" spellcheck="false" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}" onblur="rowTitle('${r.id}',this.textContent)">${esc(r.title)}</span>`; }
 function rowRole(id, n) { const r = rock(id); if (!r) return; r.role = r.role === n ? '' : n; save(); render(); }
 function rowEdit(r, out) {
-  return `
+  return `${r.why ? `<div class="bhint why"><b>${T('비서 메모')}</b> ${esc(r.why)}</div>` : ''}
   <div class="bslot rowsl">${r.routine ? '' : `<button type="button" class="pill dbtn dbtn2" onclick="openDate('${r.due || ''}',{allowNone:${r.bucket !== 'important'},title:'${r.bucket === 'important' ? T('언제까지') : T('마감')}'},v=>rowDue('${r.id}',v))">${r.due ? T('마감 {a}', { a: dLabel(r.due) }) : T('마감 정하기')}</button>${r.due ? `<input type="time" class="dueT" aria-label="${T('마감 시각')}" value="${r.dueT || ''}" onchange="rowDueT('${r.id}',this.value)">` : ''}`}<span class="bks">${BUCKETS.map(([b, n]) => `<button class="${r.bucket === b ? 'on' : ''}" onclick="rowBucket('${r.id}','${b}')">${n.split(' ')[0]}</button>`).join('')}</span><span style="flex:1"></span>${out || ''}<button onclick="rowOpen=null;todayOpen=null;render()">${T('닫기')}</button></div><div class="bhint">${T('A 급함·중요 · B 중요(할 일 탭, 날짜 필요) · C 급함·가벼움 · D 나중에')}</div>${D.roles.length ? `<div class="bslot"><span>${T('역할')}</span>${D.roles.map(n => `<button class="${r.role === n ? 'on' : ''}" onclick="rowRole('${r.id}','${esc(n).replace(/'/g, "\\'")}')">${esc(n)}</button>`).join('')}</div>` : ''}${r.routine ? '' : `<div class="bslot"><span>${T('묶음')}</span>${openPlans().map(q => `<button class="${r.plan === q.id ? 'on' : ''}" onclick="rowPlan('${r.id}','${q.id}')">${esc(q.name)}</button>`).join('')}${grpNewFor === r.id ? `<input id="grpNm" maxlength="24" placeholder="${T('묶음 이름')}" enterkeyhint="done" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();grpMake('${r.id}')}" style="flex:1;min-width:110px;height:30px;border:0;border-bottom:1.5px solid var(--ink);background:none;font:inherit;font-size:14px"><button onclick="grpMake('${r.id}')">${T('묶기')}</button>` : `<button onclick="grpNew('${r.id}')">${T('＋ 새 묶음')}</button>`}${r.plan ? '' : `<button onclick="rowSplit('${r.id}')">${T('비서에게 쪼개 달라고')}</button>`}</div>`}`;
 }
 // ── 한 가지 일로 묶기: 계획 없이 흩어 적은 줄 가운데 같은 일로 보이는 것을 비서가 하루 한 번 권한다. 묶을지·이름·날짜·뺄 줄은 본인이 정하고, 묶어도 오늘 할 것에는 올리지 않는다 ──
@@ -2755,7 +2773,8 @@ function memoToRock(id, b) {
   const own = (D.memos || []).find(x => x.id === id), m = own || findNote(id); if (!m) return;
   const lines = m.text.split('\n').map(x => x.trim()).filter(Boolean), title = lines[0] || ''; if (!title) return;
   const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: '', title, done: false, carry: 0, checks: {}, from: 'memo', vol: (curVol() || {}).id };
-  if (b === 'important') r.due = dstr(new Date(Date.now() + 6 * 86400000)); // B는 끝 날짜가 있어야 한다
+  if (!own && m.draft && m.draft.title) applyDraft(r, m, true);
+  if (b === 'important' && !r.due) r.due = dstr(new Date(Date.now() + 6 * 86400000)); // B는 끝 날짜가 있어야 한다
   D.rocks.push(r); memoMove = null;
   if (lines.length > 1 || !own) m.toRock = r.id; else m._deleted = true; // 비서 메모는 늘 남긴다. 한 줄짜리는 옮기면 메모장에서 빠지고, 여러 줄이면 남겨 둔다
   save(); render(); toast(T('{a}에 옮겼어요', { a: bucketName(b) }) + (r.due ? ' · ' + T('{due}까지만', { due: md(r.due) }) : ''));
