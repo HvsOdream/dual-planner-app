@@ -4,7 +4,7 @@
 <body>
 <header><a href="../">DUAL Planner</a><h1>Privacy Policy</h1></header>
 <main>
-<p class="date">Effective 8 November 2026 · Last updated 22 November 2026</p>
+<p class="date">Effective 8 November 2026 · Last updated 24 November 2026 (the latest changes take effect on 1 December 2026)</p>
 <p class="date">This is an English translation of the <a href="privacy.html">Korean original</a>. If the two differ, the Korean version applies.</p>
 <p>DUAL Planner ("the app") collects only what it needs to work as a planner. It carries no advertising, and we do not sell your information or use it for marketing.</p>
 
@@ -13,6 +13,7 @@
 <tr><th>When you sign in</th><td>The account identifier, email address and name provided by Apple or Google (Apple provides the name only at first sign-in, and a relay address if you choose to hide your email)</td></tr>
 <tr><th>While you use the app</th><td>What you write in your planner: to-dos, daily records, one-line journal, roles, refill information, and the notes and reviews left by the assistant</td></tr>
 <tr><th>If you connect a calendar</th><td>The calendar address you enter (or permission to read your device calendar) and the title, date and time of the events loaded from it. Used to show your events and find free time.</td></tr>
+<tr><th>If you connect Google Calendar</th><td>The title, start and end time and all-day flag of the events on your Google Calendar (read-only), and the Google access token needed to keep the connection. We never create, edit or delete events.</td></tr>
 <tr><th>If you connect an AI assistant</th><td>The name of the connected assistant (AI agent) and the time it last read or wrote</td></tr>
 </table>
 <p>If you use the app without signing in, your planner is still stored on the server under a random identifier created for your device. We do not collect location, contacts or advertising identifiers. The only photos we receive are the daily photo you attach yourself and the photo of a paper note you upload with "Scan paper". Note photos are used only to read the text and are not stored on the server.</p>
@@ -30,33 +31,46 @@
 <h2>4. Sharing</h2>
 <p>Your planner content reaches an assistant you connected yourself (for example Claude or ChatGPT) only through the connection address you gave it. Otherwise we do not provide your information to third parties, except where required by law.</p>
 
-<h2>5. Processors and transfers outside Korea</h2>
+<h2>5. Information we receive from Google</h2>
+<p>We read your Google Calendar events only if you tap "Connect Google Calendar" and give your consent. The only permission we request is read-only access to events (<code>calendar.events.readonly</code>).</p>
+<ul>
+<li><b>How we use it</b>: only to show your events on the Today screen and the calendar, to find free time between events, to add up the hours spent on each of your roles, and, in the assistant features you turn on (finding roles, the weekly review, bundle suggestions), to read event titles, dates and times alongside your to-dos.</li>
+<li><b>AI processing</b>: only when you use those assistant features, event titles, dates and times are sent to the AI processors listed in section 6 (Anthropic, Cloudflare). The app asks for your consent first, and you can turn this off at any time under Menu › Where your data goes. When it is off, your events are used only to display them.</li>
+<li><b>What we never do</b>: we do not use this data for advertising, do not sell it, and do not use or transfer it to develop, improve or train generalized AI or machine-learning models. No person reads it, unless you ask us to while requesting support, or it is needed for a security investigation or required by law.</li>
+<li><b>Storage</b>: the server stores only the connection token, encrypted. Event content is not stored on the server; events fetched for display are kept briefly on your device only. They are never included in the "correction records" described in section 6.</li>
+<li><b>Deletion</b>: when you tap Menu › Calendar › "Disconnect" or delete your account, we delete the token immediately and revoke the permission at Google.</li>
+</ul>
+<p>DUAL Planner's use and transfer of information received from Google APIs complies with the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including its Limited Use requirements.</p>
+
+<h2>6. Processors and transfers outside Korea</h2>
 <table>
-<tr><th>Cloudflare, Inc. (USA)</th><td>Storage of planner content and server operation. Data is sent over the internet when you use the app, stored in Cloudflare data centres (including outside Korea), and kept until you delete your account.</td></tr>
+<tr><th>Cloudflare, Inc. (USA)</th><td>Storage of planner content and server operation. Data is sent over the internet when you use the app, stored in Cloudflare data centres (including outside Korea), and kept until you delete your account. Some assistant features (for example bundle suggestions) may be processed by a model on Cloudflare Workers AI; what is sent is the same as described for Anthropic below.</td></tr>
 <tr><th>Anthropic, PBC (USA)</th><td>Writing the weekly review, finding roles, drafting plans, suggesting bundles, and reading paper notes. For a bundle suggestion, the titles and dates of to-dos without a plan and the titles and dates of upcoming events are sent. For a plan draft, the line you wrote, the deadline, your current situation and a few nearby to-do titles are sent; for "Scan paper", the photo of the note is sent (both only when you tap the button). For a review, that week's to-do titles, role names and hours per role are sent; for finding roles, to-do and event titles, your notes on people (for example "Minjun = son") and your one-line job description (for example "sales manager") are sent. The app asks for your consent before finding roles for the first time, and you can turn this off at any time under Menu › Where your data goes. Account information such as your name and email is not sent.</td></tr>
 <tr><th>Apple Inc. · Google LLC (USA)</th><td>Sign-in verification. Each company's own privacy policy also applies.</td></tr>
 <tr><th>GitHub, Inc. (USA)</th><td>Delivery of the app's screens. No personal information is stored.</td></tr>
 </table>
+<p>Only if you separately agree when finding roles, the roles the assistant suggested and the result after your corrections (including to-do titles and your notes on people) are kept on the server for one year as "correction records" and used to check and improve how well role finding works. They are deleted automatically after one year.</p>
 <p>If you do not want your data transferred abroad, you can stop using the app or delete your account. In that case, sync across devices and the assistant connection are not available.</p>
 
-<h2>6. Your rights</h2>
+<h2>7. Your rights</h2>
 <p>You can at any time access your information (Download my data), correct it (edit it in the app) or delete it (Delete account), and you can ask us to stop processing it. Contact us at the address below and we will act without delay.</p>
 
-<h2>7. How we keep it safe</h2>
+<h2>8. How we keep it safe</h2>
 <ul>
 <li>All communication is encrypted with HTTPS.</li>
 <li>Sign-in tokens are verified with Apple's and Google's public keys. We never receive or store your password.</li>
+<li>The Google connection token is stored encrypted and is used only to read events.</li>
 <li>The assistant connection address is a random value that is hard to guess, and we advise you not to share it.</li>
 </ul>
 
-<h2>8. Children under 14</h2>
+<h2>9. Children under 14</h2>
 <p>The app is intended for people aged 14 and over. If we learn that information of a child under 14 has been collected, we delete it immediately.</p>
 
-<h2>9. Privacy officer and contact</h2>
+<h2>10. Privacy officer and contact</h2>
 <p>Officer: Minchul Kim<br>Email: <a href="mailto:withsky0@gmail.com">withsky0@gmail.com</a></p>
 <p>In Korea you can also report or consult on privacy violations at the Personal Information Infringement Report Center (privacy.kisa.or.kr, dial 118).</p>
 
-<h2>10. Changes</h2>
+<h2>11. Changes</h2>
 <p>If this policy changes, we will give notice in the app and on this page seven days before the change takes effect.</p>
 </main>
 </body></html>
