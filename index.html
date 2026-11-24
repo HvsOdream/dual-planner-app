@@ -188,6 +188,7 @@ a { color: inherit; }
 .notebar { display: flex; align-items: center; justify-content: space-between; width: calc(100% - 56px); margin: 0 4px 8px 52px; padding: 10px 12px; background: var(--postit); color: var(--postit-ink); font-size: 15px; border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,.14); text-align: left; } .notebar span { font-size: 12px; text-decoration: underline; color: var(--postit-muted); }
 .sticky .act3 { flex-wrap: wrap; gap: 8px; } .sticky .act3 button { padding: 0 9px !important; }
 .sticky .dr { font-size: 12px; font-weight: 600; margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(74,42,51,.3); word-break: keep-all; overflow-wrap: anywhere; } .bhint.why { white-space: pre-wrap; color: var(--ink-2); }
+.gnote { font-size: 12px; color: var(--muted); line-height: 1.6; padding: 8px 0 4px; }
 .morenotes { display: block; margin: 2px 0 6px 52px; font-size: 12px; color: var(--muted); text-decoration: underline; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; } .chips button { padding: 8px 14px; border: 1.5px solid var(--rule); border-radius: 18px; font-size: 14px; color: var(--ink-2); }
 .chips button.on { border-color: var(--accent); background: var(--accent); color: var(--paper); font-weight: 700; }
@@ -926,7 +927,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.92'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.93'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), digest: T('매일 아침 정리 시작하기'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1384,6 +1385,7 @@ function renderPrivPage() {
   const row = (a, b) => `<div class="pv"><b>${a}</b><span>${b}</span></div>`;
   el.innerHTML = `<div class="lbl" style="padding-left:0">${T('비서 AI')}</div>
     <button class="feat ${aiOk() ? 'on' : ''}" onclick="setAi(${!aiOk()});renderPrivPage()"><span class="nm"><b>${T('비서가 AI로 역할 찾기·주간 리뷰 쓰기')}</b><i>${T('끄면 할 일 제목이 AI 회사로 가지 않아요. 역할은 직접 정하고, 주간 리뷰 글은 안 나와요')}</i></span><span class="st">${aiOk() ? T('켬') : T('끔')}</span></button>
+    ${gcal() ? `<button class="feat ${gcalAiOk() ? 'on' : ''}" onclick="setGcal({ai:${!gcal().ai}});renderPrivPage()"><span class="nm"><b>${T('비서도 Google 일정 읽기')}</b><i>${T('끄면 Google 캘린더 일정은 화면에 보여 주는 데만 쓰고 AI 회사로 가지 않아요')}</i></span><span class="st">${gcalAiOk() ? T('켬') : T('끔')}</span></button>` : ''}
     <div class="lbl" style="padding-left:0;margin-top:10px">${T('무엇이 어디로 가나요')}</div>
     ${row(T('내 폰'), T('할 일·오늘·기록·약속 전부. 로그인하지 않으면 여기에만 있어요'))}
     ${row(T('DUAL 서버 (Cloudflare, 미국)'), T('로그인하거나 비서를 쓰면 플래너 내용이 저장돼요. 다른 기기와 맞추고 비서가 읽기 위해서예요'))}
@@ -1400,8 +1402,17 @@ function renderPrivPage() {
 function learnOk() { return !!((D.settings || {}).learn); }
 function setLearn(v) { D.settings = Object.assign({}, D.settings, { learn: !!v, u: new Date().toISOString() }); D._modified = D.settings.u; _save0(); if (baseUrl()) pushState(); }
 function markRoles() { D.settings = Object.assign({}, D.settings, { rolesAt: today(), u: new Date().toISOString() }); }
+// 고친 기록에는 Google에서 받은 일정을 넣지 않는다(「비서도 읽기」를 켰어도): 그 제목·id가 든 줄을 걷어 낸다
+function scrubG(x) {
+  const bad = new Set(); calEvents().forEach(e => { const t = (e.title || '').trim(); if (e.g && t) [t, '[일정] ' + t, T('일정 · {t}', { t }), evId(t)].forEach(v => bad.add(v)); });
+  if (!bad.size) return x;
+  const hit = v => typeof v === 'string' ? bad.has(v) : !!v && typeof v === 'object' && !Array.isArray(v) && Object.values(v).some(q => typeof q === 'string' && bad.has(q));
+  const walk = v => Array.isArray(v) ? v.filter(q => !hit(q)).map(walk) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, q]) => [k, walk(q)])) : v;
+  return walk(x);
+}
 async function sendFeedback(suggest, final) {
   if (!learnOk() || !baseUrl()) return;
+  suggest = scrubG(suggest); final = scrubG(final);
   try { await fetch(baseUrl() + '/u/' + D.token + '/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ consent: true, kind: 'roles', model: (D.groupSug || {}).model || '', suggest, final, people: peopleMap() }) }); } catch(e) {}
 }
 // 고치기 시트. groups를 주면 '제안 고치기'(할 일마다 역할 고르기), 없으면 역할 이름만
@@ -1419,7 +1430,7 @@ function openAllRoles() {
   allEvTitles().forEach(t => { const x = g.find(q => q.name === er[t]); if (x) x.ids.push(evId(t)); else un.push(evId(t)); });
   openRoles(g); un.forEach(id => roleItems[id] = ''); renderRoles();
 }
-function allEvTitles() { return [...new Set(calEvents().map(e => (e.title || '').trim()).filter(Boolean))]; }
+function allEvTitles() { return [...new Set(aiEvents().map(e => (e.title || '').trim()).filter(Boolean))]; }
 // 일정마다 역할 정하기: 지금 역할로 묶어 보여 주고, 아직 없는 일정은 '정하기 전'
 function openEvRoles() {
   syncRoles(); const er = evRoles(), g = D.roles.map(n => ({ name: n, ids: [] })), un = [];
@@ -1659,10 +1670,14 @@ function backSticky() { return ''; } // 예전의 흐린 포스트잇: 이제 �
 function syncRoles() { D.roles = D.roles || []; live().forEach(r => { if (r.role && !D.roles.includes(r.role)) D.roles.push(r.role); }); Object.values(evRoles()).forEach(n => { if (n && !D.roles.includes(n)) D.roles.push(n); }); }
 function unroled() { return openItems().filter(r => !r.role); }
 // 일정 제목도 역할 찾기에 쓴다(같은 제목은 한 번만, 자주 나오는 순)
-function calEvents() { const c = D.calCache, want = (D.settings || {}).calNative && isNative() ? 'native' : (D.settings || {}).calUrl; return (c && c.url === want && c.events) || []; }
+// 지금 어느 캘린더를 보고 있는지(캐시가 그 캘린더 것인지 가리는 이름). Google을 연결했으면 Google 일정에 iCal 주소 일정을 더한다
+function calWant() { const st = D.settings || {}; if (st.calNative && isNative()) return 'native'; return st.gcal ? 'gcal|' + (st.calUrl || '') : st.calUrl; }
+// AI로 넘겨도 되는 일정: Google에서 받은 것은 「비서도 읽기」를 켠 때만
+function aiEvents() { const ok = gcalAiOk(); return calEvents().filter(e => !e.g || ok); }
+function calEvents() { const c = D.calCache, want = calWant(); return (c && c.url === want && c.events) || []; }
 function evRoles() { return Object.assign({}, (D.settings || {}).evRoles); }
 function evId(t) { let h = 0; for (const ch of t) h = (h * 31 + ch.charCodeAt(0)) | 0; return 'e' + (h >>> 0).toString(36); }
-function evTitles() { const er = evRoles(), cnt = {}; calEvents().forEach(e => { const t = (e.title || '').trim(); if (t && !(t in er)) cnt[t] = (cnt[t] || 0) + 1; }); return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).slice(0, 15); }
+function evTitles() { const er = evRoles(), cnt = {}; aiEvents().forEach(e => { const t = (e.title || '').trim(); if (t && !(t in er)) cnt[t] = (cnt[t] || 0) + 1; }); return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).slice(0, 15); }
 function noGuess(g) { return !g || /^(모름|unknown|not sure|n\/a|不明|未知)$/i.test(String(g).trim()); } // 서버가 관계를 모를 때 돌려주는 말(언어별)
 function groupInputs() { return unroled().map(r => ({ id: r.id, title: r.title })).concat(evTitles().map(t => ({ id: evId(t), title: '[일정] ' + t, ev: t }))); }
 function titleOf(id) { const r = rock(id); if (r) return r.title; const t = evTitles().concat(Object.keys(evRoles())).find(x => evId(x) === id); return t ? T('일정 · {t}', { t }) : ''; }
@@ -1734,20 +1749,24 @@ async function loadCal(force) {
       D.calCache = { url: 'native', at: Date.now(), from, events: r.events || [], error: r.status === 'granted' ? '' : T('아이폰 설정에서 캘린더 접근을 허용해 주세요') }; _save0(); render(); renderCalBox(); } catch(e) {}
     return;
   }
-  const url = (D.settings || {}).calUrl; if (!url || !baseUrl() || _calLoading) return;
+  const url = (D.settings || {}).calUrl, g = gcal(), want = calWant(); if ((!url && !g) || !baseUrl() || _calLoading) return;
   const c = D.calCache;
-  if (!force && c && c.url === url && c.from <= addDays(today(), -1) && Date.now() - c.at < 15 * 60000) return;
+  if (!force && c && c.url === want && c.from <= addDays(today(), -1) && Date.now() - c.at < 15 * 60000) return;
   _calLoading = true;
   try {
-    const from = addDays(today(), -7), to = addDays(today(), 35);
-    const r = await fetch(baseUrl() + '/u/' + D.token + '/cal', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url, from, to }) });
-    const j = await r.json();
-    if (!r.ok) { D.calCache = { url, at: Date.now(), from, events: [], error: j.error || T('불러오지 못했어요') }; }
-    else D.calCache = { url, at: Date.now(), from, events: j.events || [] };
+    const from = addDays(today(), -7), to = addDays(today(), 35), post = (kind, body) => fetch(baseUrl() + '/u/' + D.token + '/' + kind, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    let events = [], error = '';
+    if (g) { const r = await post('gcal', { op: 'events', from, to }), j = await r.json();
+      if (r.ok) events = (j.events || []).map(e => Object.assign(e, { g: 1 }));
+      else if (r.status === 404 || r.status === 410) { setGcal(null); toast(T('Google 연결이 끊겼어요. 다시 연결해 주세요')); return; }
+      else error = T('불러오지 못했어요'); }
+    if (url) { const r = await post('cal', { url, from, to }), j = await r.json(); if (r.ok) events = events.concat(j.events || []); else error = error || j.error || T('불러오지 못했어요'); }
+    events.sort((a, b) => (a.date + (a.allDay ? '' : a.start)) < (b.date + (b.allDay ? '' : b.start)) ? -1 : 1);
+    D.calCache = { url: want, g: g ? 1 : 0, at: Date.now(), from, events, error };
     _save0(); render(); if (document.getElementById('calBox')) renderCalBox();
   } catch(e) {} finally { _calLoading = false; }
 }
-function eventsOn(ds) { const c = D.calCache, want = (D.settings || {}).calNative && isNative() ? 'native' : (D.settings || {}).calUrl; if (!c || c.url !== want) return []; return (c.events || []).filter(e => e.date === ds); }
+function eventsOn(ds) { const c = D.calCache, want = calWant(); if (!c || c.url !== want) return []; return (c.events || []).filter(e => e.date === ds); }
 // 오늘의 일정: 캘린더 일정 + 플래너에 적은 약속(시각 있는 일)을 시각 순으로. 여기서 바로 약속을 적는다
 let _evAdd = ''; // 약속 적는 줄이 열린 곳: 't'(오늘 화면) | 'c'(달력) | ''
 function evTm(st, en) { return st + (en && en > st ? `<i>–${en}</i>` : ''); }
@@ -1786,16 +1805,55 @@ function setCalUrl(v) {
   D.settings = Object.assign({}, D.settings, { calUrl: v, u: new Date().toISOString() }); D._modified = D.settings.u;
   D.calCache = null; _save0(); if (baseUrl()) pushState(); renderCalBox(); if (v) { toast(T('일정 불러오는 중')); loadCal(true); } else { toast(T('캘린더 연결을 뺐어요')); render(); }
 }
+// ── Google 캘린더: 로그인 한 번으로 잇는다(읽기 전용). 서버에는 연결 토큰만 두고, 일정은 그때그때 받아 기기에만 둔다 ──
+function gcal() { return (D.settings || {}).gcal || null; }
+function gcalAiOk() { const g = gcal(); return !!(g && g.ai === true && aiOk()); } // 구글 일정을 비서 AI에 넘겨도 되는지: 연결할 때 따로 묻는다
+function setGcal(patch) { const g = patch === null ? null : Object.assign({}, gcal(), patch); D.settings = Object.assign({}, D.settings, { gcal: g, u: new Date().toISOString() }); D._modified = D.settings.u; D.calCache = null; _save0(); if (baseUrl()) pushState(); renderCalBox(); render(); }
+function gcalHtml() {
+  const g = gcal(), c = D.calCache;
+  if (!g && (isNative() || !(authConf && authConf.gcal))) { if (!authConf && !isNative()) loadAuthConf().then(() => { if (authConf && authConf.gcal) renderCalBox(); }); return ''; } // 서버에 연결 준비가 된 웹에서만 버튼을 보인다
+  if (!g) return `<button class="cta" style="height:44px" onclick="gcalConnect()">${T('Google 캘린더 연결')}</button>
+    <div class="gnote">${T('일정을 읽기만 해요. 만들거나 고치거나 지우지 않아요.')}</div>`;
+  const st = c && c.error ? `<span style="color:var(--check)">${esc(c.error)}</span>` : c && c.g ? T('일정 {n}개 · {b}분 전', { n: c.events.length, b: Math.max(0, Math.round((Date.now() - c.at) / 60000)) }) : T('불러오는 중');
+  let h = `<div class="feat on" style="cursor:default"><span class="nm"><b>${T('Google 캘린더 연결됨')}</b><i>${esc(g.email || '')}${g.email ? ' · ' : ''}${st}</i></span><button class="pill" onclick="gcalDisconnect()">${T('연결 끊기')}</button></div>`;
+  if (typeof g.ai !== 'boolean') h += `<div class="stickies" style="margin:10px 0 4px;grid-template-columns:minmax(0,1fr)"><div class="sticky"><div class="who"><span>DUAL</span><span>Google</span></div>
+    <div class="tx"><b>${T('비서도 이 일정을 읽게 할까요?')}</b><div class="hint" style="margin-top:6px;line-height:1.6">${T('역할 찾기, 주간 리뷰, 한 가지 일로 묶기를 할 때 일정 제목과 시각이 AI 회사(Anthropic · Cloudflare)로 가요. AI 학습에는 쓰이지 않고, 메뉴 › 내 정보가 가는 곳에서 언제든 끌 수 있어요.')}</div></div>
+    <div class="act act3"><button onclick="setGcal({ai:true})">${T('비서도 읽기')}</button><button onclick="setGcal({ai:false})">${T('화면에만 보이기')}</button></div></div></div>`;
+  else h += `<button class="feat ${g.ai ? 'on' : ''}" onclick="setGcal({ai:${!g.ai}})"><span class="nm"><b>${T('비서도 Google 일정 읽기')}</b><i>${T('끄면 일정은 화면에 보여 주는 데만 써요')}</i></span><span class="st">${g.ai ? T('켬') : T('끔')}</span></button>`;
+  return h;
+}
+const GSCOPE = 'https://www.googleapis.com/auth/calendar.events.readonly';
+async function gcalPost(body) { return fetch(baseUrl() + '/u/' + D.token + '/gcal', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
+// 웹에서만: Google 동의 화면으로 갔다가 이 주소로 돌아온다(읽기 권한 하나만 청한다)
+async function gcalConnect() {
+  await loadAuthConf(); if (isNative() || !authConf.gcal || typeof authConf.google !== 'string' || !baseUrl()) { toast(T('지금은 연결할 수 없어요')); return; }
+  try { await pushState(); } catch(e) {}
+  const st = uid('g_'); try { sessionStorage.setItem('dpa_gst', st); } catch(e) {}
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({ client_id: authConf.google, redirect_uri: location.origin + '/', response_type: 'code', scope: GSCOPE, access_type: 'offline', prompt: 'consent', state: st });
+}
+async function gcalReturn() {
+  const q = new URLSearchParams(location.search), st = q.get('state') || ''; if (!/^g_/.test(st)) return;
+  const code = q.get('code'); history.replaceState(null, '', location.pathname);
+  let want = ''; try { want = sessionStorage.getItem('dpa_gst') || ''; sessionStorage.removeItem('dpa_gst'); } catch(e) {}
+  if (q.get('error') || !code || want !== st || !baseUrl()) { toast(T('Google 캘린더를 연결하지 못했어요')); return; }
+  try { const r = await gcalPost({ op: 'connect', code, redirect_uri: location.origin + '/' }), j = await r.json();
+    if (!r.ok) { toast(T('Google 캘린더를 연결하지 못했어요')); return; }
+    setGcal({ email: j.email || '', at: today() }); go('more'); openSec('cal'); toast(T('Google 캘린더를 연결했어요')); loadCal(true);
+  } catch(e) { toast(T('Google 캘린더를 연결하지 못했어요')); }
+}
+window.addEventListener('load', () => { if (/[?&]state=g_/.test(location.search)) gcalReturn(); });
+async function gcalDisconnect() { if (!confirm(T('Google 캘린더 연결을 끊을까요? 받아 둔 일정도 지워져요.'))) return; try { if (baseUrl()) await gcalPost({ op: 'disconnect' }); } catch(e) {} setGcal(null); toast(T('Google 캘린더 연결을 끊었어요')); loadCal(true); }
 function renderCalBox() {
   const el = document.getElementById('calBox'); if (!el) return;
   const u = (D.settings || {}).calUrl || '', c = D.calCache;
   const st = !u ? '' : (c && c.error ? `<span style="color:var(--check)">${esc(c.error)}</span>` : c && c.url === u ? T('일정 {n}개 · {b}분 전', { n: c.events.length, b: Math.max(0, Math.round((Date.now() - c.at) / 60000)) }) : T('불러오는 중'));
   if (nat()) {
     const on = !!(D.settings || {}).calNative, c2 = D.calCache;
-    el.innerHTML = `<div class="lbl" style="padding-left:0">${T('캘린더')}</div><div class="acts" style="padding:4px 0 12px"><button onclick="setCalNative(${!on})">${on ? T('아이폰 캘린더 끄기') : T('아이폰 캘린더 쓰기')}</button><span style="font-size:12px;color:var(--muted)">${on ? (c2 && c2.error ? esc(c2.error) : T('일정 {n}개', { n: ((c2 && c2.events) || []).length })) : T('구글·네이버·아웃룩이 다 들어와요')}</span></div>`;
+    el.innerHTML = `<div class="lbl" style="padding-left:0">${T('캘린더')}</div>${gcalHtml()}<div class="acts" style="padding:4px 0 12px"><button onclick="setCalNative(${!on})">${on ? T('아이폰 캘린더 끄기') : T('아이폰 캘린더 쓰기')}</button><span style="font-size:12px;color:var(--muted)">${on ? (c2 && c2.error ? esc(c2.error) : T('일정 {n}개', { n: ((c2 && c2.events) || []).length })) : T('구글·네이버·아웃룩이 다 들어와요')}</span></div>`;
     return;
   }
-  el.innerHTML = `<div class="lbl" style="padding-left:0">${T('캘린더')}</div>
+  el.innerHTML = `<div class="lbl" style="padding-left:0">${T('캘린더')}</div>${gcalHtml()}
+    <div class="lbl" style="padding-left:0;margin-top:18px;font-weight:400;color:var(--muted)">${T('다른 캘린더 (iCal 주소)')}</div>
     <input class="wr" id="calIn" style="padding-left:0;font-size:13px" placeholder="${T('iCal 주소')}" value="${esc(u)}" onchange="setCalUrl(this.value)">
     <div style="font-size:12px;color:var(--muted);line-height:1.7;padding:4px 0 10px">${st ? st + '<br>' : ''}${T('구글 캘린더 › 설정 › 내 캘린더 › 캘린더 통합 › 비공개 주소(iCal 형식)')}${u ? ` · <button style="font-size:12px;color:var(--ink-2);text-decoration:underline" onclick="setCalUrl('')">${T('빼기')}</button>` : ''}</div>`;
 }
@@ -2588,7 +2646,7 @@ async function maybeBundle() {
   const list = bundleInputs(); if (list.length < 4) return;
   _bundling = true; _bundleTry = Date.now();
   try {
-    const evs = calEvents().filter(e => e.date >= td && e.title).slice(0, 20).map(e => ({ date: e.date, title: e.title }));
+    const evs = aiEvents().filter(e => e.date >= td && e.title).slice(0, 20).map(e => ({ date: e.date, title: e.title }));
     const req = () => fetch(baseUrl() + '/u/' + D.token + '/bundle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ today: td, items: list.slice(0, 40).map(r => ({ id: r.id, title: r.title, due: r.due || '' })), events: evs, plans: openPlans().map(p => p.name), lang: LANG }) });
     let r = await req();
     if (r.status === 404) { await pushState(); r = await req(); }
@@ -2835,7 +2893,7 @@ function lastWeekHtml(wk, rv) {
 let _reviewing = false;
 function weekFacts(wk) {
   const ds = weekDates(new Date(wk)), er = evRoles(), hrs = {};
-  calEvents().filter(e => ds.includes(e.date) && !e.allDay && e.start && e.end).forEach(e => { const [a, b] = [e.start, e.end].map(x => x.split(':').map(Number)); const k = er[(e.title || '').trim()] || '역할 없음'; hrs[k] = (hrs[k] || 0) + Math.max(0, (b[0] * 60 + b[1] - a[0] * 60 - a[1]) / 60); });
+  aiEvents().filter(e => ds.includes(e.date) && !e.allDay && e.start && e.end).forEach(e => { const [a, b] = [e.start, e.end].map(x => x.split(':').map(Number)); const k = er[(e.title || '').trim()] || '역할 없음'; hrs[k] = (hrs[k] || 0) + Math.max(0, (b[0] * 60 + b[1] - a[0] * 60 - a[1]) / 60); });
   return {
     roles: D.roles,
     done: live().filter(r => r.done && ds.includes(r.doneAt || '')).map(r => ({ title: r.title, role: r.role || '' })),

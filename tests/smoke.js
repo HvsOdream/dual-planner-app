@@ -217,6 +217,18 @@ async function ui(browser, label, ctxOpts) {
   await ev(() => { const r = D.rocks.find(x => x.title === '동의대 특강 KTX 예매'); go('week'); rowOpen = r.id; render(); });
   C('줄을 펴면 근거(비서 메모)가 보인다', await ev(() => /KTX를 미리/.test((document.querySelector('#week .bhint.why') || {}).textContent || '')));
   await ev(() => { rowOpen = null; go('memo'); });
+  // Google 일정과 AI: 「비서도 읽기」를 켠 때만 역할 찾기·묶기로 가고, 고친 기록에는 늘 빠진다
+  await ev(() => { window._keep = [JSON.stringify(D.settings || {}), JSON.stringify(D.calCache || null)]; D.settings = Object.assign({}, D.settings, { gcal: { email: 'me@example.com' }, ai: true }); D.calCache = { url: calWant(), g: 1, at: Date.now(), from: addDays(today(), -7), events: [{ date: today(), start: '10:00', end: '11:00', title: '구글에서 온 회의', allDay: false, g: 1 }, { date: today(), start: '13:00', end: '14:00', title: '주소로 넣은 일정', allDay: false }] }; });
+  C('Google 일정도 화면에는 보인다', await ev(() => eventsOn(today()).some(e => e.title === '구글에서 온 회의')));
+  C('묻기 전에는 Google 일정이 AI 쪽 목록에 없다', await ev(() => !allEvTitles().includes('구글에서 온 회의') && allEvTitles().includes('주소로 넣은 일정')));
+  await ev(() => { D.settings.gcal.ai = true; });
+  C('「비서도 읽기」를 켜면 AI 쪽 목록에 들어온다', await ev(() => allEvTitles().includes('구글에서 온 회의')));
+  C('고친 기록에서는 Google 일정을 걷어 낸다', await ev(() => { const t = '구글에서 온 회의', o = scrubG({ a: [{ name: '교수', ids: [evId(t), 'r1'] }], b: [{ title: T('일정 · {t}', { t }), role: '교수' }, { title: '주소로 넣은 일정', role: '교수' }] }); return JSON.stringify(o) === JSON.stringify({ a: [{ name: '교수', ids: ['r1'] }], b: [{ title: '주소로 넣은 일정', role: '교수' }] }); }));
+  await ev(() => { go('more'); openSec('cal'); });
+  C('메뉴 › 캘린더에 Google 연결 상태와 끊기가 보인다', await ev(() => /me@example.com/.test(document.getElementById('calBox').textContent) && !!document.querySelector('#calBox .pill')));
+  await ev(() => { D.settings = Object.assign({}, D.settings, { gcal: null }); D.calCache = null; authConf = { google: 'cid', gcal: true }; renderCalBox(); });
+  C('연결 전에는 「Google 캘린더 연결」이 보인다', await ev(() => /gcalConnect/.test(document.getElementById('calBox').innerHTML)));
+  await ev(() => { D.settings = JSON.parse(window._keep[0]); D.calCache = JSON.parse(window._keep[1]); save(); go('memo'); });
   await ev(() => noteToMemo('i_note')); C('메모로: 누른 비서 메모만 들어온다', await ev(() => memoEntries().filter(e => e.note).length === 1));
   await ev(() => { const m = liveMemos()[0]; memoToRock(m.id, 'light'); }); C('메모를 할 일로(여러 줄은 남는다)', await ev(() => D.rocks.some(r => r.title === '점검 메모' && r.bucket === 'light') && liveMemos().some(m => m.toRock)));
   await ev(() => delMemo('i_note')); C('메모 탭에서 지우면 빠진다', await ev(() => !memoEntries().some(e => e.note)));
@@ -391,6 +403,26 @@ async function server() {
   const ap = S.rocks.find(r => r.title === '통화');
   await call('items', 'POST', { src: 'mcp', items: [{ text: '학지사 Zoom 회의가 오늘 4시입니다. 회의 ID는 메일에 있어요.', kind: 'note', todo: '학지사 Zoom 회의', bucket: 'A', role: '교수', at: '2030-01-02 16:00' }] });
   { const S2 = await call('state', 'GET'), n = Object.values(S2.days).flatMap(d => d.inbox || []).find(x => /학지사/.test(x.text)); C('메모에 할 일 초안이 붙는다(kind=note + todo)', !!n && n.draft && n.draft.title === '학지사 Zoom 회의' && n.draft.bucket === 'urgent' && n.draft.at === '2030-01-02T16:00' && n.draft.role === '교수', n); }
+  { // Google 캘린더: 가짜 Google로 연결 → 일정 읽기 → 끊기
+    Object.assign(env, { GOOGLE_CLIENT_ID: 'cid', GOOGLE_CLIENT_SECRET: 'sec', GCAL_REDIRECTS: 'https://app.contenthibi.com/' });
+    const realFetch = globalThis.fetch, seen = [];
+    globalThis.fetch = async (u, o) => { u = String(u); seen.push(u.split('?')[0] + ' ' + String((o && o.body) || ''));
+      if (u.startsWith('https://oauth2.googleapis.com/token')) { const p = new URLSearchParams(o.body); if (p.get('grant_type') === 'authorization_code') return new Response(JSON.stringify(p.get('code') === 'good' ? { access_token: 'at', refresh_token: 'rt-1', scope: 'https://www.googleapis.com/auth/calendar.events.readonly' } : { error: 'invalid_grant' }), { status: p.get('code') === 'good' ? 200 : 400 }); return new Response(JSON.stringify(p.get('refresh_token') === 'rt-1' ? { access_token: 'at2' } : { error: 'invalid_grant' }), { status: p.get('refresh_token') === 'rt-1' ? 200 : 400 }); }
+      if (u.startsWith('https://oauth2.googleapis.com/revoke')) return new Response('{}');
+      if (u.startsWith('https://www.googleapis.com/calendar/v3/calendars/primary/events')) return new Response(JSON.stringify({ summary: 'me@example.com', items: [{ summary: '학과 회의', start: { dateTime: '2030-01-02T10:00:00+09:00' }, end: { dateTime: '2030-01-02T11:30:00+09:00' } }, { summary: '출장', start: { date: '2030-01-03' }, end: { date: '2030-01-05' } }, { status: 'cancelled', start: { date: '2030-01-03' } }] }));
+      return new Response('{}', { status: 404 }); };
+    try {
+      let r = await call('gcal', 'POST', { op: 'connect', code: 'good', redirect_uri: 'https://evil.example/' }); C('Google 연결: 허용하지 않은 돌아올 주소는 거절', r.error === 'redirect not allowed', r);
+      r = await call('gcal', 'POST', { op: 'connect', code: 'bad', redirect_uri: 'https://app.contenthibi.com/' }); C('Google 연결: 틀린 코드는 실패', r.error === 'exchange failed', r);
+      r = await call('gcal', 'POST', { op: 'connect', code: 'good', redirect_uri: 'https://app.contenthibi.com/' }); C('Google 연결: 성공하면 계정 이름을 돌려준다', r.ok === true && r.email === 'me@example.com', r);
+      const stored = kv.get('g:' + T); C('Google 토큰은 암호화해 둔다(평문 없음)', !!stored && !/rt-1/.test(stored) && /\./.test(stored), stored);
+      r = await call('gcal', 'POST', { op: 'events', from: '2030-01-01', to: '2030-01-10' });
+      C('Google 일정: 시각 있는 일정과 종일 일정(날마다 한 줄), 취소된 것은 뺌', Array.isArray(r.events) && r.events.length === 3 && r.events[0].title === '학과 회의' && r.events[0].start === '10:00' && r.events[0].end === '11:30' && r.events[1].allDay && r.events[1].date === '2030-01-03' && r.events[2].date === '2030-01-04' && r.events.every(e => e.g === 1), r);
+      const S3 = await call('state', 'GET'); C('Google 일정은 서버 플래너에 저장하지 않는다', !/학과 회의/.test(JSON.stringify(S3)));
+      r = await call('gcal', 'POST', { op: 'disconnect' }); C('Google 연결 끊기: 토큰을 지우고 권한을 거둔다', r.ok === true && !kv.has('g:' + T) && seen.some(x => /revoke/.test(x) && /rt-1/.test(x)), seen.slice(-2));
+      r = await call('gcal', 'POST', { op: 'events' }); C('끊은 뒤에는 일정을 주지 않는다', r.error === 'not connected', r);
+    } finally { globalThis.fetch = realFetch; }
+  }
   C('비서가 메모장에 적는다(kind=memo)', S.memos.some(m => m.text === '비서가 적은 메모' && m.by));
   C('그날 메모는 그날 포스트잇으로(kind=note)', Object.values(S.days).some(d => (d.inbox || []).some(x => x.text === '그날 메모' && x.kind === 'note')));
   C('약속 끝 시각(end)', !!ap && ap.at === '2030-01-02T10:00' && ap.atEnd === '11:00', ap);

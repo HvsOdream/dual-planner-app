@@ -192,12 +192,13 @@ const PROVIDERS = {
   apple: env => env.APPLE_SERVICES_ID && { jwks: 'https://appleid.apple.com/auth/keys', iss: ['https://appleid.apple.com'], aud: [env.APPLE_SERVICES_ID, env.APPLE_APP_ID || 'com.hvsodream.dualplanner'] },
 };
 async function auth(req, env, path) {
-  if (path === 'config') return json({ google: env.GOOGLE_CLIENT_ID || null, apple: env.APPLE_SERVICES_ID || null });
+  if (path === 'config') return json({ google: env.GOOGLE_CLIENT_ID || null, apple: env.APPLE_SERVICES_ID || null, gcal: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GCAL_REDIRECTS) });
   if (path === 'account') {
     if (req.method !== 'DELETE') return json({ error: 'method' }, 405);
     const tok = String(req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
     if (!TOKEN_RE.test(tok)) return json({ error: 'no token' }, 401);
     const ak = await env.PLANNER.get('acct:' + tok);
+    if (env.GOOGLE_CLIENT_SECRET) await gRevoke(env, tok); else await env.PLANNER.delete('g:' + tok);
     await env.PLANNER.delete('u:' + tok); await env.PLANNER.delete('acct:' + tok); if (ak) await env.PLANNER.delete(ak);
     for (const k of await kvKeys(env, 'p:' + tok + ':', 2000)) await env.PLANNER.delete(k);
     return json({ ok: true, deleted: true });
@@ -675,6 +676,65 @@ async function cal(req, env, token) {
   return json({ events: parseIcs(text, from, Math.min(to, from + 62 * DAY)) });
 }
 
+// ── Google 캘린더(읽기 전용): 서버에는 연결 토큰만 암호화해 둔다. 일정은 받아서 그대로 돌려주고 저장하지 않는다 ──
+const GSCOPE = 'https://www.googleapis.com/auth/calendar.events.readonly';
+const gB64 = u8 => btoa(String.fromCharCode(...u8)), gUb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function gKey(env) { const raw = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('gcal-token-v1:' + env.GOOGLE_CLIENT_SECRET)); return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']); }
+async function gSeal(env, text) { const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await gKey(env), new TextEncoder().encode(text))); return gB64(iv) + '.' + gB64(ct); }
+async function gOpen(env, s) { const [a, b] = String(s).split('.'); return new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: gUb64(a) }, await gKey(env), gUb64(b))); }
+async function gTokenCall(env, params) { const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(Object.assign({ client_id: env.GOOGLE_CLIENT_ID, client_secret: env.GOOGLE_CLIENT_SECRET }, params)).toString() }); let j = {}; try { j = await r.json(); } catch {} return { ok: r.ok, j }; }
+async function gRevoke(env, token) { const v = await env.PLANNER.get('g:' + token); if (!v) return; try { const rt = await gOpen(env, v); await fetch('https://oauth2.googleapis.com/revoke', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ token: rt }).toString() }); } catch {} await env.PLANNER.delete('g:' + token); }
+// 기본 캘린더의 일정을 앱이 쓰는 모양({date,start,end,title,allDay})으로. 날짜·시각은 한국 시간 기준
+async function gEvents(access, from, to) {
+  const out = []; let page = '', email = '';
+  for (let i = 0; i < 4; i++) {
+    const q = new URLSearchParams({ singleEvents: 'true', orderBy: 'startTime', timeMin: from + 'T00:00:00+09:00', timeMax: to + 'T00:00:00+09:00', maxResults: '250', timeZone: 'Asia/Seoul', fields: 'summary,nextPageToken,items(status,summary,start,end)' }); if (page) q.set('pageToken', page);
+    const r = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?' + q, { headers: { authorization: 'Bearer ' + access } });
+    if (!r.ok) return { error: r.status };
+    const j = await r.json(); email = email || j.summary || '';
+    (j.items || []).forEach(e => {
+      if (!e || e.status === 'cancelled' || !e.start) return; const title = String(e.summary || '(제목 없음)').slice(0, 200);
+      if (e.start.date) { const end = (e.end && e.end.date) || e.start.date; for (let d = Date.parse(e.start.date + 'T00:00:00Z'), n = 0; n < 62 && (d < Date.parse(end + 'T00:00:00Z') || n === 0); d += DAY, n++) { const ds = new Date(d).toISOString().slice(0, 10); if (ds >= from && ds < to) out.push({ date: ds, start: '', end: '', title, allDay: true, g: 1 }); } }
+      else if (e.start.dateTime) { const a = String(e.start.dateTime), b = String((e.end && e.end.dateTime) || ''); out.push({ date: a.slice(0, 10), start: a.slice(11, 16), end: b.slice(0, 10) === a.slice(0, 10) ? b.slice(11, 16) : (b ? '23:59' : ''), title, allDay: false, g: 1 }); }
+    });
+    page = j.nextPageToken || ''; if (!page) break;
+  }
+  return { email, events: out.sort((a, b) => (a.date + (a.allDay ? '' : a.start)).localeCompare(b.date + (b.allDay ? '' : b.start))).slice(0, 400) };
+}
+async function gcal(req, env, token) {
+  if (req.method !== 'POST') return json({ error: 'method' }, 405);
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) return json({ error: 'google calendar not configured' }, 503);
+  if (!(await env.PLANNER.get('u:' + token))) return json({ error: 'unknown planner' }, 404);
+  let b; try { b = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const op = String((b && b.op) || '');
+  if (op === 'connect') {
+    const redirect = String(b.redirect_uri || ''), allow = String(env.GCAL_REDIRECTS || '').split(',').map(x => x.trim()).filter(Boolean);
+    if (!allow.includes(redirect)) return json({ error: 'redirect not allowed' }, 400);
+    const { ok, j } = await gTokenCall(env, { grant_type: 'authorization_code', code: String(b.code || ''), redirect_uri: redirect });
+    if (!ok || !j.access_token) return json({ error: 'exchange failed', detail: String(j.error || '').slice(0, 60) }, 400);
+    if (!String(j.scope || '').split(' ').includes(GSCOPE)) return json({ error: 'scope not granted' }, 400);
+    if (!j.refresh_token) return json({ error: 'no refresh token' }, 400);
+    await gRevoke(env, token); // 전에 연결해 둔 것이 있으면 그 권한은 거둔다
+    await env.PLANNER.put('g:' + token, await gSeal(env, j.refresh_token));
+    const td = new Date(Date.now() + KST).toISOString().slice(0, 10), ev = await gEvents(j.access_token, td, new Date(Date.now() + KST + DAY).toISOString().slice(0, 10));
+    return json({ ok: true, email: ev.email || '' });
+  }
+  if (op === 'disconnect') { await gRevoke(env, token); return json({ ok: true }); }
+  if (op === 'events') {
+    const v = await env.PLANNER.get('g:' + token); if (!v) return json({ error: 'not connected' }, 404);
+    let rt; try { rt = await gOpen(env, v); } catch { await env.PLANNER.delete('g:' + token); return json({ error: 'not connected' }, 404); }
+    const { ok, j } = await gTokenCall(env, { grant_type: 'refresh_token', refresh_token: rt });
+    if (!ok || !j.access_token) { if (j.error === 'invalid_grant') { await env.PLANNER.delete('g:' + token); return json({ error: 'revoked' }, 410); } return json({ error: 'google unavailable' }, 502); }
+    const from = /^\d{4}-\d\d-\d\d$/.test(b.from || '') ? b.from : new Date(Date.now() + KST - 7 * DAY).toISOString().slice(0, 10);
+    let to = /^\d{4}-\d\d-\d\d$/.test(b.to || '') ? b.to : new Date(Date.parse(from) + 42 * DAY).toISOString().slice(0, 10);
+    if (Date.parse(to) - Date.parse(from) > 62 * DAY) to = new Date(Date.parse(from) + 62 * DAY).toISOString().slice(0, 10);
+    const ev = await gEvents(j.access_token, from, to);
+    if (ev.error) return json({ error: 'google unavailable', status: ev.error }, 502);
+    return json({ email: ev.email, events: ev.events });
+  }
+  return json({ error: 'op' }, 400);
+}
+
 // ── 하루 사진 한 장: 날짜별로 따로 저장(플래너 데이터와 분리), 600KB까지 JPEG ──
 async function photo(req, env, token, ds) {
   const key = 'p:' + token + ':' + ds;
@@ -699,12 +759,13 @@ export default {
     const am = url.pathname.match(/^\/auth\/(config|google|apple|account)\/?$/);
     if (am) return auth(req, env, am[1]);
     if (url.pathname.replace(/\/$/, '') === '/admin/stats') return adminStats(req, env);
-    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group|cal|feedback|review|plan|scan|bundle)\/?$/);
+    const m = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/(state|items|mcp|group|cal|gcal|feedback|review|plan|scan|bundle)\/?$/);
     if (!m) return json({ ok: true, name: 'dual-planner-api', usage: '/u/:token/state | /u/:token/items | /u/:token/mcp | /auth/config | /auth/google | /auth/apple | /auth/account' });
     const token = m[1], kind = m[2], key = 'u:' + token;
     if (kind === 'mcp') return mcp(req, env, token);
     if (kind === 'group') return group(req, env, token);
     if (kind === 'cal') return cal(req, env, token);
+    if (kind === 'gcal') return gcal(req, env, token);
     if (kind === 'feedback') return feedback(req, env, token);
     if (kind === 'review') return review(req, env, token);
     if (kind === 'plan') return planDraft(req, env, token);

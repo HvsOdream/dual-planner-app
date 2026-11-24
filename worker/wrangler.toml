@@ -16,3 +16,5 @@ GOOGLE_CLIENT_ID = "992928610624-qivktlsooc8tifhdt6g0mmvckqdji7v2.apps.googleuse
 GOOGLE_IOS_CLIENT_ID = "992928610624-5cofgcgjg8c6c9a7j16gqm4mpheltpgk.apps.googleusercontent.com"
 APPLE_SERVICES_ID = "com.hvsodream.dualplanner.web"
 ADMIN_EMAILS = "withsky0@gmail.com"
+# Google 캘린더 연결 뒤 돌아올 수 있는 주소(쉼표로 여럿). 비밀번호 GOOGLE_CLIENT_SECRET은 저장소 Secrets에서 넣는다
+GCAL_REDIRECTS = "https://app.contenthibi.com/"
