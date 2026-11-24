@@ -780,6 +780,9 @@ function dayOf(ds) { if (!D.days[ds]) D.days[ds] = { intent:'', note:'', picks:[
 const BUCKETS = [['urgent',T('A 급함·중요')],['important',T('B 중요')],['light',T('C 급함·가벼움')],['nice',T('D 나중에')]];
 function bucketName(b) { return (BUCKETS.find(x=>x[0]===b)||BUCKETS[2])[1]; }
 function live() { return D.rocks.filter(r => r && !r._deleted && !r.tomb); }
+// 같은 일을 두 번 적지 않게: 안 끝난 할 일 가운데 제목이 같은 것(빈칸·대소문자 무시). 둘 다 마감이 있고 날짜가 다르면 다른 일로 본다. 루틴·약속은 보지 않는다
+function dupKey(t) { return String(t || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+function dupOpen(title, due, skipId) { const k = dupKey(title); if (!k) return null; return openItems().find(r => r.id !== skipId && !r.routine && !r.tomb && dupKey(r.title) === k && !(due && r.due && due !== r.due)) || null; }
 function openItems() { return live().filter(r => !r.done && !r.appt); } // 약속(일정 칸에서 적은 것)은 할 일 목록·재촉에서 뺀다
 function rocksOf(wk) { return live().filter(r => (r.week||'') <= wk); } // 리뷰용: 그 주까지 살아 있던 항목
 function lastTouched(r) { const ks = Object.keys(r.checks||{}).sort(); return ks.length ? ks[ks.length-1] : (r.week || today()); }
@@ -962,7 +965,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.94'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.95'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), digest: T('매일 아침 정리 시작하기'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1123,6 +1126,9 @@ function addToday(blur) {
   if (pt) { r.at = today() + 'T' + pt[0]; r.due = today(); r.appt = true; r.vol = (curVol() || {}).id; D.rocks.push(r); el.value = ''; save(); render(); apptToast(pt[0], today(), r.id); return; }
   const pd = parseDue(t), lo = pd ? null : parseDue(t, true); if (pd) { r.due = pd.due; if (pd.t) r.dueT = pd.t; if (pd.cut) r.title = pd.cut; }
   { const g = pd || lo; if (g && g.due > today()) r.title = relFix(r.title, g.due, today()); }
+  { const g = pd || lo, dup = dupOpen(r.title, g ? g.due : ''); // 이미 적혀 있으면 새로 만들지 않는다. 오늘 하려고 적은 것이면 그 줄을 오늘로 가져온다
+    if (dup) { el.value = ''; const tp = dayOf(today()).picks, here = tp.includes(dup.id), other = (g && g.due > today()) || (quickB === 'important' && g);
+      if (!here && !other) { tp.push(dup.id); save(); render(); toast(T('이미 적혀 있는 일이에요. 오늘로 가져왔어요')); } else { render(); toast(here ? T('이미 오늘에 있어요') : T('이미 적혀 있어요')); } return; } }
   const far = lo && lo.due > today() && r.bucket !== 'important' ? lo : null; // '수요일 픽업'처럼 다른 날이 적힌 일은 그날 칸에 놓는다
   if (far) { r.due = far.due; r.on = 1; if (far.t) r.dueT = far.t; const fd = dayOf(far.due); fd.picks = fd.picks || []; fd.picks.push(r.id); }
   let bToday = false; if (r.bucket === 'important' && !r.due) { if (lo && lo.due) { r.due = lo.due; if (lo.t) r.dueT = lo.t; } else { r.due = today(); r.tb = 1; bToday = true; } } // tb: 오늘 칸에서 적은 B. 할 일 탭의 B(기한을 두고 가는 긴 일)와 달리 'A로 올릴까요' 권유에 넣지 않는다 // 오늘 칸에서 B를 날짜 없이 적으면 묻지 않는다: 오늘 하려고 적은 것이니 오늘 칸에 올리고 마감은 오늘. 글에 날짜가 있으면 그날까지로 할 일 탭 B에
@@ -1267,6 +1273,7 @@ function dumpHtml(kind) {
     <textarea id="dumpIn" class="dump" rows="7" placeholder="${T('금요일까지 보고서 제출&#10;수요일 저녁 학원 픽업&#10;목요일 회의 자료 준비&#10;12/5 원고 마감&#10;미뤄 둔 건강검진 예약&#10;세금 신고 서류 챙기기&#10;엄마한테 전화')}"></textarea>
     <div class="act"><button class="go" onclick="weekDump()">${T('정리해 주세요')}</button>${scanBtn('dumpIn')}${first ? '' : `<button onclick="_dump=null;render()">${T('닫기')}</button>`}</div></div></div>`;
 }
+let _dupN = 0; // 한 번에 넣다가 이미 적혀 있어 건너뛴 줄 수
 function putLine(t) {
   t = String(t || '').replace(/^\s*(?:[-–·•*]\s*|\d+[.)]\s+)/, '').trim(); if (!t) return null;
   // 줄 앞의 'A ', 'B ', 'C '는 칸이다(종이에 적은 표시나 비서가 사진을 읽으며 붙인 것). 없으면 A
@@ -1281,14 +1288,15 @@ function putLine(t) {
   if (lo) r.on = 1; // 그날 하는 일(마감이 아니라 그날의 일)
   // 시각까지 적힌 그날의 일('목요일 3시 회의')은 약속이다: 그날 일정 칸에 보이고 그 시각 전에 알린다
   if (lo && lo.t) { r.at = lo.due + 'T' + lo.t; r.appt = true; r.bucket = 'light'; r.vol = (curVol() || {}).id; D.rocks.push(r); return r; }
+  if (dupOpen(r.title, r.due)) { _dupN++; return null; } // 이미 적혀 있는 줄은 건너뛴다
   D.rocks.push(r); if (day && (bk !== 'important' || tdy)) { const d = dayOf(day); d.picks = d.picks || []; d.picks.push(r.id); } // B는 할 일 탭에 두는 일이라 날짜 칸에 놓지 않는다
   return r;
 }
 function weekDump() {
   const el = document.getElementById('dumpIn'); if (!el) return; const lines = el.value.split(/\n+/).map(x => x.trim()).filter(Boolean); if (!lines.length) { el.focus(); return; }
-  const firstDump = !_dump && !(D.guide && D.guide.coach);
+  const firstDump = !_dump && !(D.guide && D.guide.coach); _dupN = 0;
   const prs = lines.map(putLine).filter(Boolean), ids = prs.map(r => r.id); _dump = null; D.guide = Object.assign({ done: {}, off: {} }, D.guide, { sheet: { d: today(), ids: ((D.guide && D.guide.sheet && D.guide.sheet.d === today() ? D.guide.sheet.ids : []) || []).concat(ids) } });
-  markStarted(); save(); render(); if (!firstDump) toast(T('{n}개를 날짜대로 놓았어요', { n: ids.length })); askDues(prs); if (firstDump) coachShow(); // 처음에는 알림 글 대신 짚는 카드가 뜬다(놓인 결과는 포스트잇에 보인다)
+  markStarted(); save(); render(); if (!firstDump || _dupN) toast(_dupN ? T('{n}개를 놓았어요. 이미 적혀 있던 {k}개는 그대로 뒀어요', { n: ids.length, k: _dupN }) : T('{n}개를 날짜대로 놓았어요', { n: ids.length })); askDues(prs); if (firstDump) coachShow(); // 처음에는 알림 글 대신 짚는 카드가 뜬다(놓인 결과는 포스트잇에 보인다)
 }
 function sheetHtml() {
   const sh = D.guide && D.guide.sheet; if (!sh || sh.d !== today()) return ''; const td = today(), rs = (sh.ids || []).map(rock).filter(r => r && !r._deleted); if (!rs.length) return '';
@@ -2400,6 +2408,7 @@ function moveToRock(id) {
   const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: (x.role && D.roles.includes(x.role)) ? x.role : '', title: x.text, done: false, carry: 0, checks: {} };
   if (x.due) r.due = x.due;
   if (x.kind === 'note' && x.draft && x.draft.title) applyDraft(r, x); // 비서 메모는 문장째 옮기지 않는다: 초안대로 할 일 모양으로 바꾸고, 메모 문장은 근거로 딸려 간다
+  if (!r.at && dupOpen(r.title, r.due)) { x.moved = true; save(); render(); toast(T('이미 적혀 있는 일이에요')); return; }
   D.rocks.push(r); x.moved = true; save(); render();
   toast(T('할 일에 기록했어요 · {a}', { a: (BUCKETS.find(k => k[0] === r.bucket) || [, ''])[1] }));
 }
@@ -2816,6 +2825,7 @@ function addRock(b) {
   if (addPlan && planOf(addPlan)) r.plan = addPlan;
   if (addRoutine) r.routine = Number((document.getElementById('rockN')||{}).value||3);
   else { const pd = parseDue(title); if (pd && pd.t && !(document.getElementById('rockDue')||{}).value) r.dueT = pd.t; const due = (document.getElementById('rockDue')||{}).value || (pd ? pd.due : ''); if (b==='important' && !due && !((document.getElementById('rockAt')||{}).value)) { addKeep(); openDate('', { title: T('언제까지만'), cancel: () => { addRock('light'); toast(T('날짜가 없어 C에 적었어요')); } }, v => { addKeepV.due = v; renderWeek(); addRock('important'); }); return; } if (due) r.due = due; const at = (document.getElementById('rockAt')||{}).value || ''; if (at) { r.due = r.due || today(); r.at = r.due + 'T' + at; } }
+  if (!r.routine && !r.at && dupOpen(r.title, r.due)) { toast(T('이미 적혀 있어요')); return; }
   r.vol = (curVol()||{}).id; D.rocks.push(r); addOpen = false; addPrefill = ''; addKeepV = {}; save(); renderWeek(); renderCover(); toast(T('적었어요'));
 }
 function finishRock(id) { const r = rock(id); if (!r) return; const td = today(); r.checks = r.checks || {}; if (r.done) { if (r.doneAt) delete r.checks[r.doneAt]; r.done = false; r.doneAt = null; } else { r.done = true; r.doneAt = td; r.checks[td] = true; if (navigator.vibrate) navigator.vibrate(12); } save(); render(); }
@@ -2873,6 +2883,7 @@ function memoToRock(id, b) {
   const r = { id: uid(), week: weekKey(new Date()), bucket: b, role: '', title, done: false, carry: 0, checks: {}, from: 'memo', vol: (curVol() || {}).id };
   if (!own && m.draft && m.draft.title) applyDraft(r, m, true);
   if (b === 'important' && !r.due) r.due = dstr(new Date(Date.now() + 6 * 86400000)); // B는 끝 날짜가 있어야 한다
+  if (!r.at && dupOpen(r.title, own ? '' : r.due)) { memoMove = null; render(); toast(T('이미 적혀 있는 일이에요')); return; }
   D.rocks.push(r); memoMove = null;
   if (lines.length > 1 || !own) m.toRock = r.id; else m._deleted = true; // 비서 메모는 늘 남긴다. 한 줄짜리는 옮기면 메모장에서 빠지고, 여러 줄이면 남겨 둔다
   save(); render(); toast(T('{a}에 옮겼어요', { a: bucketName(b) }) + (r.due ? ' · ' + T('{due}까지만', { due: md(r.due) }) : ''));

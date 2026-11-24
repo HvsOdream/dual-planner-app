@@ -38,7 +38,8 @@ function merge(a, b) {
 function planRef(S, v) { v = String(v || '').trim(); if (!v) return ''; const ps = (S.plans || []).filter(p => p && !p._deleted); const p = ps.find(x => x.id === v) || ps.find(x => String(x.name).trim().toLowerCase() === v.toLowerCase()); return p ? p.id : ''; }
 function applyItems(S, items, src) {
   const now = new Date().toISOString(), td = today(), wk = weekKey(nowKST());
-  const added = [], updated = [];
+  const added = [], updated = [], dups = [];
+  const dk = t => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
   (items || []).forEach(it => {
     if (!it || typeof it !== 'object') return;
     if (it.id && it.op === 'update') {
@@ -88,11 +89,14 @@ function applyItems(S, items, src) {
       if (it.routine) r.routine = Number(it.routine); if (it.due) r.due = it.due;
       { const q = planRef(S, it.plan); if (q) r.plan = q; }
       const at = String(it.at || '').replace(' ', 'T').slice(0, 16); if (/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(at)) { r.at = at; r.due = r.due || at.slice(0, 10); const e = String(it.end || '').slice(-5); if (/^\d\d:\d\d$/.test(e) && e > at.slice(11, 16)) r.atEnd = e; }
+      // 같은 일을 두 번 적지 않는다: 안 끝난 할 일 가운데 제목이 같은 것이 있으면 건너뛴다(둘 다 마감이 있고 날짜가 다르면 다른 일). 루틴·시각이 잡힌 약속은 그대로 적는다
+      const dup = !r.routine && !r.at && S.rocks.find(x => x && !x._deleted && !x.tomb && !x.done && !x.appt && !x.routine && dk(x.title) === dk(text) && !(r.due && x.due && r.due !== x.due));
+      if (dup) { dups.push({ id: dup.id, title: dup.title }); return; }
       S.rocks.push(r); added.push(id);
     }
   });
   S._modified = now;
-  return { added, updated };
+  return { added, updated, dups };
 }
 
 // ── 비서가 읽는 요약 ──
@@ -155,7 +159,7 @@ async function mcp(req, env, token) {
         S.agent = Object.assign({}, S.agent || { name: 'agent', via: 'mcp' }, { at: new Date().toISOString(), last: name });
         if (name === 'planner_read') { await env.PLANNER.put('u:' + token, JSON.stringify(S)); }
         if (name === 'planner_read') text = summary(S);
-        else if (name === 'planner_add' || name === 'planner_update') { const items = (args.items || []).map(x => name === 'planner_update' ? Object.assign({ op: 'update' }, x) : x); const r = applyItems(S, items, 'mcp'); await env.PLANNER.put('u:' + token, JSON.stringify(S)); text = `적었어요 — 추가 ${r.added.length}, 수정 ${r.updated.length}`; }
+        else if (name === 'planner_add' || name === 'planner_update') { const items = (args.items || []).map(x => name === 'planner_update' ? Object.assign({ op: 'update' }, x) : x); const r = applyItems(S, items, 'mcp'); await env.PLANNER.put('u:' + token, JSON.stringify(S)); text = `적었어요 — 추가 ${r.added.length}, 수정 ${r.updated.length}` + (r.dups.length ? ` · 이미 적혀 있어 건너뜀 ${r.dups.length}: ` + r.dups.map(d => `${d.title}(id=${d.id})`).join(', ') + '. 고칠 것이 있으면 그 id로 planner_update를 쓴다' : ''); }
         else { out.push({ jsonrpc: '2.0', id: m.id, error: { code: -32602, message: 'unknown tool' } }); continue; }
         reply({ content: [{ type: 'text', text }] });
       } else out.push({ jsonrpc: '2.0', id: m.id, error: { code: -32601, message: 'method not found' } });

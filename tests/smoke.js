@@ -432,6 +432,9 @@ async function server() {
   { const T2 = 'zz' + T.slice(2), m2 = async (method, params) => JSON.parse(await (await w.fetch(new Request(`https://x/u/${T2}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) }), env)).text());
     const i2 = await m2('initialize', { clientInfo: { name: 'claude-ai' } }), r2 = await m2('tools/call', { name: 'planner_read', arguments: {} });
     C('없는 주소로 온 비서: 빈 플래너를 만들지 않고 주소를 다시 넣으라고 알린다', !!(i2.result && i2.result.serverInfo) && r2.result && r2.result.isError === true && /연결 주소를 다시 복사/.test(r2.result.content[0].text) && !(await env.PLANNER.get('u:' + T2)), JSON.stringify(r2).slice(0, 200)); }
+  { const n0 = ((await call('state', 'GET')).rocks || []).length; await call('items', 'POST', { src: 'mcp', items: [{ text: '중복 점검용 심사', kind: 'item', bucket: 'A' }] });
+    const d2 = JSON.parse(await mcp('tools/call', { name: 'planner_add', arguments: { items: [{ text: '중복  점검용 심사', kind: 'item', bucket: 'A', due: '2026-12-01' }, { text: '중복 아닌 일', kind: 'item', bucket: 'C' }] } })), n1 = ((await call('state', 'GET')).rocks || []).length;
+    C('비서가 이미 있는 일을 또 적으면 건너뛰고 알려 준다', n1 === n0 + 2 && /건너뜀 1/.test(d2.result.content[0].text), [n0, n1, JSON.stringify(d2).slice(0, 200)]); }
   await call('items', 'POST', { src: 'mcp', items: [{ text: '영어 회화', kind: 'plan', goal: '질의응답을 영어로', how: '리얼클래스', due: '2026-12-31' }] });
   S = await call('state', 'GET'); const sp = (S.plans || [])[0];
   C('비서가 계획을 적는다(kind=plan)', !!sp && sp.name === '영어 회화' && sp.goal === '질의응답을 영어로' && sp.due === '2026-12-31', S.plans);
@@ -496,6 +499,14 @@ async function firstRun(browser) {
   await ev(() => { document.querySelectorAll('.intro,.login,.dpick').forEach(e => e.remove()); moreSec = ''; go('more'); }); await pg.click('#moreIdx .mrow:has-text("사용법 다시 보기")');
   C('메뉴 › 사용법 다시 보기로 다시 연다', await ev(() => !!document.getElementById('tour')));
   C('비서를 연결한 다음 날에만 매일 아침 정리를 권한다', await ev(() => { tourEnd(); D.agent = { at: new Date().toISOString() }; D.settings = Object.assign({}, D.settings, { calUrl: 'x' }); D.guide.skip = {}; const a = helloNext(); D.guide.agentDay = addDays(today(), -1); const b = helloNext(); return !a && !!b && b.id === 'digest'; }));
+  // 같은 일을 두 번 적지 않는다
+  const dp = await ev(() => { const n0 = D.rocks.length, td = today(); D.rocks.push({ id: 'dp1', week: td, bucket: 'urgent', role: '', title: '게임학회 논문 심사', due: td, done: false, carry: 0, checks: {} }); dayOf(td).picks = dayOf(td).picks.filter(x => x !== 'dp1'); go('today');
+    const q = document.getElementById('quickIn'); quickB = 'urgent'; q.value = '게임학회  논문 심사'; addToday(); const a = D.rocks.length === n0 + 1 && dayOf(td).picks.includes('dp1');
+    _dump = 'more'; render(); document.getElementById('dumpIn').value = '게임학회 논문 심사\n처음 적는 일'; weekDump(); const b = D.rocks.length === n0 + 2;
+    rock('dp1').done = true; go('today'); document.getElementById('quickIn').value = '게임학회 논문 심사'; addToday(); const c = D.rocks.length === n0 + 3; return [a, b, c]; });
+  C('오늘 칸에 이미 있는 일을 또 적으면 새로 만들지 않고 그 줄을 가져온다', dp[0], dp);
+  C('한꺼번에 넣을 때 이미 있는 줄은 건너뛴다', dp[1], dp);
+  C('끝낸 일과 같은 제목은 새로 적을 수 있다', dp[2], dp);
   C('첫 실행에 스크립트 오류가 없다', !errs.length, errs);
   await ctx.close();
 }

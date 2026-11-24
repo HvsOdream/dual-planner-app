@@ -915,4 +915,8 @@ window.DP_DICT = {
   "다음": "Next",
   "오늘 하기로 고른 일이 여기 모입니다. A는 급하고 중요한 일, B는 중요한 일, C는 급하지만 가벼운 일이에요.": "The things you chose to do today gather here. A is urgent and important, B is important, C is urgent but light.",
   "알겠어요": "Got it",
+  "이미 적혀 있는 일이에요. 오늘로 가져왔어요": "Already on your list. Moved it to today.",
+  "이미 적혀 있어요": "Already on your list",
+  "이미 적혀 있는 일이에요": "Already on your list",
+  "{n}개를 놓았어요. 이미 적혀 있던 {k}개는 그대로 뒀어요": "Placed {n}. Left {k} that were already on your list.",
 };
