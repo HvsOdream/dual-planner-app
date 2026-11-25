@@ -922,4 +922,5 @@ window.DP_DICT = {
   "AI가 챙겨주는 새로운 하루.": "A new day, looked after by AI.",
   "그럼, 시작해 볼까요?": "Shall we begin?",
   "플래너 열기": "Open my planner",
+  "메일·캘린더 정리": "Mail & calendar digest",
 };

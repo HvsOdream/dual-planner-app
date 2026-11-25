@@ -982,7 +982,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.96'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.97'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), digest: T('매일 아침 정리 시작하기'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -3189,7 +3189,7 @@ function tourHtml() {
     () => `<div class="tsh" aria-hidden="true">${lbl(T('이번 주에 할 일'))}${[T('금요일까지 보고서 제출'), T('목요일 3시 회의'), T('건강검진 예약')].map((t, k) => `<div class="wl" style="animation-delay:${(.35 + k * .6).toFixed(2)}s">${t}</div>`).join('')}<div class="wl h" style="animation-delay:2.2s">${T('한 줄에 하나씩')}</div></div>`,
     () => `<div class="tsh" aria-hidden="true">${lbl(T('이렇게 놓았어요 · {n}개', { n: 3 }))}${it(T('보고서 제출'), T('금요일까지'))}${it(T('회의'), T('목요일 15:00'))}${it(T('건강검진 예약'), T('날짜 없음'))}<div class="sticky wide" style="animation-delay:.9s"><div class="who"><span>${T('AI 비서 · 목요일 아침')}</span></div><div class="tx">${T('보고서 제출이 내일까지예요.')}</div></div></div>`,
     () => `<div class="tsh" aria-hidden="true">${lbl(T('오늘 할 것'))}${it(T('보고서 제출'), `<b class="bk">A</b> · ${T('금요일까지')}`)}${it(T('회의 자료 준비'), `<b class="bk">B</b> · ${T('목요일 15:00')}`, 'new')}<div class="gap"></div>${lbl(T('곧 마감'))}${sr('B', T('회의 자료 준비'), 'go')}${sr('C', T('건강검진 예약'))}</div>`,
-    () => `<div class="tsh cn">${cn(T('캘린더'), tourCalOn(), 'tourCal', T('오늘 일정이 플래너에 같이 보입니다.'), 0)}${cn(T('내 AI 비서'), agentOn(), 'tourAgent', T('쓰고 있는 Claude나 ChatGPT가 메일과 캘린더를 읽고, 매일 아침 챙길 일을 플래너에 적어 둡니다.'), 1)}<div class="ft">${T('메뉴에서 언제든 연결할 수 있어요.')}</div></div>`,
+    () => `<div class="tsh cn">${cn(T('캘린더'), tourCalOn(), 'tourCal', T('오늘 일정이 플래너에 같이 보입니다.'), 0)}${cn(`${T('메일·캘린더 정리')} <span style="font-weight:500;opacity:.75">(${T('내 AI 비서')})</span>`, agentOn(), 'tourAgent', T('쓰고 있는 Claude나 ChatGPT가 메일과 캘린더를 읽고, 매일 아침 챙길 일을 플래너에 적어 둡니다.'), 1)}<div class="ft">${T('메뉴에서 언제든 연결할 수 있어요.')}</div></div>`,
   ];
   const txt = [null,
     [T('이번 주 할 일을{br}생각나는 대로 적으세요', { br: '<br>' }), T('순서도 날짜도 정리하지 않아도 됩니다.')],
