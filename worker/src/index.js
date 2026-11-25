@@ -858,10 +858,21 @@ async function oaApprove(req, env) {
   let b; try { b = await req.json(); } catch { return oaErr('invalid_request', 'not json'); }
   const rid = String(b.rid || ''), rq = (await oaStore(env, { op: 'get', k: 'rq:' + rid })).v;
   if (!rq) return oaErr('expired', 'request is missing or expired', 404);
-  if (b.deny) { await oaStore(env, { op: 'del', k: 'rq:' + rid }); return oaJson({ ok: true, redirect: oaBackUrl(rq, { error: 'access_denied', state: rq.state }) }); }
+  // hold: 폰 앱에서 허용한 경우. 비서 쪽으로 돌아가는 일은 연결을 시작한 브라우저 창이 해야 하므로(그 창에 비서의 로그인이 있다)
+  // 돌아갈 주소를 적어 두기만 하고, 그 창이 /oauth/poll로 받아 간다.
+  const done = async to => { if (!b.hold) return oaJson({ ok: true, redirect: to }); await oaStore(env, { op: 'put', k: 'ok:' + rid, v: { to }, ttl: 600 }); return oaJson({ ok: true, held: true }); };
+  if (b.deny) { await oaStore(env, { op: 'del', k: 'rq:' + rid }); return done(oaBackUrl(rq, { error: 'access_denied', state: rq.state })); }
   const pt = String(b.token || '');
   if (!TOKEN_RE.test(pt) || !(await env.PLANNER.get('u:' + pt))) return oaErr('unknown_planner', 'planner not found', 404);
-  return oaJson({ ok: true, redirect: await oaGrant(env, rid, rq, pt) });
+  return done(await oaGrant(env, rid, rq, pt));
+}
+// 연결을 시작한 브라우저 창이 묻는다: 폰 앱에서 허용(또는 취소)했나?
+async function oaPoll(req, env) {
+  const rid = new URL(req.url).searchParams.get('rid') || '';
+  const ok = (await oaStore(env, { op: 'take', k: 'ok:' + rid })).v;
+  if (ok) return oaJson({ ok: true, redirect: ok.to });
+  if ((await oaStore(env, { op: 'get', k: 'rq:' + rid })).v) return oaJson({ ok: true, pending: true });
+  return oaErr('expired', 'request is missing or expired', 404);
 }
 // 앱에서 허용할 수 없을 때: 연결 주소를 붙여 넣는 창
 async function oaLink(req, env) {
@@ -962,6 +973,7 @@ export default {
           if (op === '/oauth/authorize' && req.method === 'GET') return await oaAuthorize(req, env);
           if (op === '/oauth/request' && req.method === 'GET') return await oaRequest(req, env);
           if (op === '/oauth/approve' && req.method === 'POST') return await oaApprove(req, env);
+          if (op === '/oauth/poll' && req.method === 'GET') return await oaPoll(req, env);
           if (op === '/oauth/link' && (req.method === 'GET' || req.method === 'POST')) return await oaLink(req, env);
           if (op === '/oauth/token' && req.method === 'POST') return await oaToken(req, env);
           return oaErr('not_found', 'not found', 404);

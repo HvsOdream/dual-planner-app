@@ -983,7 +983,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.100'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.101'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), digest: T('매일 아침 정리 시작하기'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -3284,7 +3284,19 @@ let connectReq = null; // { rid, name, host }
 function connectRid() { try { const q = new URLSearchParams(location.search).get('connect');
     if (q && /^dpq_[0-9a-f]{20,80}$/.test(q)) { sessionStorage.setItem('dpa_connect', q); history.replaceState(null, '', location.pathname); }
     return sessionStorage.getItem('dpa_connect') || ''; } catch(e) { return ''; } }
-function connectClear() { connectReq = null; try { sessionStorage.removeItem('dpa_connect'); } catch(e) {} const el = document.getElementById('connectAsk'); if (el) el.remove(); }
+function connectClear() { connectReq = null; clearInterval(connectClear._poll); try { sessionStorage.removeItem('dpa_connect'); } catch(e) {} const el = document.getElementById('connectAsk'); if (el) el.remove(); }
+// 폰 브라우저에서 온 경우: 깔려 있는 듀얼플래너 앱을 열어(dualplanner://connect) 거기서 「허용」을 받고, 이 창은 서버에 물어보다가 허용되면 비서로 돌아간다.
+// 비서 쪽 로그인이 이 창에 있으므로 돌아가는 일은 꼭 이 창이 한다.
+function onPhoneWeb() { try { return !isNative() && (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)); } catch(e) { return false; } }
+function connectInApp() { if (!connectReq) return; const rid = connectReq.rid;
+  clearInterval(connectClear._poll); let n = 0;
+  connectClear._poll = setInterval(async () => { if (++n > 400) return clearInterval(connectClear._poll);
+    try { const r = await fetch(baseUrl() + '/oauth/poll?rid=' + rid + '&_=' + Date.now()); if (r.status === 404) { connectClear(); toast(T('연결 요청이 끝났어요. 비서에서 다시 연결을 눌러 주세요')); return; }
+      const j = await r.json(); if (j.redirect) { connectClear(); location.href = j.redirect; } } catch(e) {} }, 1500);
+  const h = document.getElementById('connectHint'); if (h) h.style.display = '';
+  location.href = 'dualplanner://connect?rid=' + rid; }
+// 폰 앱이 dualplanner://connect?rid=… 로 열렸을 때(app/native/native.js가 부른다)
+window.dualConnect = function (rid) { if (!/^dpq_[0-9a-f]{20,80}$/.test(String(rid || ''))) return; try { sessionStorage.setItem('dpa_connect', rid); } catch(e) {} connectCheck(); };
 function connectStart() { copyText(mcpUrl(), T('연결 주소 복사됨')); pushState(); if (!isNative()) { try { window.open('https://claude.ai/plugins', '_blank', 'noopener'); } catch(e) {} } }
 function plannerBlank() { return !(D.rocks || []).some(r => r && !r._deleted) && !(D.memos || []).some(m => m && !m._deleted) && !(D.plans || []).some(p => p && !p._deleted); } // 날짜 칸은 앱이 열릴 때 저절로 생기므로 보지 않는다
 async function connectCheck() { const rid = connectRid(); if (!rid) return;
@@ -3300,21 +3312,26 @@ function connectShow() { if (!connectReq) return; let el = document.getElementBy
     <div style="font-size:17px;font-weight:700;margin-bottom:8px">${T('비서 연결')}</div>
     <div style="font-size:14px;line-height:1.7">${esc(T('{a}가 내 플래너를 읽고 할 일·메모를 적도록 허용할까요?', { a: connectReq.name }))}</div>
     <div style="font-size:12px;color:var(--muted);margin:6px 0 12px">${esc(T('돌아갈 곳: {a}', { a: connectReq.host }))}</div>
+    ${onPhoneWeb() ? `<button style="${btn}background:var(--ink);color:var(--paper)" onclick="connectInApp()">${T('듀얼플래너 앱에서 허용')}</button>
+      <div id="connectHint" style="display:none;font-size:13px;line-height:1.6;color:var(--ink-2);margin:8px 0 2px">${T('앱에서 허용한 뒤 이 화면으로 돌아오면 연결이 끝나요')}</div>
+      <div style="font-size:12px;color:var(--muted);margin:12px 0 2px">${T('앱이 없으면 여기서')}</div>` : ''}
     ${needLogin ? `<div style="font-size:13px;line-height:1.6;color:var(--ink-2);margin-bottom:4px">${T('로그인하면 내 플래너에 연결돼요')}</div>
-      <button style="${btn}background:var(--ink);color:var(--paper)" onclick="connectLogin()">${T('로그인')}</button>
+      <button style="${btn}${onPhoneWeb() ? 'border:1px solid var(--faint)' : 'background:var(--ink);color:var(--paper)'}" onclick="connectLogin()">${T('로그인')}</button>
       ${blank ? '' : `<button style="${btn}border:1px solid var(--faint)" onclick="connectAllow()">${T('로그인 없이 이 기기의 플래너에 연결')}</button>`}`
-      : `<button style="${btn}background:var(--ink);color:var(--paper)" onclick="connectAllow()">${T('허용')}</button>`}
+      : `<button style="${btn}${onPhoneWeb() ? 'border:1px solid var(--faint)' : 'background:var(--ink);color:var(--paper)'}" onclick="connectAllow()">${onPhoneWeb() ? T('이 브라우저의 플래너로 허용') : T('허용')}</button>`}
     <button style="${btn}color:var(--muted)" onclick="connectDeny()">${T('취소')}</button>
-    <div style="font-size:12px;margin-top:10px;text-align:center"><a href="${esc(baseUrl() + '/oauth/link?rid=' + connectReq.rid)}" style="color:var(--muted);text-decoration:underline">${T('다른 플래너에 연결하려면 연결 주소로')}</a></div>
+    ${isNative() ? '' : `<div style="font-size:12px;margin-top:10px;text-align:center"><a href="${esc(baseUrl() + '/oauth/link?rid=' + connectReq.rid)}" style="color:var(--muted);text-decoration:underline">${T('다른 플래너에 연결하려면 연결 주소로')}</a></div>`}
   </div>`; }
 function connectLogin() { const el = document.getElementById('connectAsk'); if (el) el.remove(); openLogin(); }
 async function connectAllow() { if (!connectReq) return;
   try { await pushState(); // 서버에 이 플래너가 있어야 연결된다
-    const r = await fetch(baseUrl() + '/oauth/approve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rid: connectReq.rid, token: D.token }) });
-    const j = await r.json(); if (!r.ok || !j.redirect) throw j; connectClear(); location.href = j.redirect; }
+    const hold = isNative();
+    const r = await fetch(baseUrl() + '/oauth/approve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rid: connectReq.rid, token: D.token, hold }) });
+    const j = await r.json(); if (!r.ok || !(j.redirect || j.held)) throw j; connectClear();
+    if (j.held) toast(T('허용했어요. 비서 앱으로 돌아가면 연결이 끝나요')); else location.href = j.redirect; }
   catch(e) { toast(T('연결하지 못했어요. 비서에서 다시 연결을 눌러 주세요')); } }
 async function connectDeny() { if (!connectReq) return; const rid = connectReq.rid; connectClear();
-  try { const r = await fetch(baseUrl() + '/oauth/approve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rid, deny: true }) });
+  try { const r = await fetch(baseUrl() + '/oauth/approve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rid, deny: true, hold: isNative() }) });
     const j = await r.json(); if (j.redirect) location.href = j.redirect; } catch(e) {} }
 function resetLocal() {
   try { localStorage.removeItem(KEY); } catch(e) {}
