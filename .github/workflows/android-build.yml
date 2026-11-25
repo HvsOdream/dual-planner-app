@@ -1,0 +1,51 @@
+# DUAL Planner — 안드로이드 디버그 APK를 만들어 본다(서명 키·시크릿 필요 없음).
+# 스토어에 올리는 빌드가 아니라, 안드로이드 껍데기가 컴파일되고 기기에서 열리는지 보는 용도.
+# 결과 APK는 실행 화면의 Artifacts에서 받는다.
+name: Android build (debug APK)
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/native/android/**', 'app/scripts/prepare-android.sh', 'app/package.json', '.github/workflows/android-build.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: android-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Copy web files
+        run: bash app/scripts/copy-web.sh
+      - name: Install Capacitor
+        working-directory: app
+        run: npm install --no-audit --no-fund
+      - name: Pillow (icon resize)
+        run: python3 -m pip install --quiet --break-system-packages pillow || python3 -m pip install --quiet pillow
+      - name: Prepare Android project
+        working-directory: app
+        run: bash scripts/prepare-android.sh
+      - name: Build debug APK
+        working-directory: app/android
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon assembleDebug 2>&1 | tee /tmp/build.log | grep -E "error:|warning:|BUILD (SUCCESSFUL|FAILED)|FAILURE|What went wrong|> Task :app:(compile|package|assemble)" | tail -80
+      - name: Errors only
+        if: failure()
+        run: grep -nE "error:|What went wrong|FAILURE" -A12 /tmp/build.log | head -150 || tail -80 /tmp/build.log || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dual-planner-debug-apk
+          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

@@ -7,9 +7,19 @@
     "scheme": "dualplanner",
     "backgroundColor": "#A9503A"
   },
-  "server": { "iosScheme": "capacitor" },
+  "server": {
+    "iosScheme": "capacitor"
+  },
   "plugins": {
-    "Keyboard": { "resize": "native" },
-    "StatusBar": { "style": "DARK", "overlaysWebView": true }
+    "Keyboard": {
+      "resize": "native"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "overlaysWebView": true
+    }
+  },
+  "android": {
+    "backgroundColor": "#A9503A"
   }
 }

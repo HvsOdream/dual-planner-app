@@ -3,6 +3,12 @@
 버전은 루트 `VERSION` 한 곳에서 올린다. iOS 빌드 번호는 GitHub Actions 실행 번호라 자동으로 올라간다.
 빌드 전 규칙: `VERSION` 올리고 → 아래에 한 줄 적고 → Actions에서 iOS TestFlight 실행.
 
+## 0.7.99 — 2026-11-25 (안드로이드 껍데기 준비)
+- Capacitor 안드로이드 추가. iOS와 같이 `android/` 폴더는 저장소에 두지 않고 `app/scripts/prepare-android.sh`가 만든다(앱 이름·권한·아이콘·dualplanner:// 주소)
+- 앱 전용 플러그인 안드로이드판(`app/native/android/DualNativePlugin.java`): 기기 캘린더 읽기·일정 넣기, 다른 앱 열기. 위젯·공유로 받아 적기는 아직 없고(부르면 받기만 함), Apple·Google 로그인은 서명 키가 정해진 뒤에 붙인다
+- `android-build` 워크플로: 서명 없이 디버그 APK를 만들어 Artifacts에 올린다
+- 안드로이드 앱에서는 처음에 로그인 화면을 띄우지 않는다(로그인을 붙일 때까지). 아이폰·웹은 그대로
+
 ## 0.7.98 — 2026-11-25 (만든 곳 로고)
 - 메뉴 맨 아래 버전 줄 밑에 콘텐츠 히비 로고(CONTENT hibi). 로고 파일은 `brand/hibi-logo.svg`·`hibi-logo-white.svg`·`hibi-mark.svg`
 
