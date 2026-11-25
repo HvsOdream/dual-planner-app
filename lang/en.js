@@ -936,4 +936,5 @@ window.DP_DICT = {
   "그럼, 시작해 볼까요?": "Shall we begin?",
   "플래너 열기": "Open my planner",
   "메일·캘린더 정리": "Mail & calendar digest",
+  "외 {n}": "+{n} more",
 };

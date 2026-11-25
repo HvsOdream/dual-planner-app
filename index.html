@@ -1190,7 +1190,7 @@ function renderToday() {
   const srow = (r, right, hot) => `<div class="row ruled" style="padding-left:52px;gap:8px;font-size:${hot ? 16 : 14}px;${hot ? 'font-weight:600;color:var(--ink)' : 'color:var(--ink-2)'}"><span class="tag" style="font-size:10px;height:18px;line-height:16px">${r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</span>${right}<button class="pill" onclick="pick('${r.id}')">${T('오늘로')}</button></div>`;
   if (dueSoon.length) {
     h += `<div class="sp"></div><div class="lbl"><span>${T('곧 마감')}</span><button onclick="go('week')">${T('할 일 ›')}</button></div>`;
-    dueSoon.slice(0, 5).forEach(r => { const dl = dleft(r.due); h += srow(r, `<span style="font-size:13px;font-weight:400;white-space:nowrap;color:var(--ink-2)">${md(r.due)}${r.dueT ? ' ' + r.dueT : ''}</span><b class="dd" style="font-size:13px">${dl < 0 ? T('지남') : dl === 0 ? T('오늘') : dTag(dl)}</b>${dl < 0 ? `<button class="pill" onclick="finishRock('${r.id}')">${T('끝냄')}</button>` : ''}`, true); });
+    soonRows(dueSoon).slice(0, 5).forEach(({ r, more }) => { const dl = dleft(r.due); h += srow(r, `${more ? `<span style="font-size:12px;font-weight:400;white-space:nowrap;color:var(--muted)">${T('외 {n}', { n: more })}</span>` : ''}<span style="font-size:13px;font-weight:400;white-space:nowrap;color:var(--ink-2)">${dl < 0 ? '' : md(r.due) + (r.dueT ? ' ' + r.dueT : '')}</span><b class="dd" style="font-size:13px">${dl < 0 ? T('지남') : dl === 0 ? T('오늘') : dTag(dl)}</b>${dl < 0 ? `<button class="pill" onclick="finishRock('${r.id}')">${T('끝냄')}</button>` : ''}`, true); });
   }
   if (sugg.length) {
     h += `<div class="sp"></div><div class="lbl"><span>${T('가져올 것')}</span><button onclick="go('week')">${T('할 일 ›')}</button></div>`;
@@ -1331,13 +1331,16 @@ function sheetHtml() {
 // ── 아침 「오늘 고르기」: 그날 처음 열면 한 장. 종이에 아침마다 오늘 할 일을 옮겨 적던 일을, 누르기만 하게 ──
 // 오늘 마감·어제 남은 일은 켜진 채로, 곧 마감·계획의 다음 단계·루틴은 꺼진 채로 나온다. 고르는 건 본인이고, 빼도 목록에 남는다
 let _pk = null; // { on: {id:true}, off: {id:true} }
+// 곧 마감 줄 고르기: 같은 계획에 딸린 일은 가장 가까운 하나만 남기고 몇 개가 더 있는지 센다. 한 계획의 원고 줄이 칸을 다 차지해 다른 일이 가려지지 않게
+function soonRows(list) { const seen = {}, out = []; list.forEach(r => { const k = planOf(r.plan) ? r.plan : ''; if (k && seen[k]) { seen[k].more++; return; } const o = { r, more: 0 }; if (k) seen[k] = o; out.push(o); }); return out; }
 function pickCands() {
   const td = today(), day = dayOf(td), inP = id => (day.picks || []).includes(id), ok = r => r && !r._deleted && !r.done && !r.appt && !(r.checks && r.checks[td]);
   const mine = (day.picks || []).map(rock).filter(ok), fix = mine.filter(r => r.due && r.due <= td && !r.routine), kept = mine.filter(r => !fix.includes(r));
   const open = openItems().filter(r => ok(r) && !inP(r.id) && !waiting(r));
-  const soon = open.filter(r => r.due && !r.routine && dleft(r.due) >= 0 && dleft(r.due) <= 3).sort((a, b) => a.due < b.due ? -1 : 1).slice(0, 3);
+  const soon = soonRows(open.filter(r => r.due && !r.routine && dleft(r.due) >= 0 && dleft(r.due) <= 3).sort((a, b) => a.due < b.due ? -1 : 1)).map(x => x.r).slice(0, 3);
   const plan = [], rout = [];
-  openPlans().slice(0, 2).forEach(p => { const it = open.filter(r => r.plan === p.id);
+  const nextDue = p => open.filter(r => r.plan === p.id && !r.routine && r.due).map(r => r.due).sort()[0] || '9999';
+  openPlans().filter(p => !soon.some(r => r.plan === p.id)).sort((a, b) => nextDue(a) < nextDue(b) ? -1 : nextDue(a) > nextDue(b) ? 1 : 0).slice(0, 2).forEach(p => { const it = open.filter(r => r.plan === p.id);
     const nx = it.filter(r => !r.routine && !soon.includes(r)).sort((a, b) => (a.due || '9999') < (b.due || '9999') ? -1 : 1)[0]; if (nx) plan.push({ r: nx, p });
     const ro = it.filter(r => r.routine && checkedCount(r) < r.routine)[0]; if (ro) rout.push({ r: ro, p }); });
   return { fix, kept, soon, plan: plan.slice(0, 2), rout: rout.slice(0, 2) };
@@ -2778,16 +2781,16 @@ function rowBucket(id, b) {
 function rowDueT(id, v) { const r = rock(id); if (!r) return; if (v) r.dueT = v; else delete r.dueT; r.u = new Date().toISOString(); save(); render(); }
 function planDue(id) { const r = rock(id); if (!r) return; openDate(r.due || r.guess || '', { allowNone: true, title: T('언제까지') }, v => { if (!v) return; r.due = v; delete r.guess; r.u = new Date().toISOString(); save(); render(); }); }
 function rowDue(id, v) { const r = rock(id); if (!r) return; if (!v && r.bucket === 'important') { toast(T('B는 끝 날짜가 있어야 해요')); render(); return; } r.due = v || null; if (v) delete r.guess; if (v && r.tb && v > today()) delete r.tb; save(); render(); } // 오늘 칸의 B에 뒷날 마감을 주면 할 일 탭의 B가 된다
-function itemRow(r, n) {
+function itemRow(r, n, inGrp) {
   const td = today(), picked = (dayOf(td).picks||[]).includes(r.id);
   const dl = (!r.done && r.due && !r.routine) ? dleft(r.due) : null;
   const pl = planOf(r.plan);
-  const meta = [pl ? esc(pl.name) : '', esc(r.role), fmtDue(r)].filter(Boolean).join(' · ') + (dl !== null && dl <= 3 ? ` <b class="dd">${dl < 0 ? T('지남') : dl ? dTag(dl) : T('오늘까지')}</b>` : '');
+  const meta = [pl && !inGrp ? esc(pl.name) : '', esc(r.role), fmtDue(r)].filter(Boolean).join(' · '), ddb = dl !== null && dl <= 3 ? `<b class="dd">${dl < 0 ? T('지남') : dl ? dTag(dl) : T('오늘까지')}</b>` : '';
   const prog = r.routine ? `<span class="dots">${Array.from({length:r.routine},(_,i)=>`<i class="${i<checkedCount(r)?'on':''}"></i>`).join('')}</span>` : '';
   return `<div class="item ${r.done?'done':''}">
     <div class="mg">${r.routine?`<span class="num">${n}</span>`:`<button class="chk ${r.done?'on':''}" aria-label="${T('완료')}" onclick="finishRock('${r.id}')">${CHECK}</button>`}</div>
     <div class="bd"><div class="t">${rowOpen === r.id && !r.done ? titleEd(r) : `<span class="tx" data-ed onclick="rowOpen=rowOpen==='${r.id}'?null:'${r.id}';renderWeek()">${esc(r.title)}</span>`}${r.carry && r.due && !r.plan ?`<span class="mono" style="color:var(--check);font-size:12px">⟳${r.carry}</span>`:''}</div>
-    <div class="m"><span>${meta}</span>${prog}<span class="sp1"></span>
+    <div class="m"><span class="mt">${meta}</span>${ddb}${prog}<span class="sp1"></span>
       ${r.done?`<span style="color:var(--check)">${T('완료')}</span>`:(r.routine && r.checks && r.checks[td])?`<span style="color:var(--check)">${T('오늘 했음 ✓')}</span>`:(picked?`<span style="color:var(--check)">${T('오늘 칸 ✓')}</span>`:`<button onclick="pick('${r.id}')">${T('오늘로')}</button>`)}
       <button onclick="delRock('${r.id}')">✕</button></div>${rowOpen === r.id && !r.done ? rowEdit(r) : ''}</div></div>`;
 }
@@ -2797,7 +2800,6 @@ function renderWeek() {
   const gh = roleFinder() + weekNotes() + groupHtml() + bundleHtml() + guidesNow('week').map(guideHtml).join('');
   const early = live().length < 5 && !livePlans().length; // 처음에는 '할 일부터 적기'만: 계획 배너는 다섯 개쯤 쌓인 뒤에
   let h = `<div style="padding:14px 16px 0 52px"><button onclick="openWrite()" style="width:100%;height:48px;border:1.5px solid var(--ink);border-radius:12px;background:none;font-size:16px;font-weight:700;color:var(--ink)">${T('＋ 할 일 추가')}</button></div>` + (early ? '' : planBanner()) + (gh ? `<div class="stickies" style="padding-top:12px">${gh}</div>` : `<div class="sp"></div>`);
-  h += plansHtml();
   let n = 0;
   BUCKETS.forEach(([b, name]) => {
     const doneToday = live().filter(r => r.done && r.doneAt === today() && (r.bucket||'nice') === b);
@@ -2813,11 +2815,12 @@ function renderWeek() {
       if (!g) { if (grouped) loose.push(r); else { n++; h += itemRow(r, n); } return; } if (seen[g]) return; seen[g] = 1;
       const rs = list.filter(x => !x.done && x.plan === g), op = !!grpOpen[b + g] || rs.some(x => x.id === rowOpen), nx = rs.find(x => x.due);
       h += `<div class="grph" onclick="grpTog('${b + g}')"><span class="grpn">${esc(planOf(g).name)}</span><span class="grpm">${T('{n}개', { n: rs.length })}${nx ? ' ' + T('· 다음 {due}', { due: md(nx.due) }) : ''}</span><span class="grpa">${op ? T('접기') : T('펼치기 ›')}</span></div>`;
-      (op ? rs : rs.slice(0, 1)).forEach(x => { n++; h += `<div class="grpi">${itemRow(x, n)}</div>`; });
+      (op ? rs : rs.slice(0, 1)).forEach(x => { n++; h += `<div class="grpi">${itemRow(x, n, true)}</div>`; });
     });
     if (loose.length) { h += `<div class="grph" style="cursor:default"><span class="grpn">${T('그 밖')}</span><span class="grpm">${T('{n}개', { n: loose.filter(x => !x.done).length })}</span></div>`; loose.forEach(x => { n++; h += itemRow(x, n); }); }
     h += `<div class="sp"></div>`;
   });
+  h += plansHtml();
   document.getElementById('week').innerHTML = h;
 }
 let addKeepV = {};
