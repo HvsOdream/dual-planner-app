@@ -2,6 +2,7 @@
 // 경로:  /u/:token/state (GET 전체, PUT 병합 저장)
 //        /u/:token/items (POST 비서가 항목 추가/수정)
 //        /u/:token/mcp   (MCP Streamable HTTP: planner_read / planner_add / planner_update)
+//        /mcp            같은 MCP, 로그인 방식(OAuth) — /.well-known/oauth-* · /oauth/register · /oauth/authorize · /oauth/token
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type,authorization,mcp-session-id,mcp-protocol-version', 'access-control-expose-headers': 'mcp-session-id' };
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', ...CORS, ...h } });
 const DOW = ['월','화','수','목','금','토','일'];
@@ -754,10 +755,179 @@ async function photo(req, env, token, ds) {
   await env.PLANNER.put(key, buf); return json({ ok: true, size: buf.byteLength });
 }
 
+
+// ── 비서 연결: 로그인 방식(OAuth 2.1) — 2026-11-25 ──
+// 지금까지는 주소에 열쇠를 넣었다(/u/:token/mcp). 주소가 새면 플래너가 열리고, Claude 커넥터 목록 등재도 안 된다.
+// 여기서는 모두 같은 주소(/mcp)를 쓰고, Claude가 처음 연결할 때 이 서버의 연결 창을 띄운다. 예전 주소는 그대로 동작한다.
+//   Claude → POST /mcp (토큰 없음) → 401 + 메타데이터 위치 → /oauth/register(DCR) → /oauth/authorize(연결 창) → /oauth/token → Bearer 토큰으로 /mcp
+// 1단계(지금): 연결 창에 앱의 「연결 주소 복사」 내용을 한 번 붙여 넣는다(앱은 그대로). 2단계: 앱에서 「허용」 한 번으로.
+// Claude 문서 기준: 401이어야 로그인이 시작되고, resource는 사용자가 넣는 주소와 같아야 하며, PKCE S256, 토큰 끝점은 form-urlencoded,
+// 공개 클라이언트(none), refresh 토큰은 쓸 때마다 바꾼다. 콜백은 https://claude.ai/api/mcp/auth_callback, Claude Code는 loopback.
+const OA_ACCESS_TTL = 7 * 86400, OA_REFRESH_TTL = 180 * 86400, OA_CODE_TTL = 300;
+const oaStore = (env, body) => env.OAUTH.get(env.OAUTH.idFromName('v1')).fetch('https://oauth/', { method: 'POST', body: JSON.stringify(body) }).then(r => r.json());
+const oaRnd = p => p + [...crypto.getRandomValues(new Uint8Array(32))].map(b => b.toString(16).padStart(2, '0')).join('');
+const oaB64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const oaEsc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const oaJson = (o, st, extra) => json(o, st || 200, Object.assign({ 'cache-control': 'no-store' }, extra || {}));
+const oaErr = (error, desc, st) => oaJson({ error, error_description: desc }, st || 400);
+function oaLoopback(u) { try { const x = new URL(u); return x.protocol === 'http:' && (x.hostname === 'localhost' || x.hostname === '127.0.0.1' || x.hostname === '[::1]'); } catch { return false; } }
+function oaOkRedirect(u) { try { const x = new URL(u); return (x.protocol === 'https:' || oaLoopback(u)) && !x.hash; } catch { return false; } }
+function oaRedirectMatches(list, u) { // 등록된 주소와 글자 그대로. loopback(Claude Code)만 포트를 빼고 맞춘다
+  if (!Array.isArray(list)) return false;
+  if (list.includes(u)) return true;
+  if (!oaLoopback(u)) return false;
+  const a = new URL(u);
+  return list.some(r => { if (!oaLoopback(r)) return false; const b = new URL(r); return b.hostname === a.hostname && b.pathname === a.pathname; });
+}
+function oaWellKnown(req, path) {
+  const origin = new URL(req.url).origin;
+  if (path.startsWith('/.well-known/oauth-protected-resource'))
+    return oaJson({ resource: origin + '/mcp', authorization_servers: [origin], bearer_methods_supported: ['header'], resource_name: 'DUAL Planner' }, 200, { 'cache-control': 'public, max-age=300' });
+  return oaJson({
+    issuer: origin, authorization_endpoint: origin + '/oauth/authorize', token_endpoint: origin + '/oauth/token', registration_endpoint: origin + '/oauth/register',
+    response_types_supported: ['code'], grant_types_supported: ['authorization_code', 'refresh_token'], code_challenge_methods_supported: ['S256'],
+    token_endpoint_auth_methods_supported: ['none'], scopes_supported: ['planner'],
+  }, 200, { 'cache-control': 'public, max-age=300' });
+}
+async function oaRegister(req, env) {
+  let b; try { b = await req.json(); } catch { return oaErr('invalid_client_metadata', 'not json'); }
+  const uris = Array.isArray(b.redirect_uris) ? b.redirect_uris.map(String).slice(0, 10) : [];
+  if (!uris.length || !uris.every(oaOkRedirect)) return oaErr('invalid_redirect_uri', 'redirect_uris must be https or loopback');
+  const client = { client_id: oaRnd('dpcl_').slice(0, 45), client_name: String(b.client_name || '').slice(0, 80), redirect_uris: uris,
+    grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'], token_endpoint_auth_method: 'none', client_id_issued_at: Math.floor(Date.now() / 1000) };
+  await oaStore(env, { op: 'put', k: 'cl:' + client.client_id, v: client, ttl: 400 * 86400 });
+  return oaJson(client, 201);
+}
+function oaLinkPage(q, client, msg) {
+  let host = ''; try { host = new URL(q.redirect_uri).host; } catch {}
+  const hidden = ['response_type', 'client_id', 'redirect_uri', 'state', 'code_challenge', 'code_challenge_method', 'scope', 'resource'].map(k => `<input type="hidden" name="${k}" value="${oaEsc(q[k] || '')}">`).join('');
+  return new Response(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>듀얼플래너 — 비서 연결</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#F3F1EA;color:#1D2330;font:15px/1.6 -apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px}
+main{width:100%;max-width:420px;background:#fff;border:1px solid #E2DED2;border-radius:16px;padding:28px 26px}h1{font-size:20px;margin:0 0 6px}p{margin:0 0 14px;color:#4A5160;font-size:14px}
+.app{background:#FFF8D6;border:1px solid #EFDF9A;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:16px}ol{margin:0 0 14px;padding-left:20px;font-size:14px;color:#4A5160}
+label{display:block;font-size:13px;color:#5F6670;margin:10px 0 4px}input[type=text]{width:100%;font:inherit;padding:10px 12px;border:1px solid #D5D9DF;border-radius:10px}
+button{width:100%;margin-top:18px;font:inherit;font-weight:600;padding:11px;border:0;border-radius:10px;background:#1F2A44;color:#fff;cursor:pointer}
+.err{background:#FDECEC;border:1px solid #F3B9B9;color:#8A1C1C;border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:12px}small{display:block;margin-top:14px;color:#6B727C;font-size:12px;line-height:1.6}</style></head>
+<body><main><h1>듀얼플래너 — 비서 연결</h1>
+<div class="app"><b>${oaEsc(client.client_name || 'AI 비서')}</b>가 내 플래너를 읽고 할 일·메모를 적을 수 있게 됩니다.<br>돌아갈 곳: <b>${oaEsc(host)}</b></div>
+${msg ? `<div class="err">${oaEsc(msg)}</div>` : ''}
+<ol><li>듀얼플래너 앱 › ≡ › <b>비서 연결</b></li><li><b>「연결 주소 복사」</b>를 누릅니다</li><li>아래 칸에 붙여 넣고 연결</li></ol>
+<form method="post" action="/oauth/authorize">${hidden}
+<label for="l">연결 주소</label><input id="l" type="text" name="link" autocomplete="off" autocapitalize="off" spellcheck="false" required autofocus placeholder="https://…/u/…/mcp">
+<button type="submit">연결</button></form>
+<small>붙여 넣은 주소는 내 플래너를 확인하는 데만 쓰고, 비서에는 언제든 끊을 수 있는 연결 열쇠만 건넵니다. 연결을 끊으려면 비서 쪽 커넥터 목록에서 지우면 됩니다.</small></main></body></html>`,
+    { status: msg ? 400 : 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-frame-options': 'DENY', 'referrer-policy': 'no-referrer' } });
+}
+const oaPlain = (t, st) => new Response(`<!doctype html><meta charset="utf-8"><title>듀얼플래너</title><body style="font:15px/1.6 sans-serif;padding:40px;max-width:520px;margin:auto"><h3>연결할 수 없어요</h3><p>${oaEsc(t)}</p>`, { status: st || 400, headers: { 'content-type': 'text/html; charset=utf-8' } });
+async function oaAuthorize(req, env) {
+  const url = new URL(req.url);
+  let q = Object.fromEntries(url.searchParams), form = null;
+  if (req.method === 'POST') { form = Object.fromEntries((await req.formData()).entries()); q = form; }
+  // 클라이언트와 돌아갈 주소가 확인되기 전에는 그 주소로 보내지 않는다
+  const client = (await oaStore(env, { op: 'get', k: 'cl:' + String(q.client_id || '') })).v;
+  if (!client) return oaPlain('알 수 없는 앱이에요. 비서에서 커넥터를 지우고 다시 추가해 주세요.');
+  if (!oaRedirectMatches(client.redirect_uris, String(q.redirect_uri || ''))) return oaPlain('돌아갈 주소가 등록된 것과 달라요.');
+  const back = params => { const u = new URL(q.redirect_uri); Object.entries(params).forEach(([k, v]) => { if (v != null && v !== '') u.searchParams.set(k, v); }); return new Response(null, { status: 302, headers: { location: u.toString(), 'cache-control': 'no-store' } }); };
+  if (q.response_type !== 'code') return back({ error: 'unsupported_response_type', state: q.state });
+  if (!q.code_challenge || (q.code_challenge_method || 'plain') !== 'S256') return back({ error: 'invalid_request', error_description: 'PKCE S256 required', state: q.state });
+  if (!form) return oaLinkPage(q, client);
+  const ip = req.headers.get('cf-connecting-ip') || 'x';
+  const fails = (await oaStore(env, { op: 'get', k: 'fail:' + ip })).v || 0;
+  if (fails >= 10) return oaLinkPage(q, client, '여러 번 틀렸어요. 10분 뒤에 다시 해 주세요.');
+  const raw = String(form.link || '').trim(), m = raw.match(/\/u\/([A-Za-z0-9_-]{16,64})\/mcp/);
+  const pt = m ? m[1] : (TOKEN_RE.test(raw) ? raw : '');
+  if (!pt || !(await env.PLANNER.get('u:' + pt))) {
+    await oaStore(env, { op: 'put', k: 'fail:' + ip, v: fails + 1, ttl: 600 });
+    return oaLinkPage(q, client, '이 주소의 플래너를 찾지 못했어요. 앱의 「연결 주소 복사」로 복사한 것을 그대로 붙여 넣어 주세요.');
+  }
+  const code = oaRnd('dpc_');
+  await oaStore(env, { op: 'put', k: 'cd:' + code, v: { pt, client_id: client.client_id, redirect_uri: q.redirect_uri, cc: q.code_challenge }, ttl: OA_CODE_TTL });
+  return back({ code, state: q.state });
+}
+async function oaIssue(env, pt, client_id) {
+  const at = oaRnd('dpa_'), rt = oaRnd('dpr_');
+  await oaStore(env, { op: 'put', k: 'at:' + at, v: { pt, client_id }, ttl: OA_ACCESS_TTL });
+  await oaStore(env, { op: 'put', k: 'rt:' + rt, v: { pt, client_id }, ttl: OA_REFRESH_TTL });
+  return oaJson({ access_token: at, token_type: 'Bearer', expires_in: OA_ACCESS_TTL, refresh_token: rt, scope: 'planner' });
+}
+async function oaToken(req, env) {
+  let f; try { f = Object.fromEntries((await req.formData()).entries()); } catch { return oaErr('invalid_request', 'use application/x-www-form-urlencoded'); }
+  if (f.grant_type === 'authorization_code') {
+    const c = (await oaStore(env, { op: 'take', k: 'cd:' + String(f.code || '') })).v; // 한 번만 쓸 수 있다
+    if (!c) return oaErr('invalid_grant', 'code is missing, used or expired');
+    if (f.client_id && f.client_id !== c.client_id) return oaErr('invalid_grant', 'client_id mismatch');
+    if (f.redirect_uri && f.redirect_uri !== c.redirect_uri) return oaErr('invalid_grant', 'redirect_uri mismatch');
+    const v = String(f.code_verifier || '');
+    if (!v || oaB64(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v))) !== c.cc) return oaErr('invalid_grant', 'code_verifier mismatch');
+    return oaIssue(env, c.pt, c.client_id);
+  }
+  if (f.grant_type === 'refresh_token') {
+    const r = (await oaStore(env, { op: 'take', k: 'rt:' + String(f.refresh_token || '') })).v; // 쓸 때마다 새것으로
+    if (!r) return oaErr('invalid_grant', 'refresh token is missing or expired');
+    if (f.client_id && f.client_id !== r.client_id) return oaErr('invalid_grant', 'client_id mismatch');
+    return oaIssue(env, r.pt, r.client_id);
+  }
+  return oaErr('unsupported_grant_type', 'authorization_code or refresh_token');
+}
+async function mcpOAuth(req, env) {
+  const origin = new URL(req.url).origin;
+  const need = extra => json({ error: 'unauthorized' }, 401, { 'www-authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/mcp"` + (extra || ''), 'access-control-expose-headers': 'mcp-session-id, www-authenticate' });
+  const t = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!t.startsWith('dpa_')) return need();
+  const a = (await oaStore(env, { op: 'get', k: 'at:' + t })).v;
+  if (!a) return need(', error="invalid_token"');
+  return mcp(req, env, a.pt);
+}
+// 로그인 연결의 클라이언트·인가 코드·토큰 저장소. 인가 코드는 연결 직후 다른 지역(Anthropic 서버)에서 바로 읽어야 해서 KV(반영이 늦을 수 있음) 대신 여기에 둔다.
+export class OAuthStore {
+  constructor(state) { this.s = state.storage; }
+  async fetch(req) {
+    const { op, k, v, ttl } = await req.json(), now = Date.now();
+    if (op === 'put') {
+      await this.s.put(k, { v, exp: ttl ? now + ttl * 1000 : 0 });
+      if ((await this.s.getAlarm()) == null) await this.s.setAlarm(now + 6 * 3600 * 1000);
+      return Response.json({ ok: true });
+    }
+    if (op === 'get' || op === 'take') {
+      const r = await this.s.get(k);
+      if (r && op === 'take') await this.s.delete(k);
+      return Response.json({ v: r && (!r.exp || r.exp > now) ? r.v : null });
+    }
+    if (op === 'del') { await this.s.delete(k); return Response.json({ ok: true }); }
+    return new Response('bad op', { status: 400 });
+  }
+  async alarm() { // 시간이 지난 것 치우기
+    const now = Date.now(); let cursor, left = false;
+    for (let i = 0; i < 20; i++) {
+      const page = await this.s.list({ limit: 500, startAfter: cursor });
+      if (!page.size) break;
+      const dead = [];
+      for (const [k, r] of page) { cursor = k; if (r && r.exp && r.exp <= now) dead.push(k); }
+      for (let j = 0; j < dead.length; j += 128) await this.s.delete(dead.slice(j, j + 128));
+      if (page.size < 500) break;
+      left = true;
+    }
+    if (left || (await this.s.list({ limit: 1 })).size) await this.s.setAlarm(now + 6 * 3600 * 1000);
+  }
+}
+
 export default {
   async fetch(req, env) {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const url = new URL(req.url);
+    { // 비서 연결(로그인 방식)
+      const op = url.pathname.replace(/\/+$/, '');
+      if (op === '/mcp' || op.startsWith('/.well-known/oauth-') || op === '/.well-known/openid-configuration' || op.startsWith('/oauth/')) {
+        try {
+          if (op === '/mcp') return await mcpOAuth(req, env);
+          if (op.startsWith('/.well-known/')) return oaWellKnown(req, op);
+          if (op === '/oauth/register' && req.method === 'POST') return await oaRegister(req, env);
+          if (op === '/oauth/authorize' && (req.method === 'GET' || req.method === 'POST')) return await oaAuthorize(req, env);
+          if (op === '/oauth/token' && req.method === 'POST') return await oaToken(req, env);
+          return oaErr('not_found', 'not found', 404);
+        } catch (e) { return oaErr('server_error', String(e && e.message || e), 500); }
+      }
+    }
     const pm = url.pathname.match(/^\/u\/([A-Za-z0-9_-]{16,64})\/photo\/(\d{4}-\d{2}-\d{2})\/?$/);
     if (pm) return photo(req, env, pm[1], pm[2]);
     const am = url.pathname.match(/^\/auth\/(config|google|apple|account)\/?$/);
