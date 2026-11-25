@@ -744,8 +744,6 @@ window.DP_DICT = {
   "일요일에 한 주 정리": "A summary of your week, every Sunday",
   "다음 주 B를 골라 줘요": "Picks important-but-not-urgent items for next week",
   "B {n}개를 A로 올렸어요": "Moved {n} from B up to A",
-  "B {n}개가 사흘 안에 마감이에요. A로 올릴까요": ["{n} item in B is due within three days. Move it to A?", "{n} items in B are due within three days. Move them to A?"],
-  "B {n}개 A로": "Move {n} to A",
   "{n}원": "₩{n}",
   "월 {m} · 연 {y}": "{m} a month · {y} a year",
   "속지 없는 화면으로 보는 중": "Previewing without a refill",
@@ -937,4 +935,6 @@ window.DP_DICT = {
   "플래너 열기": "Open my planner",
   "메일·캘린더 정리": "Mail & calendar digest",
   "외 {n}": "+{n} more",
+  "사흘 안에 마감 {n}개": "{n} due within 3 days",
+  "A로 올리기": "Move to A",
 };

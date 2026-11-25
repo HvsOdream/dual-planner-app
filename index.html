@@ -1606,17 +1606,13 @@ function promoteB() {
   save(); render(); toast(T('B {n}개를 A로 올렸어요', { n }));
 }
 function dleft(ds) { return Math.round((new Date(ds) - new Date(today())) / 86400000); }
+// B 칸 머리 아래 한 줄: 사흘 안에 끝나야 하는 B가 있으면 A로 올릴지 묻는다
+function soonBLine() { const td = today(); if (!featOn('due') || backMode() || noteOff('due:' + td)) return ''; const bs = openItems().filter(r => r.bucket === 'important' && !r.tb && r.due && dleft(r.due) >= 0 && dleft(r.due) <= 3); if (!bs.length) return '';
+  return `<div class="row ruled" style="padding-left:52px;gap:8px;font-size:13px;color:var(--ink-2)"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${T('사흘 안에 마감 {n}개', { n: bs.length })}</span><button class="pill" onclick="promoteB()">${T('A로 올리기')}</button><button class="pill" aria-label="${T('떼기')}" onclick="dropNote('due:${td}')">✕</button></div>`; }
 function weekNotes() {
   let h = ''; const td = today();
   if (backMode()) return backHtml(); // 돌아온 날은 이 한 장만
-  if (featOn('due') && !noteOff('due:' + td)) {
-    const soon = openItems().filter(r => r.due && dleft(r.due) >= 0 && dleft(r.due) <= 3).sort((a, b) => a.due < b.due ? -1 : 1);
-    if (soon.length) {
-      const bs = soon.filter(r => r.bucket === 'important' && !r.tb), picks = dayOf(td).picks || [];
-      const html = soon.slice(0, 5).map(r => bRow(r, dleft(r.due) ? dTag(dleft(r.due)) : T('오늘'), dleft(r.due) <= 1, picks.includes(r.id) ? `<span class="bdone">${T('오늘 칸 ✓')}</span>` : `<button onclick="pickHere('${r.id}')">${T('오늘로')}</button>`)).join('') + (bs.length ? `<div class="bev" style="padding:6px 0 0">${T('B {n}개가 사흘 안에 마감이에요. A로 올릴까요', { n: bs.length })}</div>` : '');
-      h += aNote({ label: T('마감 임박'), meta: T('{n}개', { n: soon.length }), cls: 'wide brief', text: soon.map(r => shortT(r.title)).join(' / '), html, acts: (bs.length ? `<button onclick="promoteB()">${T('B {n}개 A로', { n: bs.length })}</button>` : '') + `<button onclick="dropNote('due:${td}')">${T('떼기')}</button>` });
-    }
-  }
+  // 「마감 임박」 포스트잇은 뺐다(0.7.102): 같은 줄과 「오늘로」가 오늘 화면 「곧 마감」과 할 일 줄에 이미 있다. B를 A로 올리는 것만 B 칸 머리 아래 한 줄로 남긴다(soonBLine)
   if (featOn('stale')) {
     const ov = overdueItems().slice(0, 4), st = staleItems().slice(0, 3);
     const more = (r, stale) => _fix === r.id ? `<div class="bslot">${stale ? `<button onclick="splitRock('${r.id}')">${T('쪼개기')}</button>` : `<button onclick="pushDue('${r.id}',7)">${T('일주일 뒤로')}</button>`}<button onclick="setWait('${r.id}')">${T('기다리는 중')}</button><button onclick="toD('${r.id}')">${T('D로')}</button>${stale ? `<button onclick="tombRock('${r.id}')">${T('내려놓기')}</button>` : ''}</div>` : '';
@@ -2807,6 +2803,7 @@ function renderWeek() {
     if (b === 'nice' && !showD && !(addOpen && addBucket==='nice')) { h += `<div class="lbl"><span>${name} <span class="mono" style="letter-spacing:0">${list.length}</span></span><button onclick="showD=true;renderWeek()">${T('펼치기 ›')}</button></div><div class="sp"></div>`; return; }
     h += `<div class="lbl"><span>${name} <span class="mono" style="letter-spacing:0">${list.length - doneToday.length}</span></span><button onclick="openAdd('${b}')">${T('+ 추가')}</button></div>`;
     if (addOpen && addBucket === b) h += addFormHtml(b);
+    if (b === 'important') h += soonBLine();
     if (!list.length) h += `<div class="line faint ruled">${b==='important'?T('언제까지만?'):''}</div>`;
     // 같은 계획에 딸린 일이 둘 이상이면 계획 이름 아래로 묶는다. 접혀 있으면 가장 가까운 한 줄만 보인다
     const cnt = {}; list.forEach(r => { if (!r.done && planOf(r.plan)) cnt[r.plan] = (cnt[r.plan] || 0) + 1; }); const seen = {};
