@@ -3,6 +3,9 @@
 버전은 루트 `VERSION` 한 곳에서 올린다. iOS 빌드 번호는 GitHub Actions 실행 번호라 자동으로 올라간다.
 빌드 전 규칙: `VERSION` 올리고 → 아래에 한 줄 적고 → Actions에서 iOS TestFlight 실행.
 
+## 0.7.98 — 2026-11-25 (만든 곳 로고)
+- 메뉴 맨 아래 버전 줄 밑에 콘텐츠 히비 로고(CONTENT hibi). 로고 파일은 `brand/hibi-logo.svg`·`hibi-logo-white.svg`·`hibi-mark.svg`
+
 ## 0.7.97 — 2026-11-25 (소개 4장: 메일 연동이 제목에 보이게)
 - 소개 4장의 둘째 포스트잇 제목을 「내 AI 비서」에서 「메일·캘린더 정리 (내 AI 비서)」로. 메일을 읽어 준다는 것이 설명 문장 안에만 있어 눈에 안 들어왔다
 
