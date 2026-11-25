@@ -486,9 +486,9 @@ async function firstRun(browser) {
   await ctx.route('**/*', r => (r.request().url().startsWith('file:') ? r.continue() : r.abort()));
   await pg.goto(PAGE); await pg.waitForTimeout(1500);
   const C = (name, ok, detail) => check('[첫 실행] ' + name, ok, detail), ev = fn => pg.evaluate(fn);
-  C('소개가 뜬다', await ev(() => !!document.querySelector('#tour .sk')));
-  let fit = true; for (let i = 0; i < 4; i++) { fit = fit && await ev(() => { const t = document.getElementById('tour'); return !!t && t.scrollHeight - t.clientHeight <= 2; }); await pg.click('#tour .nx'); await pg.waitForTimeout(100); }
-  C('네 장을 넘기면 닫히고, 장마다 한 화면에 들어온다', fit && await ev(() => !document.getElementById('tour') && D.guide.tour === 1), fit);
+  C('소개가 인사 장부터 뜬다', await ev(() => !!document.querySelector('#tour.hi .hw svg') && !!document.querySelector('#tour .sk')));
+  let fit = true; for (let i = 0; i < 5; i++) { fit = fit && await ev(() => { const t = document.getElementById('tour'); return !!t && t.scrollHeight - t.clientHeight <= 2; }); await pg.click('#tour .nx'); await pg.waitForTimeout(100); }
+  C('인사와 네 장을 넘기면 닫히고, 장마다 한 화면에 들어온다', fit && await ev(() => !document.getElementById('tour') && D.guide.tour === 1), fit);
   await ev(() => document.querySelectorAll('.intro,.login').forEach(e => e.remove()));
   await pg.fill('#dumpIn', '금요일까지 보고서 제출\n건강검진 예약'); await pg.click('#today .sticky .go'); await pg.waitForTimeout(300);
   C('처음 쏟아 적으면 오늘 할 것을 짚는다', await ev(() => !!document.getElementById('coach') && document.body.classList.contains('coaching')));

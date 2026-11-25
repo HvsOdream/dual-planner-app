@@ -488,35 +488,52 @@ body.spread .more .box { max-width: calc(50% - var(--gutter) / 2); margin: 0 0 0
 .ptabs button.on { background: var(--paper); color: var(--accent); font-weight: 800; }
 body.d-night .ptabs button.on { color: #0F1626; }
 /* ── 타이틀(표지) · 첫 실행 안내 ── */
-/* 첫 실행 소개(네 장) · 첫 화면 짚기 */
-.tour { position: fixed; inset: 0; z-index: 115; background: var(--paper); color: var(--ink); display: flex; justify-content: center; overflow-y: auto; padding: calc(36px + env(safe-area-inset-top)) 28px calc(20px + env(safe-area-inset-bottom)); }
+/* 첫 실행 소개(인사 + 네 장) · 첫 화면 짚기 — 그림은 앱의 노트 그대로(.item·.sticky·.pill을 다시 쓴다) */
+.tour { position: fixed; inset: 0; z-index: 115; background: var(--paper-2); color: var(--ink); display: flex; justify-content: center; overflow-y: auto; overflow-x: hidden; padding: calc(36px + env(safe-area-inset-top)) 24px calc(20px + env(safe-area-inset-bottom)); }
 .tour .in { width: 100%; max-width: 420px; min-height: 100%; display: flex; flex-direction: column; gap: 22px; }
-.tour .pic { min-height: 300px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--paper-2); padding: 18px; display: flex; flex-direction: column; gap: 10px; }
-.tour .pl { font-size: 12px; color: var(--ink-2); }
-.tour .ln { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--white); border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px; font-size: 15px; }
-.tour .ln.dash { border-style: dashed; color: var(--ink-2); }
-.tour .ln .m { flex: none; font-size: 12px; font-weight: 700; white-space: nowrap; }
-.tour .ln .m.no { font-weight: 400; color: var(--ink-2); }
-.tour .ln .bx { flex: none; width: 16px; height: 16px; border: 1.5px solid var(--ink); border-radius: 3px; }
-.tour .ln .l { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.tour .ln .pl2 { flex: none; font-size: 12px; font-weight: 700; border: 1.5px solid currentColor; border-radius: 14px; padding: 3px 10px; }
-.tour .pst { margin-top: auto; background: var(--postit); color: var(--postit-ink); padding: 12px 14px; font-size: 14px; box-shadow: 0 2px 0 rgba(0,0,0,.08); }
-.tour .pst small { display: block; font-size: 11px; opacity: .75; margin-bottom: 2px; }
-.tour .cn { background: var(--white); border: 1px solid var(--border); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
-.tour .cn .hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; }
-.tour .cn b { font-size: 16px; }
-.tour .cn .d { font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
-.tour .cn button { flex: none; height: 40px; padding: 0 16px; border: 1.5px solid var(--ink); border-radius: 8px; font-size: 14px; font-weight: 700; }
-.tour .cn .ok { font-size: 13px; font-weight: 700; color: var(--ink-2); }
-.tour .ft { margin-top: auto; font-size: 12.5px; color: var(--ink-2); }
-.tour h2 { margin: 0; font-size: 24px; line-height: 1.35; font-weight: 800; }
+.tour .in.turn { animation: pin-r .22s ease-out; }
+.tour .tsh { position: relative; min-height: 312px; background-color: var(--paper); background-image: linear-gradient(to right, transparent 39px, var(--margin) 39px, var(--margin) 40px, transparent 40px); border: 1px solid var(--border); border-radius: 3px 10px 10px 3px; box-shadow: 0 1px 0 var(--border), 0 12px 26px -10px rgba(30,47,79,.28); padding: 8px 14px 16px 0; display: flex; flex-direction: column; overflow: hidden; }
+.tour .tsh .lbl button { visibility: hidden; }
+.tour .tsh .wl { margin-left: 52px; height: 44px; line-height: 44px; font-size: 16px; font-weight: 500; border-bottom: 1px solid var(--rule); white-space: nowrap; overflow: hidden; animation: twipe .55s ease-out both; }
+.tour .tsh .wl.h { color: var(--faint); font-weight: 400; animation: tfade .4s ease-out both; }
+.tour .tsh .item .t { font-size: 16px; }
+.tour .tsh .sticky { margin: 14px 4px 0 52px; min-height: 0; animation: tstick .34s cubic-bezier(.2,.9,.3,1.2) both; }
+.tour .tsh .sr { padding-left: 52px; gap: 8px; min-height: 44px; font-size: 15px; font-weight: 600; }
+.tour .tsh .sr .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tour .tsh .sr.go .pill { animation: tpress .5s ease-out .9s both; } .tour .tsh .sr.go { animation: tdim .4s ease-out 1.5s both; }
+.tour .tsh .item.new { animation: tdrop .4s ease-out 1.4s both; }
+.tour .tsh .gap { height: 14px; }
+.tour .tsh.cn { background-image: none; padding: 14px 14px 16px; gap: 14px; }
+.tour .tsh.cn .sticky { margin: 0; animation-name: tstick; } .tour .tsh.cn .sticky .who { font-size: 13px; font-weight: 700; color: var(--guide-ink); position: static; height: auto; margin-bottom: 4px; } .tour .tsh.cn .sticky { padding-top: 24px; }
+.tour .tsh.cn .ok { position: static; display: inline; font-size: 12px; font-weight: 700; color: var(--guide-sub); }
+.tour .ft { font-size: 12.5px; color: var(--ink-2); margin-top: auto; padding-top: 6px; }
+.tour h2 { margin: 0; font-size: 24px; line-height: 1.35; font-weight: 800; word-break: keep-all; }
 .tour p { margin: 8px 0 0; font-size: 15px; line-height: 1.6; color: var(--ink-2); }
 .tour .dots { margin-top: auto; display: flex; gap: 8px; justify-content: center; }
 .tour .dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--faint); }
 .tour .dots i.on { width: 20px; background: var(--ink); }
 .tour .nav { display: flex; align-items: center; justify-content: space-between; }
 .tour .nav .sk { height: 48px; padding: 0 8px; font-size: 15px; color: var(--ink-2); }
-.tour .nav .nx { margin-left: auto; height: 48px; padding: 0 34px; border-radius: 10px; background: var(--ink); color: var(--paper); font-size: 16px; font-weight: 800; }
+.tour .nav .nx { margin-left: auto; height: 48px; padding: 0 30px; border-radius: 10px; background: var(--ink); color: var(--paper); font-size: 16px; font-weight: 800; }
+/* 인사 장: 줄 없는 종이(여백선만)에 손글씨가 한 글자씩 써진다 */
+.tour.hi { background-color: var(--paper); background-image: linear-gradient(to right, transparent 43px, var(--margin) 43px, var(--margin) 44px, transparent 44px); padding-left: 62px; }
+.tour .hello { margin-top: auto; }
+.tour .hw { display: flex; align-items: flex-end; height: 92px; color: var(--ink); }
+.tour .hw svg { flex: none; height: 92px; overflow: visible; fill: currentColor; animation: twipe .5s ease-out both; }
+.tour .hw.txt { font-size: 72px; font-weight: 700; line-height: 92px; animation: twipe .9s ease-out .5s both; }
+.tour .hu { display: block; margin-top: 2px; } .tour .hu path { fill: none; stroke: var(--check); stroke-width: 3.5; stroke-linecap: round; stroke-dasharray: 260; animation: tline .7s ease-out both; }
+.tour .hello .l1 { margin: 22px 0 0; font-size: 19px; font-weight: 600; color: var(--ink); animation: tup .5s ease-out both; }
+.tour .hello .l2 { margin: 4px 0 0; font-size: 17px; color: var(--ink-2); animation: tup .5s ease-out both; }
+.tour.hi .nav { margin-top: auto; }
+@keyframes twipe { from { clip-path: inset(-20% 100% -20% -20%); } to { clip-path: inset(-20% -20% -20% -20%); } }
+@keyframes tline { from { stroke-dashoffset: 260; } to { stroke-dashoffset: 0; } }
+@keyframes tup { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes tfade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tstick { from { opacity: 0; transform: translateY(-14px) rotate(-5deg) scale(1.04); } }
+@keyframes tpress { 0%, 100% { transform: none; } 45% { transform: scale(.9); background: var(--ink); color: var(--paper); } }
+@keyframes tdim { to { opacity: .35; } }
+@keyframes tdrop { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tour *, .tour .in.turn { animation: none !important; } }
 .coach { position: fixed; z-index: 70; left: 16px; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); max-width: 420px; margin: 0 auto; background: var(--white); color: var(--ink); border: 1.5px solid var(--ink); border-radius: 12px; padding: 16px; box-shadow: 0 6px 0 rgba(0,0,0,.14); display: flex; flex-direction: column; gap: 8px; }
 .coach b { font-size: 17px; } .coach span { font-size: 14.5px; line-height: 1.6; color: var(--ink-2); }
 .coach button { align-self: flex-end; height: 44px; padding: 0 26px; border-radius: 10px; background: var(--ink); color: var(--paper); font-size: 15px; font-weight: 800; }
@@ -965,7 +982,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.95'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.96'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), digest: T('매일 아침 정리 시작하기'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -3149,35 +3166,47 @@ function showIntro() {
 }
 SPREAD_MQ.addEventListener('change', introWide);
 
-// ── 첫 실행 소개: 표지 다음, 처음 한 번만 네 장(적기 → AI 비서가 챙기기 → 오늘 고르기 → 연결). 메뉴 › 사용법 다시 보기로 다시 연다 ──
-let _tour = -1;
+// ── 첫 실행 소개: 표지 다음, 처음 한 번만. 인사 한 장 + 네 장(적기 → AI 비서가 챙기기 → 오늘 고르기 → 연결). 메뉴 › 사용법 다시 보기로 다시 연다 ──
+// 인사 글씨: 나눔손글씨 펜(SIL OFL 1.1, NHN·산돌)의 글자 윤곽을 길로 옮긴 것. 글꼴 파일은 싣지 않는다
+const HELLO_G = {"ko":{"g":[{"d":"M66.6 30.9Q66.4 31.6 65.2 31.8Q63.9 32.1 62.6 32.3Q59.2 32.6 55.6 33.5Q51.9 34.5 49 35.5Q48.3 35.7 47.6 35.8Q46.9 36 46.1 35.8Q46.4 40.3 46.8 44.4Q47.2 48.5 47.7 51.9Q47.9 53 47.2 54Q46.5 55.1 45 55.3Q44.1 55.4 43.5 54.8Q42.8 54.2 42.4 53.3Q41.9 52.4 41.6 51.4Q41.3 50.4 41.2 49.7Q40.7 47.5 40.3 43.2Q39.9 39 39.7 34Q39.5 29 39.5 23.8Q39.5 18.5 39.9 14.4Q40.1 12.2 41 11.4Q41.9 10.6 42.8 10.7Q43.5 10.7 44.2 11.1Q44.8 11.6 45.3 12.3Q45.8 13 46.1 13.8Q46.3 14.5 46.2 15.1Q45.8 18.6 45.8 22.3Q45.7 26.1 45.9 29.9Q46 29.9 46.1 29.8Q49 28.3 53.2 27.3Q57.5 26.3 62.5 26.7Q64.3 26.8 65.7 28Q67.1 29.3 66.6 30.9ZM24.3 37.8Q25 40.7 24.6 43.5Q24.1 46.4 22.8 49Q21.4 51.5 19.4 53.5Q17.4 55.6 15 56.9Q13.2 57.9 11.4 58.1Q9.6 58.4 7.6 57.3Q6 56.5 5.2 55.2Q4.3 53.9 4.1 52.5Q3.9 50.3 4.5 47.6Q5.1 44.9 6.3 42.2Q7.5 39.6 9.1 37.2Q10.7 34.8 12.5 33Q13.3 32.3 14.1 31.9Q14.9 31.5 15.9 31.7Q16.9 31.9 17.7 32.8Q18.5 33.6 18.7 34.4Q20.6 34.4 22.2 35.2Q23.8 36.1 24.3 37.8ZM36.4 62.2Q36.1 64.6 35.9 67.5Q35.7 70.5 35.7 73Q37.9 72.4 40.6 71.2Q43.3 69.9 46 68.4Q48.7 66.9 51.2 65.3Q53.7 63.7 55.5 62.5Q57.7 61 59 60.5Q60.3 59.9 60.8 60.8Q61.2 61.4 61.1 62.4Q60.9 63.4 60.5 64.4Q60.1 65.4 59.5 66.3Q58.9 67.2 58.5 67.7Q56.7 69.6 53.9 71.7Q51 73.7 47.9 75.5Q44.7 77.2 41.8 78.5Q38.8 79.7 36.7 79.9Q33.2 80.3 31.1 79.3Q28.9 78.3 28.5 74.2Q28.4 73.6 28.5 72.3Q28.5 71.1 28.6 69.5Q28.7 67.9 29 66.2Q29.2 64.5 29.6 62.9Q30.2 60.5 31.1 58.8Q31.9 57.1 33.2 57.3Q34.3 57.5 35.5 58.9Q36.6 60.3 36.4 62.2ZM18 36.7Q16.4 38 15.2 39.9Q13.9 41.8 13 44Q12.1 46.1 11.6 48.3Q11.1 50.5 11 52.4Q12.1 51.9 13.9 50.1Q15.6 48.3 17 45.7Q18.3 43.3 18.5 41Q18.7 38.7 18 36.7Z","x":0,"w":67.0},{"d":"M127.1 26.3Q127.1 25.2 127.5 24Q127.8 22.8 128.9 22.6Q130.3 22.4 131.8 23.6Q133.3 24.9 133.2 26.4Q133.2 31.3 132.9 35.8Q132.6 40.4 132 45.5Q131.6 47.2 130.6 47.9Q129.5 48.6 128.7 48.6Q127.7 48.6 127.1 47.9Q126.4 47.3 126.5 46.1Q126.7 43.1 126.8 40.3Q126.9 37.6 127 34.9Q124.3 37.2 120.4 39.5Q116.4 41.8 112.2 43.5Q107.9 45.3 103.7 46.2Q99.5 47.2 96.3 46.9Q94.3 46.7 92.5 45.8Q90.7 44.9 90.7 43.4Q90.8 42.7 91.7 41.8Q92.5 40.9 95.7 41Q99 40.9 103.2 39.9Q107.4 38.9 111.7 37.1Q116 35.4 120 33Q124.1 30.5 127.1 27.6ZM80.4 56.6Q83.6 55.6 86 54.4Q88.5 53.2 91.7 51.3Q93.2 50.5 94.1 51Q94.9 51.4 95.3 52.3Q95.8 53.2 95.8 54.2Q95.7 55.2 95.1 55.8Q92.2 58.5 89.1 60.4Q85.9 62.3 81.7 63.4Q78.6 64.2 76.5 62.4Q74.4 60.5 73.6 57.6Q71.9 50.9 71.5 43.8Q71 36.8 71.1 30.7Q71.1 29.6 71.8 28.6Q72.4 27.7 73.5 27.7Q75.4 27.7 76.4 28.7Q77.4 29.7 77.5 31.2Q78 39.8 78.7 46Q79.3 52.3 80.4 56.6ZM127.7 50.9Q126.4 50.3 125.6 50.5Q124.8 50.7 124 51.6Q121.6 55 120 58.3Q118.3 61.6 117.8 65.3Q117.6 67.1 118.2 69.2Q118.7 71.4 120.6 72Q123.7 73 126.7 71.5Q129.6 70.1 131.6 67.2Q133.7 64.3 134.3 60.5Q134.9 56.8 133.3 53.1Q132.9 52.2 132.4 51.9Q131.9 51.5 131.4 51.5Q130.9 51.4 130.5 51.6Q130.1 51.8 129.9 51.9Q129.7 52.1 129.6 52.2Q129.4 52.4 129.2 52.6Q128.9 51.5 127.7 50.9ZM114.6 27Q115.1 27.7 115.2 28.1Q115.2 28.5 115 28.9Q114.6 29.5 113.7 29.7Q112.7 29.9 112.2 29.7Q110.5 29.3 108.2 29.3Q105.8 29.4 103.4 29.7Q101 30 98.9 30.4Q96.8 30.9 95.6 31.2Q94.9 31.4 93.5 31.4Q92 31.5 91.3 30.7Q90.2 29.6 90.6 28.8Q90.9 28 91.3 27.5Q93.1 25.7 96.5 24.6Q99.8 23.5 103.4 23.3Q106.9 23.2 110.1 24Q113.2 24.9 114.6 27ZM128.9 60Q128.4 61.4 127.2 62.8Q126 64.3 124.4 65.1Q124.6 64.1 125 62.8Q125.5 61.6 126.1 60.3Q126.7 59 127.4 57.8Q128.1 56.5 128.7 55.6Q128.7 56.1 128.9 56.7Q129.4 58.4 128.9 60Z","x":67.0,"w":71.7},{"d":"M162.1 37.5Q161.2 40.4 160.2 43.3Q159.3 46.3 158.4 49.2Q161.5 49.3 163.8 50.8Q166 52.3 166.6 54.3Q167.2 56 166.9 57.9Q166.7 59.7 165.8 61.5Q165 63.3 163.7 64.9Q162.4 66.6 160.8 67.8Q159.8 68.6 157.6 69.4Q155.5 70.3 153.7 70Q150.8 69.5 149.8 66.7Q148.8 63.8 149.3 60.6Q149.8 57.2 150.4 54.5Q151.1 51.9 151.8 49.4Q152.6 46.9 153.5 44.3Q154.4 41.7 155.5 38.3Q152.5 38.7 149.7 39.8Q146.9 40.9 144.9 42.1Q143.6 42.9 142.1 42.4Q140.5 41.9 140.5 39.9Q140.3 38.3 142.2 36.8Q144.1 35.3 146.9 34.2Q149.7 33.2 152.7 32.6Q155.7 32.1 157.7 32.3Q160.5 32.6 161.4 34.1Q162.4 35.7 162.1 37.5ZM185.6 37.4Q190.1 35.1 194.3 34.9Q198.6 34.7 202 35.8Q202.9 36.1 203.2 36.6Q203.6 37.1 203.6 37.5Q203.7 38 203.6 38.3Q203.5 38.7 203.5 38.8Q202.4 40.6 200.9 40.6Q198.8 40.6 197.2 40.6Q195.7 40.7 194.4 40.8Q193.2 41 192 41.3Q190.9 41.6 189.5 42Q188.6 42.3 188.1 42.1Q187.5 42 187.1 41.8Q186.7 41.5 186.4 41.3Q186.2 41.1 185.9 41.2Q185.7 41.3 185.7 42.3Q185.7 47 186 51Q186.4 55 186.7 58.8Q186.8 60.1 186 61.5Q185.3 62.9 183.9 62.7Q182.9 62.5 181.8 61.3Q180.7 60.1 180.5 58.8Q179 49.2 179.1 39.4Q179.3 29.6 180.4 21.1Q180.5 20.1 181.1 19.6Q181.8 19.2 182.5 19.1Q183.3 19.1 184.1 19.3Q184.9 19.6 185.4 20Q185.8 20.3 186.4 21.1Q187 22 186.8 22.8Q186.2 26.2 185.9 30Q185.6 33.9 185.6 37.4ZM162.5 24.5Q162.8 25.3 163 26.5Q163.3 27.8 163.2 28.8Q163.2 29.9 162.6 30.5Q162 31.2 160.5 30.8Q159.6 30.5 159.2 29.8Q158.8 29 158.3 28.2Q156.3 24.3 153.6 20.5Q150.9 16.8 148 13.8Q146.4 12.4 146 10.9Q145.6 9.5 147 8.4Q148.3 7.6 149.6 8Q151 8.5 152.1 9.5Q153.9 11.2 155.6 13.2Q157.3 15.2 158.6 17.2Q160 19.3 161 21.1Q162 23 162.5 24.5ZM155.3 63.6Q156.4 63 157.5 62.2Q158.7 61.4 159.6 60.4Q160.5 59.4 160.9 58.2Q161.3 57.1 160.9 55.9Q160.5 54.7 159.6 54.1Q158.6 53.5 157.4 53.1Q156.7 55.7 156.1 58.4Q155.6 61 155.3 63.6Z","x":138.7,"w":65.0},{"d":"M226 22.7Q222.2 30.4 218.4 38.3Q214.7 46.3 211.7 55.5Q212.3 55.7 212.5 56.4Q212.6 56.7 212.5 57Q211.9 58.3 210.9 58.7Q210 59.1 209.1 58.9Q206.8 58.4 205.9 56.9Q205 55.4 205.6 53.4Q208.6 44.9 212.3 36.6Q216 28.3 220.8 19.7Q221.3 18.9 222.5 18.9Q223.7 19 224.5 19.5Q225.3 20 225.8 21Q226.2 22.1 226 22.7ZM267.4 30.4Q267.1 36.9 267.2 44.3Q267.4 51.7 268.5 58.5Q268.7 59.5 268.1 60.1Q267.6 60.8 266.7 61Q265.5 61.3 264.1 60.6Q262.8 60 262.4 58.5Q261.8 55.1 261.4 51.1Q261 47.1 260.9 43.1Q260.7 39.1 260.9 35.2Q261 31.4 261.5 28.2Q261.7 27.6 262.4 27.3Q263.1 27.1 263.8 27.2Q264.3 27.2 265 27.5Q265.6 27.9 266.1 28.3Q266.7 28.8 267 29.3Q267.4 29.9 267.4 30.4ZM231.1 48.4Q230.6 47.5 230.6 46.4Q230.5 45.3 231 44.7Q234.5 40.9 238.4 38.1Q242.3 35.3 245.9 33Q245.9 32.1 246.1 31.3Q246.3 30.6 246.6 30Q246.9 29.4 247.4 29.2Q248 29 248.8 29Q249.7 29 250.5 29.3Q251.3 29.6 251.8 30.1Q252.4 30.6 252.4 31.5Q252.4 40.2 252.9 48.5Q253.5 56.7 254.6 64.6Q254.9 65.6 254.1 66.5Q253.4 67.5 252.4 67.5Q251.3 67.7 250.5 67.1Q249.7 66.5 249.4 66Q247.6 61.5 247 55Q246.4 48.6 246 40.2Q243.4 41.9 240.8 44.2Q238.1 46.6 235.8 48.7Q234 50.4 232.8 49.8Q231.6 49.3 231.1 48.4ZM231.8 64.8Q231.9 65.1 231.8 65.8Q231.8 66.5 231.6 67Q231.4 67.6 230.9 67.9Q230.5 68.2 229.8 67.8Q229.6 67.7 229.2 67.6Q228.8 67.5 228.3 67.2Q227.9 66.9 227.3 66.2Q226.8 65.5 226.4 64.3Q224.7 59.7 223.4 54.2Q222.1 48.8 221.4 43.2Q221.3 42.3 221.3 41.1Q221.3 40 221.4 38.9Q221.5 37.8 221.8 37Q222 36.2 222.4 36Q223.3 35.6 224.1 35.9Q224.9 36.3 225.5 37Q226.2 37.7 226.6 38.6Q227 39.5 227 40.2Q227.7 46.5 229 52.6Q230.4 58.7 231.8 64.8Z","x":203.7,"w":70.1},{"d":"M303.3 42.9Q301.9 47.4 299.9 52.5Q297.9 57.6 295 62.2Q300 60.5 304.9 58.9Q309.8 57.2 314.3 56.1Q315.2 55.9 316.4 55.8Q317.5 55.7 318.5 55.8Q319.4 55.9 320.1 56Q320.8 56.2 321 56.5Q321.4 57.6 321.2 58.3Q321 59.1 320.5 59.6Q319.9 60.2 319.1 60.6Q318.3 61.1 317.6 61.4Q310.7 63.5 304.1 65.8Q297.5 68.1 290.6 70.6Q288.6 71.1 287.1 70.5Q285.7 69.9 284.9 68.8Q284.2 67.9 284.4 67.2Q284.5 66.6 285 66.1Q285.5 65.6 286.2 65.3Q287 65 287.5 64.7Q290.7 58.4 293 52.2Q295.3 46 297.4 39.7Q297.8 38.6 299 37.8Q300.2 37 301.9 37.9Q303.9 39.1 303.9 40.3Q303.8 41.5 303.3 42.9ZM286.1 34.5H285.8Q285.6 40.2 285.5 45.2Q285.4 50.3 286.1 55.6Q286.3 57 285.9 58.1Q285.5 59.2 283.8 59.2Q282.8 59.2 282.2 58.7Q281.6 58.2 281.2 57.5Q280.8 56.7 280.6 55.8Q280.3 54.9 280.2 54.1Q279.4 49 279.3 43.5Q279.2 38 279.7 32.3Q278.9 31.4 278.6 30.1Q278 27.9 278.5 25.7Q278.9 23.5 279.9 21.5Q280.9 19.6 282.2 17.9Q283.5 16.3 284.6 15.1Q286 13.7 287.5 14.5Q288.4 15 289.1 16.3Q289.7 17.6 288.9 18.8Q288.2 19.8 287.1 21.3Q286.1 22.8 285.6 23.9Q284.7 25.7 285.1 26.8Q285.6 28 286.9 27.9Q287.4 27.9 288.4 27.4Q289.3 27 290.4 26.3Q291.5 25.6 292.5 24.6Q293.5 23.7 294.1 22.6Q294.4 22 294.1 21.5Q293.8 21.1 293.4 20.7Q293 20.4 292.7 19.9Q292.4 19.5 292.7 18.8Q293.2 17.4 294.5 17.3Q295.8 17.2 296.9 17.7Q298.3 18.4 299 19.5Q299.6 20.6 299.6 21.9Q299.7 23.2 299.2 24.5Q298.8 25.9 298.1 27.1Q295.8 30.6 292.4 32.4Q288.9 34.3 286.1 34.5Z","x":273.8,"w":47.9}],"w":321.7,"h":100.0},"en":{"g":[{"d":"M38.7 27.7Q40.1 35.8 40.8 43.8Q41.5 51.9 41.9 59.9Q42 60.8 41.7 61.4Q41.4 62.1 41 62.6Q40.5 63.1 40 63.4Q39.6 63.7 39.3 63.7Q38.2 63.7 37.2 62.6Q36.1 61.6 35.9 59.9Q35.6 56.1 35.3 52.3Q35 48.5 34.6 44.7Q24.1 47.6 12.4 49.8Q12.8 52 13.2 54.2Q13.6 56.4 14.1 58.6Q14.2 59 14.2 59.9Q14.3 60.8 14.2 61.8Q14 62.8 13.6 63.6Q13.1 64.5 12.2 64.9Q11.4 65 10.5 64.4Q9.6 63.8 9.3 63.2Q8.1 60.1 7 55.8Q6 51.5 5.2 46.8Q4.5 42 4.2 37.1Q3.9 32.2 4.1 27.7Q4.3 26.2 5.2 25.5Q6.2 24.9 7 24.9Q7.9 24.9 8.6 25.5Q9.2 26.1 9.6 27Q10 27.9 10.2 28.8Q10.4 29.7 10.4 30.3Q10.5 33.5 10.7 36.6Q10.9 39.7 11.4 42.8Q16.5 42.1 22.5 40.8Q28.5 39.6 33.8 38Q33.6 35.7 33.3 33.3Q33 31 32.7 28.7Q32.7 27 33.8 25.7Q34.8 24.4 35.9 24.4Q36.7 24.4 37.6 25.2Q38.4 26 38.7 27.7Z","x":0,"w":45.2},{"d":"M73.5 44Q69.6 46.3 65.1 47.5Q60.6 48.8 55.4 48.8Q55.6 52.3 57.4 54.3Q59.2 56.4 61.9 56.8Q63.5 57 65.2 56.7Q66.8 56.4 68.2 55.8Q69.7 55.1 70.9 54.3Q72.1 53.5 73 52.7Q73.9 51.9 74.9 51.6Q75.9 51.4 76.4 51.6Q77.8 52.1 77.4 54.6Q75.8 57.8 72.8 60Q69.8 62.3 66.1 62.9Q62.9 63.5 59.5 62.6Q56.1 61.7 53.4 59.1Q51.1 56.8 49.9 53.7Q48.7 50.6 48.4 47.3Q48.1 44.2 49 41.4Q49.8 38.6 51.6 36.4Q53.4 34.3 56.1 32.9Q58.8 31.5 62.4 31.3Q66.7 31 70.2 32.9Q73.7 34.8 75.1 38.2Q75.9 40.1 75.6 41.5Q75.2 42.9 73.5 44ZM62 37.2Q61 37.4 59.9 37.9Q58.7 38.4 57.8 39.1Q56.8 39.9 56.1 40.8Q55.3 41.8 55.2 43Q56.9 43 59 42.7Q61 42.4 63 42Q64.9 41.5 66.6 40.9Q68.2 40.3 69.3 39.6Q68.5 37.7 66.3 37.2Q64.2 36.8 62 37.2Z","x":45.2,"w":35.1},{"d":"M92.8 20.7Q93.3 31.6 94.5 43.2Q95.7 54.9 97.1 65.5Q97.4 69.9 94.7 70Q94.1 70 93.5 69.5Q92.9 69.1 92.4 68.4Q91.9 67.7 91.5 66.9Q91 66.1 90.9 65.5Q90.1 60.4 89.4 54.7Q88.7 49 88.2 43.2Q87.6 37.5 87.2 32Q86.8 26.5 86.7 21.9Q86.9 19.5 87.4 17.8Q87.9 16.2 89.5 16.3Q91.2 16.4 92 17.6Q92.7 18.9 92.8 20.7Z","x":80.3,"w":20.9},{"d":"M113.7 20.7Q114.2 31.6 115.4 43.2Q116.6 54.9 118 65.5Q118.3 69.9 115.6 70Q115 70 114.4 69.5Q113.8 69.1 113.3 68.4Q112.8 67.7 112.4 66.9Q111.9 66.1 111.8 65.5Q111 60.4 110.3 54.7Q109.6 49 109.1 43.2Q108.5 37.5 108.1 32Q107.7 26.5 107.6 21.9Q107.8 19.5 108.3 17.8Q108.8 16.2 110.4 16.3Q112.1 16.4 112.9 17.6Q113.6 18.9 113.7 20.7Z","x":101.2,"w":20.9},{"d":"M149.2 32.6Q152.2 33.7 154.2 35.9Q156.3 38.1 157.4 40.8Q158.5 43.6 158.7 46.5Q158.8 49.4 158 51.9Q156.9 54.7 155.2 57.4Q153.5 60.1 151.3 62.2Q149.1 64.3 146.3 65.6Q143.5 66.9 140.1 66.9Q136 66.9 133.2 65Q130.4 63.1 128.8 60.1Q127.2 57.1 126.8 53.3Q126.3 49.5 126.9 45.7Q127.3 42.9 128.3 40.2Q129.2 37.6 130.7 35.5Q132.2 33.5 134.2 32.2Q136.1 30.9 138.6 30.9Q140 30.9 142.1 31.4Q144.2 32 146 33Q147.3 31.8 149.2 32.6ZM145.4 39.9Q144.3 39.2 142.9 38Q141.4 36.9 140.3 36.9Q139.1 36.9 138 38Q136.8 39.1 136 40.5Q135.1 42 134.5 43.5Q133.9 45 133.7 45.9Q133.4 47.4 133.3 49.5Q133.2 51.6 133.6 53.6Q134 55.7 135.2 57.4Q136.3 59 138.6 59.7Q140 60.1 141.9 59.6Q143.8 59.2 145.7 58Q147.5 56.8 149.2 54.8Q150.8 52.8 151.7 50.2Q152.7 47.3 151.8 44.1Q150.8 41 147.9 39.6Q147.2 40.1 146.5 40.1Q145.8 40.1 145.4 39.9Z","x":122.1,"w":40.4}],"w":162.5,"h":100.0}};
+let _tour = -1; const TOUR_N = 5;
 function tourDue() { return !introSeen() && !(D.guide && D.guide.tour) && !D.rocks.length; }
 function tourCalOn() { const s = D.settings || {}; return !!(s.calUrl || s.calNative || s.gcal); }
+function tourHello() {
+  const g = HELLO_G[LANG === 'en' ? 'en' : LANG === 'ko' ? 'ko' : ''], word = T('안녕하세요');
+  const hw = g ? `<div class="hw" role="img" aria-label="${word}">${g.g.map((x, k) => `<svg viewBox="${x.x} 0 ${x.w} ${g.h}" style="width:${(x.w * .92).toFixed(1)}px;animation-delay:${(.5 + k * .42).toFixed(2)}s" aria-hidden="true"><path d="${x.d}"/></svg>`).join('')}</div>` : `<div class="hw txt">${word}</div>`;
+  const t0 = g ? .5 + g.g.length * .42 : 1.5;
+  return `<div class="hello">${hw}<svg class="hu" width="250" height="14" viewBox="0 0 250 14" aria-hidden="true"><path d="M3 9 C 60 2, 120 12, 247 5" style="animation-delay:${(t0 + .1).toFixed(2)}s"/></svg>
+    <p class="l1" style="animation-delay:${(t0 + .7).toFixed(2)}s">${T('AI가 챙겨주는 새로운 하루.')}</p><p class="l2" style="animation-delay:${(t0 + 1.2).toFixed(2)}s">${T('그럼, 시작해 볼까요?')}</p></div>`;
+}
 function tourHtml() {
-  const i = _tour, ln = (a, m, c) => `<div class="ln"><span>${a}</span>${m ? `<span class="m ${c || ''}">${m}</span>` : ''}</div>`;
-  const pics = [
-    () => `<div class="pl">${T('이번 주에 할 일')}</div>${ln(T('금요일까지 보고서 제출'))}${ln(T('목요일 3시 회의'))}${ln(T('건강검진 예약'))}<div class="ln dash">${T('한 줄에 하나씩')}</div>`,
-    () => `<div class="pl">${T('이렇게 놓았어요 · {n}개', { n: 3 })}</div>${ln(T('보고서 제출'), T('금요일까지'))}${ln(T('회의'), T('목요일 15:00'))}${ln(T('건강검진 예약'), T('날짜 없음'), 'no')}<div class="pst"><small>${T('AI 비서 · 목요일 아침')}</small>${T('보고서 제출이 내일까지예요.')}</div>`,
-    () => `<div class="pl">${T('오늘 할 것')}</div><div class="ln"><span class="l"><span class="bx"></span><b>A</b><span>${T('보고서 제출')}</span></span></div><div class="ln dash">${T('오늘 할 것을 골라 주세요')}</div><div class="pl" style="margin-top:auto">${T('곧 마감')}</div><div class="ln"><span>${T('회의 자료 준비')}</span><span class="pl2">${T('오늘로')}</span></div><div class="ln"><span>${T('건강검진 예약')}</span><span class="pl2">${T('오늘로')}</span></div>`,
-    () => `<div class="cn"><div class="hd"><b>${T('캘린더')}</b>${tourCalOn() ? `<span class="ok">${T('연결됨')}</span>` : `<button onclick="tourCal()">${T('연결')}</button>`}</div><div class="d">${T('오늘 일정이 플래너에 같이 보입니다.')}</div></div>
-      <div class="cn"><div class="hd"><b>${T('내 AI 비서')}</b>${agentOn() ? `<span class="ok">${T('연결됨')}</span>` : `<button onclick="tourAgent()">${T('연결')}</button>`}</div><div class="d">${T('쓰고 있는 Claude나 ChatGPT가 메일과 캘린더를 읽고, 매일 아침 챙길 일을 플래너에 적어 둡니다.')}</div></div><div class="ft">${T('메뉴에서 언제든 연결할 수 있어요.')}</div>`,
+  const i = _tour, box = `<div class="mg"><span class="chk"></span></div>`;
+  const it = (t, m, cls) => `<div class="item ${cls || ''}">${box}<div class="bd"><div class="t"><span class="tx">${t}</span></div><div class="m"><span class="mt">${m}</span></div></div></div>`;
+  const lbl = t => `<div class="lbl"><span>${t}</span></div>`;
+  const sr = (b, t, cls) => `<div class="row ruled sr ${cls || ''}"><span class="tag" style="font-size:10px;height:18px;line-height:16px">${b}</span><span class="nm">${t}</span><span class="pill">${T('오늘로')}</span></div>`;
+  const cn = (name, on, fn, d, k) => `<div class="sticky guide wide" style="animation-delay:${.15 + k * .25}s"><div class="who">${name}</div><div class="tx">${d}</div><div class="act">${on ? `<span class="ok">${T('연결됨')}</span>` : `<button onclick="${fn}()">${T('연결')}</button>`}</div></div>`;
+  const pics = [null,
+    () => `<div class="tsh" aria-hidden="true">${lbl(T('이번 주에 할 일'))}${[T('금요일까지 보고서 제출'), T('목요일 3시 회의'), T('건강검진 예약')].map((t, k) => `<div class="wl" style="animation-delay:${(.35 + k * .6).toFixed(2)}s">${t}</div>`).join('')}<div class="wl h" style="animation-delay:2.2s">${T('한 줄에 하나씩')}</div></div>`,
+    () => `<div class="tsh" aria-hidden="true">${lbl(T('이렇게 놓았어요 · {n}개', { n: 3 }))}${it(T('보고서 제출'), T('금요일까지'))}${it(T('회의'), T('목요일 15:00'))}${it(T('건강검진 예약'), T('날짜 없음'))}<div class="sticky wide" style="animation-delay:.9s"><div class="who"><span>${T('AI 비서 · 목요일 아침')}</span></div><div class="tx">${T('보고서 제출이 내일까지예요.')}</div></div></div>`,
+    () => `<div class="tsh" aria-hidden="true">${lbl(T('오늘 할 것'))}${it(T('보고서 제출'), `<b class="bk">A</b> · ${T('금요일까지')}`)}${it(T('회의 자료 준비'), `<b class="bk">B</b> · ${T('목요일 15:00')}`, 'new')}<div class="gap"></div>${lbl(T('곧 마감'))}${sr('B', T('회의 자료 준비'), 'go')}${sr('C', T('건강검진 예약'))}</div>`,
+    () => `<div class="tsh cn">${cn(T('캘린더'), tourCalOn(), 'tourCal', T('오늘 일정이 플래너에 같이 보입니다.'), 0)}${cn(T('내 AI 비서'), agentOn(), 'tourAgent', T('쓰고 있는 Claude나 ChatGPT가 메일과 캘린더를 읽고, 매일 아침 챙길 일을 플래너에 적어 둡니다.'), 1)}<div class="ft">${T('메뉴에서 언제든 연결할 수 있어요.')}</div></div>`,
   ];
-  const txt = [
+  const txt = [null,
     [T('이번 주 할 일을{br}생각나는 대로 적으세요', { br: '<br>' }), T('순서도 날짜도 정리하지 않아도 됩니다.')],
     [T('날짜는 AI 비서가 읽고{br}마감 전에 알려 드려요', { br: '<br>' }), T('적어 둔 일은 포스트잇과 알림으로 다시 옵니다.')],
     [T('오늘 할 일은{br}내가 고릅니다', { br: '<br>' }), T('「오늘로」를 누르면 오늘 칸에 놓입니다.')],
     [T('연결해 두면{br}일정과 메일까지 챙깁니다', { br: '<br>' }), T('지금 안 해도 됩니다.')],
   ];
-  const last = i === pics.length - 1;
-  return `<div class="in"><div class="pic" aria-hidden="${last ? 'false' : 'true'}">${pics[i]()}</div><div><h2>${txt[i][0]}</h2><p>${txt[i][1]}</p></div>
-    <div class="dots" role="img" aria-label="${T('{n}장 중 {i}장', { n: pics.length, i: i + 1 })}">${pics.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
-    <div class="nav">${last ? '' : `<button class="sk" onclick="tourEnd()">${T('건너뛰기')}</button>`}<button class="nx" onclick="tourGo()">${last ? T('시작하기') : T('다음')}</button></div></div>`;
+  const last = i === TOUR_N - 1, nav = `<div class="nav">${last ? '' : `<button class="sk" onclick="tourEnd()">${T('건너뛰기')}</button>`}<button class="nx" onclick="tourGo()">${last ? T('플래너 열기') : i ? T('다음') : T('시작하기')}</button></div>`;
+  if (!i) return `<div class="in">${tourHello()}${nav}</div>`;
+  return `<div class="in turn">${pics[i]()}<div><h2>${txt[i][0]}</h2><p>${txt[i][1]}</p></div>
+    <div class="dots" role="img" aria-label="${T('{n}장 중 {i}장', { n: TOUR_N - 1, i })}">${pics.slice(1).map((_, k) => `<i class="${k + 1 === i ? 'on' : ''}"></i>`).join('')}</div>${nav}</div>`;
 }
-function tourDraw() { let el = document.getElementById('tour'); if (!el) { el = document.createElement('div'); el.id = 'tour'; el.className = 'tour'; document.body.appendChild(el); } el.innerHTML = tourHtml(); el.scrollTop = 0; }
+function tourDraw() { let el = document.getElementById('tour'); if (!el) { el = document.createElement('div'); el.id = 'tour'; document.body.appendChild(el); } el.className = 'tour' + (_tour ? '' : ' hi'); el.innerHTML = tourHtml(); el.scrollTop = 0; }
 function tourOpen() { _tour = 0; tourDraw(); }
-function tourGo() { if (_tour >= 3) return tourEnd(); _tour++; tourDraw(); }
+function tourGo() { if (_tour >= TOUR_N - 1) return tourEnd(); _tour++; tourDraw(); }
 function tourEnd(then) { D.guide = D.guide || { done: {}, off: {} }; D.guide.tour = 1; _save0(); _tour = -1; const el = document.getElementById('tour'); if (el) el.remove(); if (then) then(); }
-async function tourCal() { if (isNative()) { await setCalNative(true); if (_tour === 3) tourDraw(); } else tourEnd(() => { go('more'); openSec('cal'); }); } // 앱에서는 그 자리에서 권한만 묻고, 웹에서는 캘린더 메뉴로 간다
+async function tourCal() { if (isNative()) { await setCalNative(true); if (_tour === TOUR_N - 1) tourDraw(); } else tourEnd(() => { go('more'); openSec('cal'); }); } // 앱에서는 그 자리에서 권한만 묻고, 웹에서는 캘린더 메뉴로 간다
 function tourAgent() { tourEnd(() => { go('more'); openSec('conn'); }); }
 // 처음 쏟아 적은 직후 한 번: 「오늘 할 것」 한 곳만 짚는다
 function coachShow() {

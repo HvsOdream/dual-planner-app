@@ -897,7 +897,6 @@ window.DP_DICT = {
   "목요일 15:00": "Thu 15:00",
   "AI 비서 · 목요일 아침": "AI assistant · Thursday morning",
   "보고서 제출이 내일까지예요.": "The report is due tomorrow.",
-  "오늘 할 것을 골라 주세요": "Pick what to do today",
   "회의 자료 준비": "Prepare meeting notes",
   "오늘 일정이 플래너에 같이 보입니다.": "Today's events show up in your planner.",
   "쓰고 있는 Claude나 ChatGPT가 메일과 캘린더를 읽고, 매일 아침 챙길 일을 플래너에 적어 둡니다.": "The Claude or ChatGPT you already use reads your mail and calendar, and notes what needs attention in your planner every morning.",
@@ -919,4 +918,8 @@ window.DP_DICT = {
   "이미 적혀 있어요": "Already on your list",
   "이미 적혀 있는 일이에요": "Already on your list",
   "{n}개를 놓았어요. 이미 적혀 있던 {k}개는 그대로 뒀어요": "Placed {n}. Left {k} that were already on your list.",
+  "안녕하세요": "Hello",
+  "AI가 챙겨주는 새로운 하루.": "A new day, looked after by AI.",
+  "그럼, 시작해 볼까요?": "Shall we begin?",
+  "플래너 열기": "Open my planner",
 };
