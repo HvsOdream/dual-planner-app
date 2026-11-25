@@ -760,7 +760,8 @@ async function photo(req, env, token, ds) {
 // 지금까지는 주소에 열쇠를 넣었다(/u/:token/mcp). 주소가 새면 플래너가 열리고, Claude 커넥터 목록 등재도 안 된다.
 // 여기서는 모두 같은 주소(/mcp)를 쓰고, Claude가 처음 연결할 때 이 서버의 연결 창을 띄운다. 예전 주소는 그대로 동작한다.
 //   Claude → POST /mcp (토큰 없음) → 401 + 메타데이터 위치 → /oauth/register(DCR) → /oauth/authorize(연결 창) → /oauth/token → Bearer 토큰으로 /mcp
-// 1단계(지금): 연결 창에 앱의 「연결 주소 복사」 내용을 한 번 붙여 넣는다(앱은 그대로). 2단계: 앱에서 「허용」 한 번으로.
+// 연결 창은 듀얼플래너 앱이다: /oauth/authorize가 요청을 적어 두고(rq:<rid>) 앱(APP_URL/?connect=rid)으로 보내면, 앱이 「허용」을 받아
+// /oauth/approve에 자기 플래너 열쇠와 함께 알린다. 앱을 못 쓰는 경우를 위해 연결 주소를 붙여 넣는 창(/oauth/link)도 남겨 둔다.
 // Claude 문서 기준: 401이어야 로그인이 시작되고, resource는 사용자가 넣는 주소와 같아야 하며, PKCE S256, 토큰 끝점은 form-urlencoded,
 // 공개 클라이언트(none), refresh 토큰은 쓸 때마다 바꾼다. 콜백은 https://claude.ai/api/mcp/auth_callback, Claude Code는 loopback.
 const OA_ACCESS_TTL = 7 * 86400, OA_REFRESH_TTL = 180 * 86400, OA_CODE_TTL = 300;
@@ -771,7 +772,11 @@ const oaEsc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '
 const oaJson = (o, st, extra) => json(o, st || 200, Object.assign({ 'cache-control': 'no-store' }, extra || {}));
 const oaErr = (error, desc, st) => oaJson({ error, error_description: desc }, st || 400);
 function oaLoopback(u) { try { const x = new URL(u); return x.protocol === 'http:' && (x.hostname === 'localhost' || x.hostname === '127.0.0.1' || x.hostname === '[::1]'); } catch { return false; } }
-function oaOkRedirect(u) { try { const x = new URL(u); return (x.protocol === 'https:' || oaLoopback(u)) && !x.hash; } catch { return false; } }
+// 돌아갈 주소는 아는 비서만: 아무 주소나 등록할 수 있으면 "허용만 눌러 주세요" 식으로 남의 플래너 열쇠를 낚을 수 있다
+const OA_HOSTS = ['claude.ai', 'claude.com'];
+function oaOkRedirect(u, env) { try { const x = new URL(u); if (x.hash) return false; if (oaLoopback(u)) return true;
+  const more = String((env && env.OAUTH_REDIRECT_HOSTS) || '').split(',').map(t => t.trim()).filter(Boolean);
+  return x.protocol === 'https:' && [...OA_HOSTS, ...more].includes(x.hostname); } catch { return false; } }
 function oaRedirectMatches(list, u) { // 등록된 주소와 글자 그대로. loopback(Claude Code)만 포트를 빼고 맞춘다
   if (!Array.isArray(list)) return false;
   if (list.includes(u)) return true;
@@ -792,15 +797,14 @@ function oaWellKnown(req, path) {
 async function oaRegister(req, env) {
   let b; try { b = await req.json(); } catch { return oaErr('invalid_client_metadata', 'not json'); }
   const uris = Array.isArray(b.redirect_uris) ? b.redirect_uris.map(String).slice(0, 10) : [];
-  if (!uris.length || !uris.every(oaOkRedirect)) return oaErr('invalid_redirect_uri', 'redirect_uris must be https or loopback');
+  if (!uris.length || !uris.every(u => oaOkRedirect(u, env))) return oaErr('invalid_redirect_uri', 'redirect_uris must be a known assistant callback or loopback');
   const client = { client_id: oaRnd('dpcl_').slice(0, 45), client_name: String(b.client_name || '').slice(0, 80), redirect_uris: uris,
     grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'], token_endpoint_auth_method: 'none', client_id_issued_at: Math.floor(Date.now() / 1000) };
   await oaStore(env, { op: 'put', k: 'cl:' + client.client_id, v: client, ttl: 400 * 86400 });
   return oaJson(client, 201);
 }
-function oaLinkPage(q, client, msg) {
-  let host = ''; try { host = new URL(q.redirect_uri).host; } catch {}
-  const hidden = ['response_type', 'client_id', 'redirect_uri', 'state', 'code_challenge', 'code_challenge_method', 'scope', 'resource'].map(k => `<input type="hidden" name="${k}" value="${oaEsc(q[k] || '')}">`).join('');
+function oaLinkPage(rid, rq, msg) {
+  let host = ''; try { host = new URL(rq.redirect_uri).host; } catch {}
   return new Response(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>듀얼플래너 — 비서 연결</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#F3F1EA;color:#1D2330;font:15px/1.6 -apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px}
 main{width:100%;max-width:420px;background:#fff;border:1px solid #E2DED2;border-radius:16px;padding:28px 26px}h1{font-size:20px;margin:0 0 6px}p{margin:0 0 14px;color:#4A5160;font-size:14px}
@@ -808,41 +812,74 @@ main{width:100%;max-width:420px;background:#fff;border:1px solid #E2DED2;border-
 label{display:block;font-size:13px;color:#5F6670;margin:10px 0 4px}input[type=text]{width:100%;font:inherit;padding:10px 12px;border:1px solid #D5D9DF;border-radius:10px}
 button{width:100%;margin-top:18px;font:inherit;font-weight:600;padding:11px;border:0;border-radius:10px;background:#1F2A44;color:#fff;cursor:pointer}
 .err{background:#FDECEC;border:1px solid #F3B9B9;color:#8A1C1C;border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:12px}small{display:block;margin-top:14px;color:#6B727C;font-size:12px;line-height:1.6}</style></head>
-<body><main><h1>듀얼플래너 — 비서 연결</h1>
-<div class="app"><b>${oaEsc(client.client_name || 'AI 비서')}</b>가 내 플래너를 읽고 할 일·메모를 적을 수 있게 됩니다.<br>돌아갈 곳: <b>${oaEsc(host)}</b></div>
+<body><main><h1>듀얼플래너 — 연결 주소로 연결</h1>
+<div class="app"><b>${oaEsc(rq.client_name || 'AI 비서')}</b>가 내 플래너를 읽고 할 일·메모를 적을 수 있게 됩니다.<br>돌아갈 곳: <b>${oaEsc(host)}</b></div>
 ${msg ? `<div class="err">${oaEsc(msg)}</div>` : ''}
-<ol><li>듀얼플래너 앱 › ≡ › <b>비서 연결</b></li><li><b>「연결 주소 복사」</b>를 누릅니다</li><li>아래 칸에 붙여 넣고 연결</li></ol>
-<form method="post" action="/oauth/authorize">${hidden}
+<p>앱에서 「허용」을 누를 수 없을 때 쓰는 방법이에요. 전에 비서에 넣어 둔 연결 주소(…/u/…/mcp)를 붙여 넣으세요.</p>
+<form method="post" action="/oauth/link"><input type="hidden" name="rid" value="${oaEsc(rid)}">
 <label for="l">연결 주소</label><input id="l" type="text" name="link" autocomplete="off" autocapitalize="off" spellcheck="false" required autofocus placeholder="https://…/u/…/mcp">
 <button type="submit">연결</button></form>
-<small>붙여 넣은 주소는 내 플래너를 확인하는 데만 쓰고, 비서에는 언제든 끊을 수 있는 연결 열쇠만 건넵니다. 연결을 끊으려면 비서 쪽 커넥터 목록에서 지우면 됩니다.</small></main></body></html>`,
+<small>붙여 넣은 주소는 내 플래너를 확인하는 데만 쓰고, 비서에는 언제든 끊을 수 있는 연결 열쇠만 건넵니다.</small></main></body></html>`,
     { status: msg ? 400 : 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-frame-options': 'DENY', 'referrer-policy': 'no-referrer' } });
 }
 const oaPlain = (t, st) => new Response(`<!doctype html><meta charset="utf-8"><title>듀얼플래너</title><body style="font:15px/1.6 sans-serif;padding:40px;max-width:520px;margin:auto"><h3>연결할 수 없어요</h3><p>${oaEsc(t)}</p>`, { status: st || 400, headers: { 'content-type': 'text/html; charset=utf-8' } });
+const oaAppUrl = env => String(env.APP_URL || 'https://app.contenthibi.com').replace(/\/+$/, '');
+const oaBackUrl = (rq, params) => { const u = new URL(rq.redirect_uri); Object.entries(params).forEach(([k, v]) => { if (v != null && v !== '') u.searchParams.set(k, v); }); return u.toString(); };
+const oa302 = to => new Response(null, { status: 302, headers: { location: to, 'cache-control': 'no-store' } });
+// 비서가 보낸 연결 요청을 확인해 적어 두고, 「허용」을 받으러 앱으로 보낸다
 async function oaAuthorize(req, env) {
-  const url = new URL(req.url);
-  let q = Object.fromEntries(url.searchParams), form = null;
-  if (req.method === 'POST') { form = Object.fromEntries((await req.formData()).entries()); q = form; }
+  const q = Object.fromEntries(new URL(req.url).searchParams);
   // 클라이언트와 돌아갈 주소가 확인되기 전에는 그 주소로 보내지 않는다
   const client = (await oaStore(env, { op: 'get', k: 'cl:' + String(q.client_id || '') })).v;
   if (!client) return oaPlain('알 수 없는 앱이에요. 비서에서 커넥터를 지우고 다시 추가해 주세요.');
-  if (!oaRedirectMatches(client.redirect_uris, String(q.redirect_uri || ''))) return oaPlain('돌아갈 주소가 등록된 것과 달라요.');
-  const back = params => { const u = new URL(q.redirect_uri); Object.entries(params).forEach(([k, v]) => { if (v != null && v !== '') u.searchParams.set(k, v); }); return new Response(null, { status: 302, headers: { location: u.toString(), 'cache-control': 'no-store' } }); };
-  if (q.response_type !== 'code') return back({ error: 'unsupported_response_type', state: q.state });
-  if (!q.code_challenge || (q.code_challenge_method || 'plain') !== 'S256') return back({ error: 'invalid_request', error_description: 'PKCE S256 required', state: q.state });
-  if (!form) return oaLinkPage(q, client);
+  if (!oaRedirectMatches(client.redirect_uris, String(q.redirect_uri || '')) || !oaOkRedirect(q.redirect_uri, env)) return oaPlain('돌아갈 주소가 등록된 것과 달라요.');
+  const rq = { client_id: client.client_id, client_name: client.client_name, redirect_uri: q.redirect_uri, state: q.state || '', cc: q.code_challenge || '' };
+  if (q.response_type !== 'code') return oa302(oaBackUrl(rq, { error: 'unsupported_response_type', state: rq.state }));
+  if (!rq.cc || (q.code_challenge_method || 'plain') !== 'S256') return oa302(oaBackUrl(rq, { error: 'invalid_request', error_description: 'PKCE S256 required', state: rq.state }));
+  const rid = oaRnd('dpq_');
+  await oaStore(env, { op: 'put', k: 'rq:' + rid, v: rq, ttl: 900 });
+  return oa302(oaAppUrl(env) + '/?connect=' + rid);
+}
+// 플래너가 확인되면 인가 코드를 만들어 비서에게 돌아갈 주소를 준다(요청은 한 번만 쓸 수 있다)
+async function oaGrant(env, rid, rq, pt) {
+  await oaStore(env, { op: 'del', k: 'rq:' + rid });
+  const code = oaRnd('dpc_');
+  await oaStore(env, { op: 'put', k: 'cd:' + code, v: { pt, client_id: rq.client_id, redirect_uri: rq.redirect_uri, cc: rq.cc }, ttl: OA_CODE_TTL });
+  return oaBackUrl(rq, { code, state: rq.state });
+}
+// 앱이 부른다: GET /oauth/request?rid= (누가 연결하려는지), POST /oauth/approve {rid, token} 또는 {rid, deny:true}
+async function oaRequest(req, env) {
+  const rid = new URL(req.url).searchParams.get('rid') || '', rq = (await oaStore(env, { op: 'get', k: 'rq:' + rid })).v;
+  if (!rq) return oaErr('expired', 'request is missing or expired', 404);
+  let host = ''; try { host = new URL(rq.redirect_uri).host; } catch {}
+  return oaJson({ ok: true, client_name: rq.client_name || '', host });
+}
+async function oaApprove(req, env) {
+  let b; try { b = await req.json(); } catch { return oaErr('invalid_request', 'not json'); }
+  const rid = String(b.rid || ''), rq = (await oaStore(env, { op: 'get', k: 'rq:' + rid })).v;
+  if (!rq) return oaErr('expired', 'request is missing or expired', 404);
+  if (b.deny) { await oaStore(env, { op: 'del', k: 'rq:' + rid }); return oaJson({ ok: true, redirect: oaBackUrl(rq, { error: 'access_denied', state: rq.state }) }); }
+  const pt = String(b.token || '');
+  if (!TOKEN_RE.test(pt) || !(await env.PLANNER.get('u:' + pt))) return oaErr('unknown_planner', 'planner not found', 404);
+  return oaJson({ ok: true, redirect: await oaGrant(env, rid, rq, pt) });
+}
+// 앱에서 허용할 수 없을 때: 연결 주소를 붙여 넣는 창
+async function oaLink(req, env) {
+  let rid, form = null;
+  if (req.method === 'POST') { form = Object.fromEntries((await req.formData()).entries()); rid = String(form.rid || ''); } else rid = new URL(req.url).searchParams.get('rid') || '';
+  const rq = (await oaStore(env, { op: 'get', k: 'rq:' + rid })).v;
+  if (!rq) return oaPlain('연결 요청이 끝났어요. 비서에서 「연결」을 다시 눌러 주세요.');
+  if (!form) return oaLinkPage(rid, rq);
   const ip = req.headers.get('cf-connecting-ip') || 'x';
   const fails = (await oaStore(env, { op: 'get', k: 'fail:' + ip })).v || 0;
-  if (fails >= 10) return oaLinkPage(q, client, '여러 번 틀렸어요. 10분 뒤에 다시 해 주세요.');
+  if (fails >= 10) return oaLinkPage(rid, rq, '여러 번 틀렸어요. 10분 뒤에 다시 해 주세요.');
   const raw = String(form.link || '').trim(), m = raw.match(/\/u\/([A-Za-z0-9_-]{16,64})\/mcp/);
   const pt = m ? m[1] : (TOKEN_RE.test(raw) ? raw : '');
   if (!pt || !(await env.PLANNER.get('u:' + pt))) {
     await oaStore(env, { op: 'put', k: 'fail:' + ip, v: fails + 1, ttl: 600 });
-    return oaLinkPage(q, client, '이 주소의 플래너를 찾지 못했어요. 앱의 「연결 주소 복사」로 복사한 것을 그대로 붙여 넣어 주세요.');
+    return oaLinkPage(rid, rq, '이 주소의 플래너를 찾지 못했어요. 연결 주소를 그대로 붙여 넣어 주세요.');
   }
-  const code = oaRnd('dpc_');
-  await oaStore(env, { op: 'put', k: 'cd:' + code, v: { pt, client_id: client.client_id, redirect_uri: q.redirect_uri, cc: q.code_challenge }, ttl: OA_CODE_TTL });
-  return back({ code, state: q.state });
+  return oa302(await oaGrant(env, rid, rq, pt));
 }
 async function oaIssue(env, pt, client_id) {
   const at = oaRnd('dpa_'), rt = oaRnd('dpr_');
@@ -922,7 +959,10 @@ export default {
           if (op === '/mcp') return await mcpOAuth(req, env);
           if (op.startsWith('/.well-known/')) return oaWellKnown(req, op);
           if (op === '/oauth/register' && req.method === 'POST') return await oaRegister(req, env);
-          if (op === '/oauth/authorize' && (req.method === 'GET' || req.method === 'POST')) return await oaAuthorize(req, env);
+          if (op === '/oauth/authorize' && req.method === 'GET') return await oaAuthorize(req, env);
+          if (op === '/oauth/request' && req.method === 'GET') return await oaRequest(req, env);
+          if (op === '/oauth/approve' && req.method === 'POST') return await oaApprove(req, env);
+          if (op === '/oauth/link' && (req.method === 'GET' || req.method === 'POST')) return await oaLink(req, env);
           if (op === '/oauth/token' && req.method === 'POST') return await oaToken(req, env);
           return oaErr('not_found', 'not found', 404);
         } catch (e) { return oaErr('server_error', String(e && e.message || e), 500); }

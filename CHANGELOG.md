@@ -3,6 +3,13 @@
 버전은 루트 `VERSION` 한 곳에서 올린다. iOS 빌드 번호는 GitHub Actions 실행 번호라 자동으로 올라간다.
 빌드 전 규칙: `VERSION` 올리고 → 아래에 한 줄 적고 → Actions에서 iOS TestFlight 실행.
 
+## 0.7.100 — 2026-11-25 (비서 연결: 주소 복사 대신 「허용」)
+- 비서 연결을 로그인 방식(OAuth)으로. 모두 같은 주소 `…/mcp`를 비서(Claude 등)의 커넥터에 넣고 「연결」을 누르면 이 앱이 열리고, 「허용」 한 번으로 끝. 열쇠가 든 주소(`/u/…/mcp`)를 복사해 옮기던 것을 없앰(예전 주소로 연결해 둔 커넥터는 그대로 동작)
+- 앱: `?connect=<요청>`으로 열리면 「○○가 내 플래너를 읽고 할 일·메모를 적도록 허용할까요?」를 묻는다. 로그인 안 한 브라우저면 로그인을 먼저 권하고(빈 플래너에 잘못 연결되지 않게), 내용이 있는 플래너면 「로그인 없이 이 기기의 플래너에 연결」도 고를 수 있다. 취소하면 비서에 거절로 돌아간다
+- ≡ › 비서 연결: 안내 3줄을 새 순서로, 「연결 주소 복사」는 공용 주소를 복사하고(웹에서는 Claude의 플러그인 화면도 연다)
+- 서버: `/mcp` + `/.well-known/oauth-*`·`/oauth/register`(DCR)·`/oauth/authorize`(요청을 적고 앱으로 보냄)·`/oauth/request`·`/oauth/approve`·`/oauth/token`(PKCE S256, refresh 토큰 회전)·`/oauth/link`(앱에서 허용할 수 없을 때 연결 주소 붙여넣기). 돌아갈 주소는 claude.ai·claude.com·loopback만 등록 가능(`OAUTH_REDIRECT_HOSTS`로 추가). 저장은 Durable Object `OAuthStore`
+- 번역 3종(영어·간체·번체)에 새 문구 11개
+
 ## 0.7.99 — 2026-11-25 (안드로이드 껍데기 준비)
 - Capacitor 안드로이드 추가. iOS와 같이 `android/` 폴더는 저장소에 두지 않고 `app/scripts/prepare-android.sh`가 만든다(앱 이름·권한·아이콘·dualplanner:// 주소)
 - 앱 전용 플러그인 안드로이드판(`app/native/android/DualNativePlugin.java`): 기기 캘린더 읽기·일정 넣기, 다른 앱 열기. 위젯·공유로 받아 적기는 아직 없고(부르면 받기만 함), Apple·Google 로그인은 서명 키가 정해진 뒤에 붙인다

@@ -687,8 +687,8 @@ body.spread .cover .half:first-child .streak { margin-right: 20px; }
         <div class="lbl" style="padding-left:0" data-t>상태</div>
         <div id="connBox" style="font-size:14px;line-height:1.8;margin:2px 0 4px"></div>
         <div class="lbl" style="padding-left:0;margin-top:10px" data-t>연결하기</div>
-        <div class="subst" style="font-size:13px;line-height:1.7;margin:2px 0 10px"><span data-t>1. 아래 주소를 복사해요</span><br><span data-t>2. 쓰는 비서(Claude 등)의 커넥터 설정에 붙여 넣어요</span><br><span data-t>3. 비서에게 플래너를 읽어 달라고 하면 연결돼요</span></div>
-        <button class="cta" style="margin-left:0;width:100%;height:40px" onclick="copyText(mcpUrl(),T('연결 주소 복사됨'));pushState()" data-t>연결 주소 복사</button>
+        <div class="subst" style="font-size:13px;line-height:1.7;margin:2px 0 10px"><span data-t>1. 아래 버튼으로 연결 주소를 복사해요</span><br><span data-t>2. 쓰는 비서(Claude 등)의 커넥터 추가에 붙여 넣고 연결을 눌러요</span><br><span data-t>3. 이 플래너가 열리면 「허용」을 눌러요</span></div>
+        <button class="cta" style="margin-left:0;width:100%;height:40px" onclick="connectStart()" data-t>연결 주소 복사</button>
       </div>
     </div>
   </div></section>
@@ -983,7 +983,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.99'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.100'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), digest: T('매일 아침 정리 시작하기'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -3108,7 +3108,7 @@ function finishRefill() {
 // ── 비서 연결: Worker API 동기화 ──
 function baseUrl() { return (D.api || '').trim().replace(/\/+$/, ''); }
 function stateUrl() { return baseUrl() + '/u/' + D.token + '/state'; }
-function mcpUrl() { return baseUrl() ? baseUrl() + '/u/' + D.token + '/mcp' : T('(API 주소를 먼저 넣어 주세요)'); }
+function mcpUrl() { return baseUrl() ? baseUrl() + '/mcp' : T('(API 주소를 먼저 넣어 주세요)'); } // 모두 같은 주소(로그인 방식, 2026-11-25). 열쇠가 든 예전 주소(/u/…/mcp)는 화면에 내지 않는다
 function mergeState(a, b) {
   const em = () => ({ roles: [], rocks: [], days: {}, reviews: {}, seen: {}, vols: [], memos: [], plans: [], settings: {}, _modified: '' });
   a = Object.assign(em(), a || {}); b = Object.assign(em(), b || {}); const out = em();
@@ -3273,8 +3273,49 @@ async function authWith(p, body) {
     const m = await fetch(stateUrl(), { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(local) });
     if (m.ok) applyState(await m.json());
     markStarted(); closeLogin(); ensureVol(); render(); toast(T('로그인했어요'));
+    if (connectRid()) connectCheck(); // 비서 연결을 하다가 로그인한 경우: 이어서 「허용」을 묻는다
   } catch(e) { const m = (e && (e.reason || e.error || e.message)) || ''; toast(T('로그인 실패') + (m ? ' · ' + String(m).slice(0, 60) : '')); }
 }
+
+// ── 비서 연결 허용 (로그인 방식, 2026-11-25) ──
+// 비서(Claude 등)에서 「연결」을 누르면 서버가 이 앱을 ?connect=<요청 번호>로 연다. 여기서 「허용」을 누르면
+// 서버에 내 플래너 열쇠와 함께 알리고, 서버가 준 주소(비서 쪽)로 돌아간다. 주소를 복사해 옮기던 것을 대신한다.
+let connectReq = null; // { rid, name, host }
+function connectRid() { try { const q = new URLSearchParams(location.search).get('connect');
+    if (q && /^dpq_[0-9a-f]{20,80}$/.test(q)) { sessionStorage.setItem('dpa_connect', q); history.replaceState(null, '', location.pathname); }
+    return sessionStorage.getItem('dpa_connect') || ''; } catch(e) { return ''; } }
+function connectClear() { connectReq = null; try { sessionStorage.removeItem('dpa_connect'); } catch(e) {} const el = document.getElementById('connectAsk'); if (el) el.remove(); }
+function connectStart() { copyText(mcpUrl(), T('연결 주소 복사됨')); pushState(); if (!isNative()) { try { window.open('https://claude.ai/plugins', '_blank', 'noopener'); } catch(e) {} } }
+function plannerBlank() { return !(D.rocks || []).some(r => r && !r._deleted) && !(D.memos || []).some(m => m && !m._deleted) && !(D.plans || []).some(p => p && !p._deleted); } // 날짜 칸은 앱이 열릴 때 저절로 생기므로 보지 않는다
+async function connectCheck() { const rid = connectRid(); if (!rid) return;
+  try { const r = await fetch(baseUrl() + '/oauth/request?rid=' + rid); if (!r.ok) throw 0; const j = await r.json();
+    connectReq = { rid, name: j.client_name || T('비서'), host: j.host || '' }; await loadAuthConf(); connectShow(); }
+  catch(e) { connectClear(); toast(T('연결 요청이 끝났어요. 비서에서 다시 연결을 눌러 주세요')); } }
+function connectShow() { if (!connectReq) return; let el = document.getElementById('connectAsk');
+  if (!el) { el = document.createElement('div'); el.id = 'connectAsk'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+    el.style.cssText = 'position:fixed;inset:0;z-index:105;background:rgba(20,26,40,.55);display:flex;align-items:center;justify-content:center;padding:20px'; document.body.appendChild(el); }
+  const needLogin = !D.account && hasProviders() && !isNative(), blank = plannerBlank();
+  const btn = 'height:44px;border-radius:10px;font-size:15px;font-weight:600;width:100%;margin-top:8px;';
+  el.innerHTML = `<div style="width:100%;max-width:360px;background:var(--paper);color:var(--ink);border-radius:16px;padding:22px 20px;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="font-size:17px;font-weight:700;margin-bottom:8px">${T('비서 연결')}</div>
+    <div style="font-size:14px;line-height:1.7">${esc(T('{a}가 내 플래너를 읽고 할 일·메모를 적도록 허용할까요?', { a: connectReq.name }))}</div>
+    <div style="font-size:12px;color:var(--muted);margin:6px 0 12px">${esc(T('돌아갈 곳: {a}', { a: connectReq.host }))}</div>
+    ${needLogin ? `<div style="font-size:13px;line-height:1.6;color:var(--ink-2);margin-bottom:4px">${T('로그인하면 내 플래너에 연결돼요')}</div>
+      <button style="${btn}background:var(--ink);color:var(--paper)" onclick="connectLogin()">${T('로그인')}</button>
+      ${blank ? '' : `<button style="${btn}border:1px solid var(--faint)" onclick="connectAllow()">${T('로그인 없이 이 기기의 플래너에 연결')}</button>`}`
+      : `<button style="${btn}background:var(--ink);color:var(--paper)" onclick="connectAllow()">${T('허용')}</button>`}
+    <button style="${btn}color:var(--muted)" onclick="connectDeny()">${T('취소')}</button>
+    <div style="font-size:12px;margin-top:10px;text-align:center"><a href="${esc(baseUrl() + '/oauth/link?rid=' + connectReq.rid)}" style="color:var(--muted);text-decoration:underline">${T('다른 플래너에 연결하려면 연결 주소로')}</a></div>
+  </div>`; }
+function connectLogin() { const el = document.getElementById('connectAsk'); if (el) el.remove(); openLogin(); }
+async function connectAllow() { if (!connectReq) return;
+  try { await pushState(); // 서버에 이 플래너가 있어야 연결된다
+    const r = await fetch(baseUrl() + '/oauth/approve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rid: connectReq.rid, token: D.token }) });
+    const j = await r.json(); if (!r.ok || !j.redirect) throw j; connectClear(); location.href = j.redirect; }
+  catch(e) { toast(T('연결하지 못했어요. 비서에서 다시 연결을 눌러 주세요')); } }
+async function connectDeny() { if (!connectReq) return; const rid = connectReq.rid; connectClear();
+  try { const r = await fetch(baseUrl() + '/oauth/approve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rid, deny: true }) });
+    const j = await r.json(); if (j.redirect) location.href = j.redirect; } catch(e) {} }
 function resetLocal() {
   try { localStorage.removeItem(KEY); } catch(e) {}
   D = empty(); D.token = newToken(); D.api = DEFAULT_API; _sig = sigOf(); save(); ensureVol(); closeMore(); render();
@@ -3309,6 +3350,7 @@ notifCatchUp();
 showIntro();
 if (tourDue()) tourOpen();
 setTimeout(() => { loadCal(false); takePending(); scheduleNotifs(); }, 400);
+connectCheck(); // 비서에서 「연결」을 눌러 온 경우(?connect=…)
 loadAuthConf().then(() => { if (!D.account && !D.skipLogin && hasProviders() && !isAndroid()) setTimeout(openLogin, 950); }); // 안드로이드 앱은 로그인을 아직 붙이지 않아 처음에 묻지 않는다
 pullState(false).then(() => { ensureVol(); render(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { edgeCheck(); edgeSoon(); notifCatchUp(); pullState(false); loadCal(false); takePending(); rescheduleSoon(); } });
