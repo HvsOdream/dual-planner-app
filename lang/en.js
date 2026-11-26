@@ -118,7 +118,6 @@ window.DP_DICT = {
   "곧 마감": "Due soon",
   "할 일 ›": "To-do ›",
   "끝냄": "Done",
-  "가져올 것": "Coming up",
   "날 잡기": "Pick a day",
   "일기 ✓": "Journal ✓",
   "사진 ✓": "Photo ✓",
@@ -937,4 +936,6 @@ window.DP_DICT = {
   "외 {n}": "+{n} more",
   "사흘 안에 마감 {n}개": "{n} due within 3 days",
   "A로 올리기": "Move to A",
+  "더 가져올 것": "More to bring in",
+  "{n}개 더 보기": "{n} more",
 };

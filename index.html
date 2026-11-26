@@ -184,7 +184,7 @@ a { color: inherit; }
 .feats { margin: 12px 0 4px; border-top: 1px solid var(--rule); }
 .dd { color: var(--check); font-weight: 800; margin-left: 2px; }
 .rq { font-size: 18px; font-weight: 800; margin: 6px 0 4px; } .rh { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
-.qb { display: flex; align-items: center; gap: 6px; padding: 2px 0 8px 12px; } .qb button { min-width: 34px; height: 26px; border: 1.5px solid var(--rule); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--ink-2); } .qb button.on { background: var(--ink); border-color: var(--ink); color: var(--paper); } .qb span { margin-left: 4px; font-size: 12px; color: var(--muted); }
+.qb { display: flex; align-items: center; gap: 6px; padding: 2px 0 8px 12px; } #today .item:not(.qbo) > .bd > .qb { display: none; } .qb button { min-width: 34px; height: 26px; border: 1.5px solid var(--rule); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--ink-2); } .qb button.on { background: var(--ink); border-color: var(--ink); color: var(--paper); } .qb span { margin-left: 4px; font-size: 12px; color: var(--muted); }
 .notebar { display: flex; align-items: center; justify-content: space-between; width: calc(100% - 56px); margin: 0 4px 8px 52px; padding: 10px 12px; background: var(--postit); color: var(--postit-ink); font-size: 15px; border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,.14); text-align: left; } .notebar span { font-size: 12px; text-decoration: underline; color: var(--postit-muted); }
 .sticky .act3 { flex-wrap: wrap; gap: 8px; } .sticky .act3 button { padding: 0 9px !important; }
 .sticky .dr { font-size: 12px; font-weight: 600; margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(74,42,51,.3); word-break: keep-all; overflow-wrap: anywhere; } .bhint.why { white-space: pre-wrap; color: var(--ink-2); }
@@ -384,6 +384,9 @@ html.native .dpick, html.native .more, html.native .login, html.native .intro { 
 html.native .npop { padding-left: calc(18px + env(safe-area-inset-left)); padding-right: calc(18px + env(safe-area-inset-right)); }
 /* ── 옆면 인덱스: 화면 오른쪽에 폰이 비워 두라는 띠(시계·손잡이 자리)가 넓으면, 그 띠를 공책 옆면으로 쓰고 탭을 인덱스처럼 단다 ── */
 html.edge-r body::after { content: ''; position: fixed; top: 0; right: 0; bottom: 0; width: var(--sar); background: var(--paper-2); box-shadow: inset 9px 0 10px -8px rgba(40,30,15,.28); z-index: 55; pointer-events: none; }
+/* 본문은 옆면 띠 폭만큼 늘 비킨다: 띠는 재서 그리는데 본문 여백은 앱(html.native)에서만 주던 탓에, 웹으로 연 접은 화면에서는 본문이 띠 밑으로 들어가 오른쪽이 잘렸다 */
+html.edge-r body { padding-right: var(--sar); }
+html.edge-r .dpick, html.edge-r .more, html.edge-r .login, html.edge-r .intro { padding-right: var(--sar); } html.edge-r .npop { padding-right: calc(18px + var(--sar)); }
 html.edge-r .tabbar { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; left: auto; right: 0; top: 250px; bottom: calc(30px + env(safe-area-inset-bottom)); width: var(--sar); padding: 0; background: none; border: 0; overflow: visible; }
 html.edge-r body.spread .tabbar { top: 120px; }
 /* 인덱스 플래그: 종이 끝에 붙여 둔 포스트잇 띠지. 띠는 52px, 손으로 붙인 것처럼 하나씩 조금 삐뚤게 */
@@ -902,6 +905,7 @@ function syncPages() {
   const tb = ['sub', 'roles', 'priv'].includes(tab) ? 'more' : tab === 'notis' ? notisBack : tab === 'plan' ? 'week' : tab; const tb2 = sp ? (['sub', 'roles', 'priv'].includes(rightTab) ? 'more' : rightTab === 'notis' ? notisBack : rightTab === 'plan' ? 'week' : rightTab) : tb; document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === tb2));
 }
 function go(t) {
+  if (t !== tab) _qbo = false;
   tab = t; if (t !== 'today') rightTab = t;
   syncPages();
   if (!spread()) window.scrollTo(0,0); else if (t !== 'today') { const p = document.getElementById('p-' + t); if (p) p.scrollTop = 0; }
@@ -983,7 +987,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.102'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.103'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), digest: T('매일 아침 정리 시작하기'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -1158,6 +1162,7 @@ function addToday(blur) {
 let _noteOpen = false, _noteTop = {}; // 새 비서 메모는 오늘 맨 위 한 줄로 알린다. 펴서 읽으면 읽은 것으로 적고, 접으면 아래 포스트잇 자리로 내려간다
 function noteBar() { _noteOpen = !_noteOpen; if (_noteOpen) stuckNotes().forEach(x => { if (x.kind === 'note' && !x.seen) { const n = findNote(x.id); if (n) { n.seen = true; _noteTop[x.id] = 1; } } }); else _noteTop = {}; save(); renderToday(); }
 let _moreNotes = false, _retro = null; // 접어 둔 포스트잇 / 오늘의 회고(null이면 저녁 알림 시각 뒤에 펼친다)
+let _moreGet = false, _qbo = false;
 function renderToday() {
   if (dayLocked(today())) { document.getElementById('today').innerHTML = lockHtml(); return; }
   markAOpen();
@@ -1186,15 +1191,14 @@ function renderToday() {
   else if (picks.length && !(D.guide && D.guide.rowTap)) h += `<div class="row ruled" style="padding-left:52px;font-size:12px;color:var(--faint)">${T('줄을 누르면 칸·마감을 고칠 수 있어요')}</div>`;
   h += firstLine(ds);
   // 새로 적는 줄은 위의 일에 딸린 칸처럼 보이지 않게: 한 칸 띄우고, 빈 점선 체크칸으로 '새 줄'임을 보인다
-  h += `<div class="item" style="margin-top:${picks.length ? 18 : 0}px"><div class="mg"><span aria-hidden="true" style="width:22px;height:22px;border:1.5px dashed var(--faint);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;color:var(--faint)">+</span></div><div class="bd"><input class="wr" id="quickIn" style="padding-left:0;font-size:17px" placeholder="${QB_PH[quickB]}" aria-label="${T('오늘 할 것')}" enterkeyhint="done" onkeydown="if(event.key==='Enter'){if(this.value.trim())addToday();else this.blur()}" onblur="if(this.value.trim()&&!_qbTap)addToday(true)"><div class="qb" role="group" aria-label="${T('어느 칸에 적을지')}"><span style="${live().filter(r => !r.appt).length >= 5 || quickB !== 'urgent' ? 'display:contents' : 'display:none'}">${[['urgent', 'A'], ['important', 'B'], ['light', 'C']].map(([k, n]) => `<button type="button" data-b="${k}" class="${quickB === k ? 'on' : ''}" aria-label="${T('{n} 칸', { n })}" onpointerdown="_qbTap=true;setTimeout(()=>{_qbTap=false},600)" onclick="setQuickB('${k}')">${n}</button>`).join('')}<span id="qbName">${QB_NAME[quickB]}</span></span><span style="flex:1"></span><button onclick="openWrite()" style="font-size:13px;font-weight:500;color:var(--ink-2);text-decoration:underline;white-space:nowrap;border:none;background:none;width:auto;height:auto;padding:0;border-radius:0">${T('한꺼번에 추가하기')}</button></div></div></div>`;
+  h += `<div class="item${_qbo ? ' qbo' : ''}" style="margin-top:${picks.length ? 18 : 0}px"><div class="mg"><span aria-hidden="true" style="width:22px;height:22px;border:1.5px dashed var(--faint);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;color:var(--faint)">+</span></div><div class="bd"><input class="wr" id="quickIn" style="padding-left:0;font-size:17px" placeholder="${QB_PH[quickB]}" aria-label="${T('오늘 할 것')}" enterkeyhint="done" onfocus="_qbo=true;this.closest('.item').classList.add('qbo')" onkeydown="if(event.key==='Enter'){if(this.value.trim())addToday();else this.blur()}" onblur="if(this.value.trim()&&!_qbTap)addToday(true)"><div class="qb" role="group" aria-label="${T('어느 칸에 적을지')}"><span style="${live().filter(r => !r.appt).length >= 5 || quickB !== 'urgent' ? 'display:contents' : 'display:none'}">${[['urgent', 'A'], ['important', 'B'], ['light', 'C']].map(([k, n]) => `<button type="button" data-b="${k}" class="${quickB === k ? 'on' : ''}" aria-label="${T('{n} 칸', { n })}" onpointerdown="_qbTap=true;setTimeout(()=>{_qbTap=false},600)" onclick="setQuickB('${k}')">${n}</button>`).join('')}<span id="qbName">${QB_NAME[quickB]}</span></span><span style="flex:1"></span><button onclick="openWrite()" style="font-size:13px;font-weight:500;color:var(--ink-2);text-decoration:underline;white-space:nowrap;border:none;background:none;width:auto;height:auto;padding:0;border-radius:0">${T('한꺼번에 추가하기')}</button></div></div></div>`;
   const srow = (r, right, hot) => `<div class="row ruled" style="padding-left:52px;gap:8px;font-size:${hot ? 16 : 14}px;${hot ? 'font-weight:600;color:var(--ink)' : 'color:var(--ink-2)'}"><span class="tag" style="font-size:10px;height:18px;line-height:16px">${r.bucket==='urgent'?'A':r.bucket==='important'?'B':r.bucket==='light'?'C':'D'}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</span>${right}<button class="pill" onclick="pick('${r.id}')">${T('오늘로')}</button></div>`;
-  if (dueSoon.length) {
-    h += `<div class="sp"></div><div class="lbl"><span>${T('곧 마감')}</span><button onclick="go('week')">${T('할 일 ›')}</button></div>`;
-    soonRows(dueSoon).slice(0, 5).forEach(({ r, more }) => { const dl = dleft(r.due); h += srow(r, `${more ? `<span style="font-size:12px;font-weight:400;white-space:nowrap;color:var(--muted)">${T('외 {n}', { n: more })}</span>` : ''}<span style="font-size:13px;font-weight:400;white-space:nowrap;color:var(--ink-2)">${dl < 0 ? '' : md(r.due) + (r.dueT ? ' ' + r.dueT : '')}</span><b class="dd" style="font-size:13px">${dl < 0 ? T('지남') : dl === 0 ? T('오늘') : dTag(dl)}</b>${dl < 0 ? `<button class="pill" onclick="finishRock('${r.id}')">${T('끝냄')}</button>` : ''}`, true); });
-  }
-  if (sugg.length) {
-    h += `<div class="sp"></div><div class="lbl"><span>${T('가져올 것')}</span><button onclick="go('week')">${T('할 일 ›')}</button></div>`;
-    sugg.slice(0,5).forEach(r => { h += srow(r, r.due && !r.routine ? `<span style="font-size:12px;white-space:nowrap;color:var(--muted)">${md(r.due)}${r.dueT ? ' ' + r.dueT : ''}</span>` : !r.routine ? `<button class="pill" onclick="parkDay('${r.id}')">${T('날 잡기')}</button>` : ''); });
+  // 고르는 곳은 하나: 「오늘 고르기」 포스트잇이 떠 있으면 같은 후보를 아래에 또 늘어놓지 않는다(포스트잇에 없는, 날짜가 지난 일만 남긴다). 그 밖에는 곧 마감과 가져올 것을 한 묶음으로, 세 줄만
+  const getRows = soonRows(pkOn ? dueSoon.filter(r => dleft(r.due) < 0) : dueSoon).map(({ r, more }) => { const dl = dleft(r.due); return srow(r, `${more ? `<span style="font-size:12px;font-weight:400;white-space:nowrap;color:var(--muted)">${T('외 {n}', { n: more })}</span>` : ''}<span style="font-size:13px;font-weight:400;white-space:nowrap;color:var(--ink-2)">${dl < 0 ? '' : md(r.due) + (r.dueT ? ' ' + r.dueT : '')}</span><b class="dd" style="font-size:13px">${dl < 0 ? T('지남') : dl === 0 ? T('오늘') : dTag(dl)}</b>${dl < 0 ? `<button class="pill" onclick="finishRock('${r.id}')">${T('끝냄')}</button>` : ''}`, true); })
+    .concat((pkOn ? [] : sugg.slice(0, 5)).map(r => srow(r, r.due && !r.routine ? `<span style="font-size:12px;white-space:nowrap;color:var(--muted)">${md(r.due)}${r.dueT ? ' ' + r.dueT : ''}</span>` : !r.routine ? `<button class="pill" onclick="parkDay('${r.id}')">${T('날 잡기')}</button>` : '')));
+  if (getRows.length) {
+    h += `<div class="sp"></div><div class="lbl"><span>${T('더 가져올 것')}</span><button onclick="go('week')">${T('할 일 ›')}</button></div>` + (_moreGet ? getRows : getRows.slice(0, 3)).join('');
+    if (getRows.length > 3) h += `<div class="row ruled" style="padding-left:52px"><button onclick="_moreGet=!_moreGet;renderToday()" style="font-size:13px;color:var(--ink-2);text-decoration:underline">${_moreGet ? T('접기') : T('{n}개 더 보기', { n: getRows.length - 3 })}</button></div>`;
   }
   const gs = guidesNow(), eveOn = !!eveHtml(ds), tmd = addDays(ds, 1), tfirst = (D.days[tmd] || {}).first || '';
   const retro = _retro === null ? nowHM() >= eveTime() : _retro, marks = [day.note ? T('일기 ✓') : '', photoUrl(ds) ? T('사진 ✓') : '', tfirst ? T('내일 첫 줄 ✓') : ''].filter(Boolean).join(' · ');
