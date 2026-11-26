@@ -282,13 +282,36 @@ async function ui(browser, label, ctxOpts) {
   await ev(() => { SELL = true; D.preview = 'free'; });
   for (const t of ['today', 'week', 'memo', 'review', 'more']) await ev(t => go(t), t);
   await ev(() => { const d3 = addDays(today(), 2); D.rocks.push({ id: 'fz1', week: weekKey(new Date()), bucket: 'important', role: '', title: '사흘 안 마감', due: d3, done: false, carry: 0, checks: {} }, { id: 'fz2', week: '2026-01-05', bucket: 'light', role: '', title: '날짜 지난 일', due: addDays(today(), -3), done: false, carry: 0, checks: {} }); delete D.freeNote; go('week'); });
-  C('속지 밖: 비서 포스트잇이 붙지 않고, 오늘 장 대신 속지 안내 한 장이 나온다', await ev(() => { const none = !document.querySelector('#week .sticky.ro, #week .sticky.fold, #week .sticky.blur') && ![...document.querySelectorAll('#week .sticky .who')].some(w => /마감 임박|멈춘 일/.test(w.textContent)); go('today'); const lock = /써 보기 한 달이 끝났어요|속지가 .*끝났어요/.test(document.getElementById('today').textContent) && !document.getElementById('quickIn'); go('week'); return none && lock; }));
+  C('속지 밖: 비서 포스트잇이 붙지 않고, 오늘 장 대신 속지 안내 한 장이 나온다', await ev(() => { const none = !document.querySelector('#week .sticky.ro, #week .sticky.fold, #week .sticky.blur') && ![...document.querySelectorAll('#week .sticky .who')].some(w => /마감 임박|멈춘 일/.test(w.textContent)); go('today'); const lock = /한 달치 속지를 다 썼어요|속지가 .*끝났어요/.test(document.getElementById('today').textContent) && !document.getElementById('quickIn'); go('week'); return none && lock; }));
   C('속지 밖: 새로 적으려 하면 속지 안내로 가고 아무것도 늘지 않는다', await ev(() => { const n = D.rocks.length; openWrite(); const noBox = !document.getElementById('wrBox'), t = (spread() ? rightTab : tab) === 'sub'; go('week'); return noBox && t && D.rocks.length === n; }));
   await ev(() => { D.plans.filter(p => !p._deleted).forEach(p => delete p.closedAt); openPlan('new'); });
   C('속지 밖: 새 계획도 속지 안내로 간다', await ev(() => (spread() ? rightTab : tab) === 'sub'));
-  C('속지 장: 1년 속지 한 가지, 날짜를 사는 설명, 구독이라는 말이 없다', await ev(() => { const t = document.getElementById('subP').textContent; return /1년 속지 사기/.test(t) && /자동으로 다시 결제되지 않/.test(t) && /처음 한 달/.test(t) && /그 뒤 날짜의 장은 열리지 않/.test(t) && !/구독|하루 한 장/.test(t) && document.querySelector('.cover').textContent.includes('속지'); }));
+  C('속지 장: 1년 속지 한 가지, 날짜를 사는 설명, 구독이라는 말이 없다', await ev(() => { const t = document.getElementById('subP').textContent; return /1년치 속지 사기/.test(t) && /자동으로 다시 결제되지 않/.test(t) && /처음 한 달/.test(t) && /그 뒤 날짜의 장은 열리지 않/.test(t) && !/구독|하루 한 장/.test(t) && document.querySelector('.cover').textContent.includes('속지'); }));
   await ev(() => { D.plans.forEach(p => p._deleted = true); D.preview = ''; D.settings = Object.assign({}, D.settings, { trialFrom: addDays(today(), -13) }); delete D.sub; go('week'); openPlan('new'); });
   C('써 보기 한 달: 마지막 날까지 다 쓰고, 다음 날부터 닫힌다. 속지를 사면 열두 달이 열린다', await ev(() => { const td = today(), te = trialEnd(), a = planView === 'new' && !!document.getElementById('plName') && te === addDays(addMonths(addDays(td, -13), 1), -1) && dgap(addDays(td, -13), te) >= 27 && trialLeft() === dgap(td, te) + 1 && !dayLocked(te) && dayLocked(addDays(te, 1)) && addMonths('2027-01-31', 1) === '2027-02-28'; D.sub = subRange(td); const r = D.sub.until, b = !dayLocked(addDays(td, 300)) && !dayLocked(r) && dayLocked(addDays(r, 1)) && dgap(td, r) >= 364; delete D.sub; D.settings.trialFrom = addDays(td, -40); const c = dayLocked(td) && !paid(); D.preview = 'free'; return a && b && c; }));
+  C('속지 사기: 한 달치를 쓰는 중에 사면 끝난 다음 날부터 열두 달, 끝난 뒤에 사면 산 날부터. 환불된 것은 빠진다', await ev(() => { const td = today(); D.preview = ''; delete D.sub; D.settings = Object.assign({}, D.settings, { trialFrom: addDays(td, -5) }); const te = trialEnd();
+    const a = subCalc([{ id: '1', d: td }]), ok1 = a.from === addDays(te, 1) && a.until === subRange(addDays(te, 1)).until;
+    const b = subCalc([{ id: '1', d: td }, { id: '2', d: addDays(td, 3) }]), ok2 = b.until === subRange(addDays(a.until, 1)).until;
+    const late = addDays(te, 40), c = subCalc([{ id: '3', d: late }]), ok3 = c.from === late;
+    const ok4 = subCalc([{ id: '1', d: td, rv: true }]) === null; return ok1 && ok2 && ok3 && ok4; }));
+  await ev(() => { window._nat0 = nat; window._iap0 = iap; window._fake = { status: 'ok' }; iap = () => true; nat = () => Object.assign(new Proxy({}, { get: (o, k) => k in o ? o[k] : (async () => ({})) }), { iapBuy: async () => Object.assign({ tx: window._fake.status === 'ok' ? [{ id: '901', d: today(), rv: false }] : [] }, window._fake), iapRestore: async () => ({ tx: window._fake.tx || [] }), iapList: async () => ({ tx: [], price: '' }) }); D.preview = ''; delete D.sub; D.settings = Object.assign({}, D.settings, { trialFrom: addDays(today(), -5) }); _subMsg = ''; go('more'); openSub(); });
+  C('속지 장: 지금 끼운 한 달치와 다음 1년치가 값·날짜와 함께 보이고, 다시 사는 값 이야기는 없다', await ev(() => { const t = document.getElementById('subP').textContent; return /지금 끼운 속지/.test(t) && /한 달치 속지 · 무료/.test(t) && /다음 속지/.test(t) && t.includes('26,000') && /한 달치가 끝난 다음 날부터/.test(t) && !/22,000|다시 사는 값|써 보/.test(t) && !!document.getElementById('subBuy'); }));
+  await ev(() => { window._fake = { status: 'canceled' }; return subscribe(); });
+  C('속지 사기: 결제 창을 닫으면 아무 말 없이 그대로다', await ev(() => !D.sub && _subMsg === '' && !!document.getElementById('subBuy') && !document.querySelector('#subP [role=status]')));
+  await ev(() => { window._fake = { status: 'pending' }; return subscribe(); });
+  C('속지 사기: 승인을 기다리면 그렇게 알리고 속지는 아직 없다', await ev(() => !D.sub && /승인을 기다리고/.test(document.getElementById('subP').textContent)));
+  await ev(() => { window._fake = { status: 'error' }; return subscribe(); });
+  C('속지 사기: 확인하지 못하면 구매 복원을 안내한다', await ev(() => !D.sub && /구매 복원」을 눌러/.test(document.getElementById('subP').textContent)));
+  await ev(() => { window._fake = { status: 'ok' }; return subscribe(); });
+  C('속지 사기: 사면 「사 둠」으로 바뀌고 사는 단추가 사라지며, 한 달치 뒤 날짜가 열린다', await ev(() => { const t = document.getElementById('subP').textContent, te = trialEnd(); return /1년치 속지를 끼웠어요/.test(t) && /다음 속지 · 사 둠/.test(t) && !document.getElementById('subBuy') && D.sub.tx.length === 1 && D.sub.from === addDays(te, 1) && !dayLocked(addDays(te, 200)) && dayLocked(addDays(D.sub.until, 1)) && pickState().sub.until === D.sub.until; }));
+  C('속지 사기: 같은 거래가 다시 들어와도 늘지 않고, 환불되면 빠진다', await ev(() => { const u = D.sub.until, same = subApply([{ id: '901', d: today(), rv: false }]) === false && D.sub.until === u; const ch = subApply([{ id: '901', d: today(), rv: true }]); return same && ch && !D.sub.until && !subActive() && dayLocked(addDays(trialEnd(), 1)); }));
+  await ev(() => { delete D.sub; window._fake = { tx: [] }; return subRestore(); });
+  const none = await ev(() => /이 Apple 계정으로 산 속지가 없어요/.test(document.getElementById('subP').textContent));
+  await ev(() => { window._fake = { tx: [{ id: '777', d: addDays(today(), -2), rv: false }] }; return subRestore(); });
+  C('구매 복원: 없으면 없다고, 있으면 다시 끼운다', none && await ev(() => /산 속지를 다시 끼웠어요/.test(document.getElementById('subP').textContent) && !!D.sub.until));
+  C('속지 동기화: 두 기기의 거래를 합치고 환불 표시는 남는다', await ev(() => { const m = mergeState({ sub: { tx: [{ id: 'a', d: '2027-01-01' }], until: '2027-12-31', u: '1' } }, { sub: { tx: [{ id: 'a', d: '2027-01-01', rv: true }, { id: 'b', d: '2027-02-01' }], until: '2028-01-31', u: '2' } }).sub; return m.tx.length === 2 && m.tx.find(t => t.id === 'a').rv === true && m.until === '2028-01-31' && !('sub' in mergeState({}, {})); }));
+  await pg.waitForTimeout(450); // 위젯 갱신(0.3초 뒤)이 가짜 기기에서 끝난 뒤에 되돌린다
+  await ev(() => { nat = window._nat0; iap = window._iap0; delete D.sub; _subMsg = ''; D.settings.trialFrom = addDays(today(), -40); D.preview = 'free'; go('more'); });
   C('구독 안 한 화면에서도 탭이 열린다', (await ev(() => document.querySelector('#p-more .sheet').textContent.length)) > 10);
 
   await ev(() => { SELL = false; D.preview = ''; go('week'); openPlan('new'); }); await pg.waitForTimeout(150); await pg.fill('#plName', '탭 확인용'); await ev(() => savePlan()); await pg.waitForTimeout(80);
@@ -486,6 +509,7 @@ async function firstRun(browser) {
   const ctx = await browser.newContext(Object.assign({ timezoneId: 'Asia/Seoul' }, devices['iPhone 14'])), pg = await ctx.newPage();
   const errs = []; pg.on('pageerror', e => errs.push(e.message));
   await ctx.route('**/*', r => (r.request().url().startsWith('file:') ? r.continue() : r.abort()));
+  await pg.clock.install({ time: new Date(new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10) + 'T12:00:00+09:00') }); // 밤 9시 반 뒤에 돌려도 첫날 낮 화면으로 본다(밤에는 「오늘 닫기」가 먼저 떠서 쏟아 적기 칸이 가려진다)
   await pg.goto(PAGE); await pg.waitForTimeout(1500);
   const C = (name, ok, detail) => check('[첫 실행] ' + name, ok, detail), ev = fn => pg.evaluate(fn);
   C('소개가 인사 장부터 뜬다', await ev(() => !!document.querySelector('#tour.hi .hw svg') && !!document.querySelector('#tour .sk')));

@@ -30,6 +30,8 @@ function merge(a, b) {
   out.seen = Object.assign({}, a.seen, b.seen);
   out.settings = (((b.settings || {}).u || '') >= ((a.settings || {}).u || '') ? b.settings : a.settings) || {};
   out.agent = [a.agent, b.agent].filter(Boolean).sort((x, y) => (x.at || '') < (y.at || '') ? -1 : 1).pop() || null;
+  // 속지: 거래는 합치고(환불 표시는 한쪽이라도 있으면 남김) 날짜는 나중에 고친 쪽을 따른다
+  if (a.sub || b.sub) { const x = a.sub || b.sub, y = b.sub || a.sub, m = new Map(); [...(x.tx || []), ...(y.tx || [])].forEach(t => { if (!t || !t.id) return; const p = m.get(t.id); m.set(t.id, p ? Object.assign({}, p, t, { rv: !!(p.rv || t.rv) }) : t); }); out.sub = Object.assign({}, (y.u || '') >= (x.u || '') ? y : x); if (m.size) out.sub.tx = [...m.values()]; }
   out._modified = [a._modified, b._modified].sort().pop() || '';
   return out;
 }

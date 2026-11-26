@@ -1668,7 +1668,7 @@ function recordNotes(wk) {
 
 // ── 비서 포스트잇 구독: 비서 포스트잇을 받은 날로 20일 무료, 그 뒤 월 구독 또는 연 구독(할인) ──
 // 가격은 여기 한 곳에서만 바꾼다(앱스토어 지역별 가격은 결제 연결 때 StoreKit 값으로 덮어씀)
-const SUB_MONTH = 3900, SUB_YEAR = 26000, SUB_AGAIN = 22000, TRIAL_DAYS = 14; // SUB_AGAIN: 속지를 산 적이 있는 사람이 다시 살 때의 값(임시) // 써 보기는 한 달(아래 trialEnd). TRIAL_DAYS는 쓰지 않음 // 1년 속지 한 가지만 판다(가격은 과금 전에 확정). SUB_MONTH는 쓰지 않음
+const SUB_MONTH = 3900, SUB_YEAR = 26000, TRIAL_DAYS = 14; // 다시 살 때의 값은 1년 뒤에 정한다(지금은 한 가지 값) // 써 보기는 한 달(아래 trialEnd). TRIAL_DAYS는 쓰지 않음 // 1년 속지 한 가지만 판다(가격은 과금 전에 확정). SUB_MONTH는 쓰지 않음
 const won = n => T('{n}원', { n: n.toLocaleString('ko-KR') });
 const SUB_OFF = Math.round((1 - SUB_YEAR / (SUB_MONTH * 12)) * 100);
 const SUB_PRICE = T('월 {m} · 연 {y}', { m: won(SUB_MONTH), y: won(SUB_YEAR) });
@@ -1688,8 +1688,8 @@ function accessEnd() { const u = (D.sub && D.sub.until) || '', t = trialEnd(); r
 // 그 날짜의 장을 쓸 수 있는가. 지난 날짜와 속지 안의 날짜는 열려 있고, 속지 끝 뒤의 날짜만 닫힌다(마감 날짜로 적는 것은 막지 않는다)
 function dayLocked(ds) { if (!SELL || D.preview === 'paid') return false; if (D.preview === 'free') return ds >= today(); return ds > accessEnd(); }
 function kDate(ds) { const [y, m, d] = String(ds || '').split('-').map(Number); if (!y) return ''; return LANG === 'en' ? d + ' ' + MON_EN[m - 1] : LANG === 'ko' ? `${m}월 ${d}일` : `${m}月${d}日`; }
-function lockStop() { if (!dayLocked(today())) return false; toast(T('새로 적으려면 1년 속지가 있어야 해요')); openSub(); return true; }
-function lockHtml() { const had = !!(D.sub && D.sub.until); return `<div class="stickies" style="padding-top:16px"><div class="sticky wide"><div class="who"><span>${T('비서')}</span><span>${had ? T('속지 끝') : T('써 보기 끝')}</span></div><div class="tx"><b>${had ? T('속지가 {until}에 끝났어요', { until: kDate(D.sub.until) }) : T('써 보기 한 달이 끝났어요')}</b><div class="hint" style="margin-top:4px">${T('적어 둔 할 일과 메모, 지난 기록은 그대로 볼 수 있어요. 오늘부터 다시 쓰려면 1년 속지를 끼워 주세요')}</div></div><div class="act"><button onclick="openSub()">${T('1년 속지 보기')}</button></div></div></div>`; }
+function lockStop() { if (!dayLocked(today())) return false; toast(T('새로 적으려면 1년치 속지가 있어야 해요')); openSub(); return true; }
+function lockHtml() { const had = !!(D.sub && D.sub.until); return `<div class="stickies" style="padding-top:16px"><div class="sticky wide"><div class="who"><span>${T('비서')}</span><span>${T('속지 끝')}</span></div><div class="tx"><b>${had ? T('속지가 {until}에 끝났어요', { until: kDate(D.sub.until) }) : T('한 달치 속지를 다 썼어요')}</b><div class="hint" style="margin-top:4px">${T('적어 둔 할 일과 메모, 지난 기록은 그대로 볼 수 있어요. 오늘부터 다시 쓰려면 1년치 속지를 끼워 주세요')}</div></div><div class="act"><button onclick="openSub()">${T('1년치 속지 보기')}</button></div></div></div>`; }
 function subActive() { return !!(D.sub && D.sub.until && D.sub.until >= today()); }
 // 1.0은 전부 무료로 낸다: 구독 화면·무료 날짜 세기·구독 안내를 모두 숨긴다. 과금을 시작할 때 true로
 let SELL = false;
@@ -1701,29 +1701,71 @@ function paid() {
   return !dayLocked(today());
 }
 function togglePaidPreview() { D.preview = D.preview === 'free' ? 'paid' : D.preview === 'paid' ? '' : 'free'; delete D.paidPreview; _save0(); closeMore(); render(); toast(D.preview === 'free' ? T('속지 없는 화면으로 보는 중') : D.preview === 'paid' ? T('속지 끼운 화면으로 보는 중') : T('실제 상태로 보는 중')); }
-function subscribe() { toast(isNative() ? T('속지 결제는 다음 업데이트에서 열려요') : T('속지는 앱에서 살 수 있어요')); }
+// ── 속지 사기: 아이폰은 App Store 앱 내 구입(자동 갱신 없는 1년치 속지 하나). 산 기록은 D.sub.tx에 두고 날짜는 거기서 계산한다 ──
+const IAP_ID = 'sokji1y';
+let _buy = '', _subMsg = '', _iapPrice = '';
+function isIOS() { const C = window.Capacitor; return !!(C && C.getPlatform && C.getPlatform() === 'ios'); }
+function iap() { return isIOS() && nat(); }
+// 산 날짜 순으로 열두 달씩 잇는다. 한 달치가 남았으면 그 다음 날부터, 끝난 뒤에 사면 산 날부터
+function subCalc(txs) { const ok = (txs || []).filter(t => t && t.id && t.d && !t.rv).sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0); if (!ok.length) return null;
+  let cur = trialFrom() ? trialEnd() : '', from = ''; ok.forEach(t => { const f = cur && addDays(cur, 1) > t.d ? addDays(cur, 1) : t.d; if (!from) from = f; cur = subRange(f).until; }); return { from, until: cur }; }
+// App Store가 알려 준 거래를 합친다. 이 기기의 Apple 계정에 없는 거래(다른 기기에서 산 것)는 지우지 않는다. 바뀌었으면 true
+function subApply(txs) { const m = new Map(); ((D.sub || {}).tx || []).forEach(t => { if (t && t.id) m.set(t.id, t); }); (txs || []).forEach(t => { if (t && t.id) m.set(String(t.id), { id: String(t.id), d: t.d, rv: !!t.rv }); });
+  if (!m.size) return false; const tx = [...m.values()], c = subCalc(tx), nx = Object.assign({ tx }, c || {}), a = D.sub || {};
+  if (JSON.stringify([a.from || '', a.until || '', a.tx || []]) === JSON.stringify([nx.from || '', nx.until || '', tx])) return false;
+  nx.u = new Date().toISOString(); D.sub = nx; D._modified = nx.u; _save0(); if (baseUrl()) { clearTimeout(save._t); save._t = setTimeout(pushState, 800); } return true; }
+async function subSync() { if (!SELL || !iap()) return; try { const r = await nat().iapList({ id: IAP_ID }); if (r && r.price) _iapPrice = r.price; if (subApply((r && r.tx) || [])) render(); else if (tab === 'sub' || rightTab === 'sub') renderSubPage(); } catch (e) {} }
+async function subscribe() {
+  if (!iap()) { toast(isNative() ? T('이 기기에서는 아직 속지를 살 수 없어요') : T('속지는 앱에서 살 수 있어요')); return; }
+  if (_buy) return; _buy = 'open'; _subMsg = ''; renderSubPage();
+  let r; try { r = await nat().iapBuy({ id: IAP_ID }); } catch (e) { r = { status: 'error' }; }
+  _buy = ''; const st = (r && r.status) || 'error';
+  if (st === 'ok') { subApply(r.tx || []); _subMsg = 'done'; } else if (st === 'pending') _subMsg = 'pending'; else if (st === 'canceled') _subMsg = ''; else _subMsg = st === 'none' ? 'nostore' : 'fail';
+  render(); }
+async function subRestore() {
+  if (!iap()) { toast(isNative() ? T('이 기기에서는 아직 속지를 살 수 없어요') : T('속지는 앱에서 살 수 있어요')); return; }
+  if (_buy) return; _buy = 'restore'; _subMsg = ''; renderSubPage();
+  let r; try { r = await nat().iapRestore({ id: IAP_ID }); } catch (e) { r = null; }
+  _buy = ''; if (!r) _subMsg = 'fail'; else { subApply(r.tx || []); _subMsg = (r.tx || []).some(t => !t.rv) && D.sub && D.sub.until ? 'restored' : 'none'; }
+  render(); }
 function openSub() { if (!SELL) return; if (tab !== 'sub') subBack = tab === 'more' ? 'more' : tab; go('sub'); }
 let subBack = 'more';
 function subUntil() { const [y, m, d] = String((D.sub || {}).until || '').split('-').map(Number); return y ? ymdLabel(y, m, d) : ''; }
-function subShort() { return subActive() ? T('{a}까지', { a: D.sub.until.replace(/-/g, '.') }) : trialLeft() > 0 ? T('써 보는 중 · {a}일 남음', { a: trialLeft() }) : D.sub && D.sub.until ? T('속지 끝') : T('써 보기 끝'); }
-function subStatus() { return subActive() ? T('1년 속지 · {a}까지', { a: subUntil() }) : trialLeft() > 0 ? `${T('써 보는 중 ·')} <mark class="hl">${T('{a}일 남았어요', { a: trialLeft() })}</mark> · ${T('{a}까지', { a: kDate(trialEnd()) })}` : D.sub && D.sub.until ? T('속지가 {until}에 끝났어요', { until: kDate(D.sub.until) }) : T('써 보기 한 달이 끝났어요'); }
-// 구독 페이지: 메뉴 안의 노트 한 장
-function subPrice() { return D.sub && D.sub.until ? SUB_AGAIN : SUB_YEAR; } // 산 적이 있으면 다시 사는 값
+function ymdOf(ds) { const [y, m, d] = String(ds || '').split('-').map(Number); return y ? ymdLabel(y, m, d) : ''; }
+// 산 속지가 아직 시작 전인가(한 달치를 쓰는 중에 미리 산 것)
+function subAhead() { return !!(D.sub && D.sub.from && D.sub.until && D.sub.from > today()); }
+function subRunning() { return subActive() && !subAhead(); }
+function subShort() { return subRunning() ? T('{a}까지', { a: D.sub.until.replace(/-/g, '.') }) : trialLeft() > 0 ? T('한 달치 · {a}일 남음', { a: trialLeft() }) : T('속지 끝'); }
+function subStatus() { return subRunning() ? T('{a}까지', { a: subUntil() }) : trialLeft() > 0 ? `${T('{a} 시작', { a: kDate(trialFrom() || today()) })} · ${T('{a}까지', { a: kDate(trialEnd()) })} · <mark class="hl">${T('{a}일 남았어요', { a: trialLeft() })}</mark>` : D.sub && D.sub.until ? T('속지가 {until}에 끝났어요', { until: kDate(D.sub.until) }) : T('한 달치 속지가 {a}에 끝났어요', { a: kDate(trialEnd()) }); }
+function subPriceText() { return _iapPrice || won(SUB_YEAR); }
+function subMsgHtml() { const m = _subMsg; if (!m) return '';
+  if (m === 'done') return `<div class="stickies" style="padding:4px 0 10px"><div class="sticky wide"><div class="who"><span>${T('비서')}</span></div><div class="tx"><b>${T('1년치 속지를 끼웠어요')}</b><div class="hint" style="margin-top:2px">${T('{a}까지 씁니다', { a: subUntil() })}${D.account ? '' : '<br>' + T('웹이나 다른 기기에서도 이어 쓰려면 메뉴 › 계정에서 로그인해 두세요')}</div></div></div></div>`;
+  const t = m === 'pending' ? T('결제 승인을 기다리고 있어요. 승인되면 속지가 끼워집니다') : m === 'restored' ? `${T('산 속지를 다시 끼웠어요')} · ${T('{a}까지', { a: subUntil() })}` : m === 'none' ? T('이 Apple 계정으로 산 속지가 없어요') : m === 'nostore' ? T('App Store에서 속지를 불러오지 못했어요. 잠시 뒤에 다시 해 주세요') : T('결제를 확인하지 못했어요. 돈이 나갔다면 「구매 복원」을 눌러 주세요');
+  return `<div class="subst" role="status" style="font-size:13px;color:var(--ink);font-weight:600;line-height:1.6">${t}</div>`; }
+// 속지 장: 메뉴 안의 노트 한 장. 지금 끼운 속지 / 다음 속지 / 속지가 끝나면
 function renderSubPage() {
   const el = document.getElementById('subP'); if (!el) return;
-  const on = subActive(), had = !!(D.sub && D.sub.until), td = today(), next = on ? subRange(addDays(D.sub.until, 1)) : subRange(td), nu = next.until.split('-').map(Number), pr = subPrice();
-  // 써 보는 중: 남은 날짜를 달력에 형광펜으로 긋는다(오늘부터 마지막 날까지)
-  const te = trialEnd(), left = !on && !had && trialLeft() > 0 && dgap(td, te) >= 1 ? `<div class="pvb" style="border-bottom:0;padding:6px 0 0">${pathCalSvg({ pts: [{ d: te, t: T('마지막 날'), k: 'goal' }], start: td, end: te, td, span: dgap(td, te), maxRows: 6 })}</div>` : '';
-  el.innerHTML = `<div class="lbl">${T('지금')}</div><div class="subst">${subStatus()}</div>${left}
-    <div class="lbl" style="margin-top:8px">${T('1년 속지')}</div>
-    <div class="plan on" style="cursor:default"><span class="pk">●</span><span class="pn"><b>${T('1년 속지')}${had ? ` <em>${T('다시 사는 값')}</em>` : ''}</b><i>${on ? T('지금 속지 뒤로 열두 달') : T('오늘부터 열두 달')} · ${T('{date}까지', { date: ymdLabel(nu[0], nu[1], nu[2]) })}</i></span><span class="pp">${had && pr < SUB_YEAR ? `<s style="font-weight:400;color:var(--muted);font-size:12px;margin-right:6px">${won(SUB_YEAR)}</s>` : ''}${won(pr)}</span></div>
-    <button class="cta" style="margin-top:8px" onclick="subscribe()">${on ? T('다음 속지 미리 사기') : had ? T('새 속지 사기') : T('1년 속지 사기')}</button>
-    <div class="subst" style="font-size:12px">${T('한 번 사면 열두 달 써요. 자동으로 다시 결제되지 않아요')}${on ? '<br>' + T('미리 사면 지금 속지가 끝난 다음 날부터 이어져요') : ''}${!had && SUB_AGAIN < SUB_YEAR ? `<br>${T('다음 해에 다시 살 때는 {a}이에요', { a: won(SUB_AGAIN) })}` : ''}</div>
+  const td = today(), run = subRunning(), ahead = subAhead(), tl = trialLeft(), te = trialEnd();
+  // 지금 끼운 속지
+  const nowT = run ? T('1년치 속지') : tl > 0 ? T('한 달치 속지 · 무료') : T('끼운 속지가 없어요');
+  const cal = !run && tl > 0 && dgap(td, te) >= 1 ? `<div class="pvb" style="border-bottom:0;padding:6px 0 0">${pathCalSvg({ pts: [{ d: te, t: T('마지막 날'), k: 'goal' }], start: td, end: te, td, span: dgap(td, te), maxRows: 6 })}</div>` : '';
+  // 다음 속지: 사 둔 것이 있으면 그 날짜, 없으면 살 수 있는 한 장
+  const base = run ? addDays(D.sub.until, 1) : tl > 0 ? addDays(te, 1) : td, nx = subRange(base);
+  const queued = ahead || (run && dgap(td, D.sub.until) > 366);
+  const nextH = ahead ? `<div class="lbl" style="margin-top:8px">${T('다음 속지 · 사 둠')}</div>
+    <div class="plan on" style="cursor:default"><span class="pk">●</span><span class="pn"><b>${T('1년치 속지')}</b><i>${T('{a}부터 {b}까지', { a: kDate(D.sub.from), b: subUntil() })}</i></span></div>
+    <div class="subst" style="font-size:12px">${T('끝나기 14일 전에 한 번 알려 드려요')}</div>`
+    : `<div class="lbl" style="margin-top:8px">${T('다음 속지')}</div>
+    <div class="plan on" style="cursor:default"><span class="pk">●</span><span class="pn"><b>${T('1년치 속지')}</b><i>${T('{a}부터 {b}까지', { a: base === td ? T('오늘') : kDate(base), b: ymdOf(nx.until) })}${tl > 0 && !run ? ' · ' + T('한 달치가 끝난 다음 날부터 이어져요') : ''}</i></span><span class="pp">${subPriceText()}</span></div>
+    ${queued ? `<div class="subst" style="font-size:12px">${T('다음 속지는 지금 속지가 한 해 안으로 남았을 때 살 수 있어요')}</div>` : `<button class="cta" id="subBuy" style="margin-top:8px" ${_buy ? 'disabled' : ''} onclick="subscribe()">${_buy === 'open' ? T('결제 창을 여는 중…') : run ? T('다음 속지 미리 사기') : T('1년치 속지 사기')}</button>`}
+    <div class="subst" style="font-size:12px">${T('한 번 사면 열두 달 써요. 자동으로 다시 결제되지 않아요')}</div>`;
+  el.innerHTML = `${subMsgHtml()}<div class="lbl">${T('지금 끼운 속지')}</div><div class="subst" style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:2px">${nowT}</div><div class="subst">${subStatus()}</div>${cal}
+    ${nextH}
     <div class="lbl" style="margin-top:8px">${T('속지가 있는 날짜에는')}</div>
-    <div class="subst" style="font-size:13px;line-height:1.8">${T('오늘 장과 달력, 비서 포스트잇과 알림, 계획까지 전부 써요. 처음 한 달은 속지 없이 써 볼 수 있어요')}</div>
+    <div class="subst" style="font-size:13px;line-height:1.8">${T('오늘 장과 달력, 비서 포스트잇과 알림, 계획까지 전부 써요. 처음 한 달치 속지는 값 없이 끼워 드려요')}</div>
     <div class="lbl" style="margin-top:8px">${T('속지가 끝나면')}</div>
-    <div class="subst" style="font-size:13px;line-height:1.8">${T('그 뒤 날짜의 장은 열리지 않아요. 적어 둔 할 일과 메모, 지난 기록과 책장은 계속 볼 수 있어요. 마감 날짜는 속지 끝 뒤로도 적을 수 있어요')}</div>
-    <div class="acts" style="padding:12px 0;gap:20px"><button class="cta ghost" style="width:auto;margin:0" onclick="toast(T('구매 복원은 결제 연결 뒤에 열려요'))">${T('구매 복원')}</button></div>
+    <div class="subst" style="font-size:13px;line-height:1.8">${T('그 뒤 날짜의 장은 열리지 않아요. 적어 둔 할 일과 메모, 지난 기록과 책장은 계속 볼 수 있어요. 내 AI 비서 연결과 기기 간 동기화도 그대로예요. 마감 날짜는 속지 끝 뒤로도 적을 수 있어요')}</div>
+    <div class="acts" style="padding:12px 0;gap:20px"><button class="cta ghost" style="width:auto;margin:0" ${_buy ? 'disabled' : ''} onclick="subRestore()">${_buy === 'restore' ? T('찾는 중…') : T('구매 복원')}</button></div>
     <div class="legal"><a href="legal/terms.html" target="_blank">${T('이용약관')}</a><a href="legal/privacy.html" target="_blank">${T('개인정보처리방침')}</a></div>`;
 }
 function renderSubBox() {
@@ -1990,9 +2032,9 @@ function briefOf(ds) {
 function trialHtml(ds) {
   if (!SELL || ds !== today() || D.preview) return '';
   const note = (k, who, msg, hint) => noteOff(k) ? '' : `<div class="stickies"><div class="sticky wide"><div class="who"><span>${T('비서')}</span><span>${who}</span></div><div class="tx">${msg}<div class="hint" style="margin-top:2px">${hint}</div></div><div class="act"><button onclick="openSub()">${T('속지 보기')}</button><button onclick="dropNote('${k}')">${T('나중에')}</button></div></div></div>`;
-  if (subActive()) { const n = dgap(ds, D.sub.until) + 1; return n > 14 ? '' : note('subend:' + D.sub.until, T('{n}일 남음', { n }), `${T('속지가')} <b>${kDate(D.sub.until)}</b>${T('에 끝나요')}`, `${T('미리 사면 그 다음 날부터 열두 달이 이어져요 · 다시 사는 값')} ${won(SUB_AGAIN)}`); }
+  if (subActive()) { if (subAhead() && trialLeft() > 0) return ''; const n = dgap(ds, D.sub.until) + 1; return n > 14 ? '' : note('subend:' + D.sub.until, T('{n}일 남음', { n }), `${T('속지가')} <b>${kDate(D.sub.until)}</b>${T('에 끝나요')}`, T('미리 사면 그 다음 날부터 열두 달이 이어져요')); }
   const n = trialLeft(); if (n < 1 || n > 5) return '';
-  return note('trial:' + ds, n > 1 ? T('{n}일 남음', { n }) : T('마지막 날'), n > 1 ? `${T('써 보기가')} <b>${T('{n}일', { n })}</b> ${T('남았어요')}` : T('오늘이 써 보기 마지막 날이에요'), `${kDate(trialEnd())} ${T('뒤의 날짜는 1년 속지가 있어야 열려요 ·')} ${won(SUB_YEAR)}`);
+  return note('trial:' + ds, n > 1 ? T('{n}일 남음', { n }) : T('마지막 날'), n > 1 ? `${T('한 달치 속지가')} <b>${T('{n}일', { n })}</b> ${T('남았어요')}` : T('오늘이 한 달치 속지의 마지막 날이에요'), `${kDate(trialEnd())} ${T('뒤의 날짜는 1년치 속지가 있어야 열려요 ·')} ${subPriceText()}`);
 }
 // 브리핑에 적는 짧은 제목: 머리표([신진])와 콜론·괄호 뒤 설명은 뗀다(원래 제목은 할 일에 그대로)
 function shortT(t) { let x = String(t || '').replace(/^\[[^\]]{1,8}\]\s*/, ''); const i = x.search(/\s*(?:(?<!\d)[:：]|[(（—])/); if (i >= 6) x = x.slice(0, i); return x.trim(); }
@@ -3128,6 +3170,8 @@ function finishRefill() {
 function baseUrl() { return (D.api || '').trim().replace(/\/+$/, ''); }
 function stateUrl() { return baseUrl() + '/u/' + D.token + '/state'; }
 function mcpUrl() { return baseUrl() ? baseUrl() + '/mcp' : T('(API 주소를 먼저 넣어 주세요)'); } // 모두 같은 주소(로그인 방식, 2026-11-25). 열쇠가 든 예전 주소(/u/…/mcp)는 화면에 내지 않는다
+// 속지: 거래는 합치고(환불 표시는 한쪽이라도 있으면 남김) 날짜는 나중에 고친 쪽을 따른다
+function mergeSub(x, y) { if (!x || !y) return x || y || null; const m = new Map(); [...(x.tx || []), ...(y.tx || [])].forEach(t => { if (!t || !t.id) return; const p = m.get(t.id); m.set(t.id, p ? Object.assign({}, p, t, { rv: !!(p.rv || t.rv) }) : t); }); const w = (y.u || '') >= (x.u || '') ? y : x; const o = Object.assign({}, w); if (m.size) o.tx = [...m.values()]; return o; }
 function mergeState(a, b) {
   const em = () => ({ roles: [], rocks: [], days: {}, reviews: {}, seen: {}, vols: [], memos: [], plans: [], settings: {}, _modified: '' });
   a = Object.assign(em(), a || {}); b = Object.assign(em(), b || {}); const out = em();
@@ -3140,6 +3184,7 @@ function mergeState(a, b) {
   out.roles = ((b._modified || '') >= (a._modified || '') ? b : a).roles || [];
   out.settings = (((b.settings || {}).u || '') >= ((a.settings || {}).u || '') ? b.settings : a.settings) || {};
   out.seen = Object.assign({}, a.seen, b.seen); out._modified = [a._modified, b._modified].sort().pop() || '';
+  const sb = mergeSub(a.sub, b.sub); if (sb) out.sub = sb;
   return out;
 }
 let _sig = {};
@@ -3155,8 +3200,8 @@ function stamp() { const now = new Date().toISOString(), n = sigOf(); let change
 _sig = sigOf();
 const _save0 = save;
 save = function() { const ch = stamp(); _save0(); if (ch && baseUrl()) { clearTimeout(save._t); save._t = setTimeout(pushState, 1500); } };
-function pickState() { return { v: 1, settings: D.settings || {}, roles: D.roles, rocks: D.rocks, days: D.days, reviews: D.reviews, seen: D.seen, vols: D.vols, memos: D.memos || [], plans: D.plans || [], _modified: D._modified }; }
-function applyState(S) { if (S && S.agent) D.agent = S.agent; const m = mergeState(pickState(), S); D.roles = m.roles.length ? m.roles : D.roles; const calBefore = (D.settings || {}).calUrl; D.settings = m.settings || {}; if ((D.settings.calUrl || '') !== (calBefore || '')) setTimeout(() => loadCal(true), 0); D.rocks = m.rocks; D.days = m.days; D.reviews = m.reviews; D.seen = m.seen; D.vols = m.vols.length ? m.vols : (D.vols||[]); D.memos = m.memos; D.plans = m.plans; D._modified = m._modified; _sig = sigOf(); _save0(); }
+function pickState() { return { v: 1, settings: D.settings || {}, roles: D.roles, rocks: D.rocks, days: D.days, reviews: D.reviews, seen: D.seen, vols: D.vols, memos: D.memos || [], plans: D.plans || [], sub: D.sub || undefined, _modified: D._modified }; }
+function applyState(S) { if (S && S.agent) D.agent = S.agent; const m = mergeState(pickState(), S); D.roles = m.roles.length ? m.roles : D.roles; const calBefore = (D.settings || {}).calUrl; D.settings = m.settings || {}; if ((D.settings.calUrl || '') !== (calBefore || '')) setTimeout(() => loadCal(true), 0); D.rocks = m.rocks; D.days = m.days; D.reviews = m.reviews; D.seen = m.seen; D.vols = m.vols.length ? m.vols : (D.vols||[]); D.memos = m.memos; D.plans = m.plans; if (m.sub) { D.sub = m.sub; if (m.sub.tx && m.sub.tx.length) { const c = subCalc(m.sub.tx); if (c) { D.sub.from = c.from; D.sub.until = c.until; } else { delete D.sub.from; delete D.sub.until; } } } D._modified = m._modified; _sig = sigOf(); _save0(); }
 async function pushState() { if (!baseUrl()) return; try { const r = await fetch(stateUrl(), { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pickState()) }); if (r.ok) { applyState(await r.json()); render(); setConn(''); } } catch(e) { setConn(''); } }
 async function pullState(manual) { if (!baseUrl()) { if (manual) toast(T('서버 주소를 먼저 넣어 주세요')); return; } try { const r = await fetch(stateUrl() + '?_=' + Date.now()); if (!r.ok) throw 0; const before = JSON.stringify(pickState()); applyState(await r.json()); if (JSON.stringify(pickState()) !== before) { render(); if (manual) toast(T('비서가 적은 게 들어왔어요')); } else if (manual) toast(T('새 항목 없음')); setConn(''); } catch(e) { if (manual) toast(T('연결 실패')); setConn(''); } }
 function agentAgo() { const a = D.agent; if (!a || !a.at) return ''; const m = Math.round((Date.now() - new Date(a.at)) / 60000); return m < 1 ? T('방금') : m < 60 ? T('{m}분 전', { m }) : m < 1440 ? T('{a}시간 전', { a: Math.round(m/60) }) : T('{a}일 전', { a: Math.round(m/1440) }); }
@@ -3388,11 +3433,11 @@ render();
 notifCatchUp();
 showIntro();
 if (tourDue()) tourOpen();
-setTimeout(() => { loadCal(false); takePending(); scheduleNotifs(); }, 400);
+setTimeout(() => { loadCal(false); takePending(); scheduleNotifs(); subSync(); }, 400);
 connectCheck(); // 비서에서 「연결」을 눌러 온 경우(?connect=…)
 loadAuthConf().then(() => { if (!D.account && !D.skipLogin && hasProviders() && !isAndroid()) setTimeout(openLogin, 950); }); // 안드로이드 앱은 로그인을 아직 붙이지 않아 처음에 묻지 않는다
 pullState(false).then(() => { ensureVol(); render(); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { edgeCheck(); edgeSoon(); notifCatchUp(); pullState(false); loadCal(false); takePending(); rescheduleSoon(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { edgeCheck(); edgeSoon(); notifCatchUp(); pullState(false); loadCal(false); takePending(); rescheduleSoon(); subSync(); } });
 // 같은 기기의 다른 창(미리보기의 접은/펼친 화면 등)에서 바뀌면 바로 반영
 window.addEventListener('storage', e => { if (e.key !== KEY) return; const a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return; D = load(); _sig = sigOf(); render(); });
 if (location.hash === '#week') go('week'); else if (location.hash === '#review') go('review');

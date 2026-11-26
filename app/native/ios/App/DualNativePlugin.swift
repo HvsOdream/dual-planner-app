@@ -7,6 +7,7 @@ import AuthenticationServices
 import CryptoKit
 import Security
 import UIKit
+import StoreKit
 
 @objc(DualNativePlugin)
 public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
@@ -21,7 +22,11 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "googleSignIn", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "calendarAdd", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openUrl", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "iapList", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "iapBuy", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "iapRestore", returnType: CAPPluginReturnPromise),
     ]
+    private var iapWatch: Task<Void, Never>?
     private let store = EKEventStore()
     private var appleDelegate: AppleSignInDelegate?
     private var webAuth: ASWebAuthenticationSession?
@@ -187,6 +192,69 @@ public class DualNativePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func openUrl(_ call: CAPPluginCall) {
         guard let u = URL(string: call.getString("url") ?? "") else { call.resolve(["ok": false]); return }
         DispatchQueue.main.async { UIApplication.shared.open(u, options: [:]) { ok in call.resolve(["ok": ok]) } }
+    }
+
+    // ── 속지 구매(StoreKit 2). 상품은 자동 갱신 없는 1년 속지 하나. 애플 서명이 확인된 거래만 돌려준다 ──
+    // 앱이 떠 있는 동안 밖에서 끝난 거래(가족 승인, 환불 등)를 받아 웹에 알린다
+    override public func load() {
+        iapWatch = Task { [weak self] in
+            for await r in Transaction.updates {
+                if case .verified(let t) = r { await t.finish() }
+                self?.notifyListeners("iapUpdate", data: [:])
+            }
+        }
+    }
+    deinit { iapWatch?.cancel() }
+
+    // 이 Apple 계정이 산 속지 전부: [{ id, d: "YYYY-MM-DD"(산 날), rv: 환불됨 }]
+    private func iapTx(_ pid: String) async -> [[String: Any]] {
+        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"; df.timeZone = .current
+        var out: [[String: Any]] = []
+        for await r in Transaction.all {
+            guard case .verified(let t) = r, t.productID == pid else { continue }
+            out.append(["id": String(t.id), "d": df.string(from: t.purchaseDate), "rv": t.revocationDate != nil])
+        }
+        return out
+    }
+    private func iapProduct(_ pid: String) async -> Product? {
+        return (try? await Product.products(for: [pid]))?.first
+    }
+
+    // { id } → { tx, price } 값은 그 나라 상점의 표시 값
+    @objc func iapList(_ call: CAPPluginCall) {
+        guard let pid = call.getString("id"), !pid.isEmpty else { call.reject("no id"); return }
+        Task {
+            let p = await self.iapProduct(pid)
+            call.resolve(["tx": await self.iapTx(pid), "price": p?.displayPrice ?? ""])
+        }
+    }
+
+    // { id } → { status: ok | canceled | pending | none | error, tx }
+    @objc func iapBuy(_ call: CAPPluginCall) {
+        guard let pid = call.getString("id"), !pid.isEmpty else { call.reject("no id"); return }
+        Task {
+            guard let p = await self.iapProduct(pid) else { call.resolve(["status": "none", "tx": []]); return }
+            do {
+                let res = try await p.purchase()
+                switch res {
+                case .success(let v):
+                    if case .verified(let t) = v { await t.finish(); call.resolve(["status": "ok", "tx": await self.iapTx(pid)]) }
+                    else { call.resolve(["status": "error", "tx": []]) }
+                case .userCancelled: call.resolve(["status": "canceled", "tx": []])
+                case .pending: call.resolve(["status": "pending", "tx": []])
+                @unknown default: call.resolve(["status": "error", "tx": []])
+                }
+            } catch { call.resolve(["status": "error", "tx": [], "message": error.localizedDescription]) }
+        }
+    }
+
+    // { id } → App Store와 다시 맞춘 뒤 { tx }. 맞추기를 닫아도 기기에 있는 거래는 돌려준다
+    @objc func iapRestore(_ call: CAPPluginCall) {
+        guard let pid = call.getString("id"), !pid.isEmpty else { call.reject("no id"); return }
+        Task {
+            try? await AppStore.sync()
+            call.resolve(["tx": await self.iapTx(pid)])
+        }
     }
 
     // 위젯 체크, 공유 시트·시리로 들어온 것을 꺼내 준다(꺼내면 비운다)
