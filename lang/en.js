@@ -940,4 +940,6 @@ window.DP_DICT = {
   "{n}개 더 보기": "{n} more",
   "다른 계정으로 로그인": "Sign in with another account",
   "지금 계정에서 나가고 다른 계정으로 로그인할까요? 지금 계정의 기록은 계정에 그대로 남아요.": "Leave this account and sign in with another? This account\u2019s records stay in the account.",
+  "다른 Google 계정으로 로그인": "Sign in with another Google account",
+  "로그인하지 못했어요": "Couldn't sign in",
 };
