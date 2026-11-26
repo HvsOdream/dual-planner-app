@@ -938,4 +938,6 @@ window.DP_DICT = {
   "A로 올리기": "Move to A",
   "더 가져올 것": "More to bring in",
   "{n}개 더 보기": "{n} more",
+  "다른 계정으로 로그인": "Sign in with another account",
+  "지금 계정에서 나가고 다른 계정으로 로그인할까요? 지금 계정의 기록은 계정에 그대로 남아요.": "Leave this account and sign in with another? This account\u2019s records stay in the account.",
 };

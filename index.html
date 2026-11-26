@@ -987,7 +987,7 @@ function renderNotis() {
   document.getElementById('notis').innerHTML = h + `<div class="sp"></div>`;
 }
 // 메뉴: 첫 화면은 한 줄씩(현재 상태 + ›), 누르면 그 항목만 있는 쪽으로 들어간다
-const APP_VER = '0.7.103'; // VERSION 파일과 같이 올린다
+const APP_VER = '0.7.104'; // VERSION 파일과 같이 올린다
 let moreSec = '';
 const MORE_SECS = { acct: T('계정'), feats: T('비서 포스트잇'), roles: T('내 역할'), cal: T('캘린더'), notify: T('알림'), cover: T('표지'), conn: T('비서 연결'), digest: T('매일 아침 정리 시작하기'), legal: T('약관·개인정보처리방침') };
 function openSec(k) { moreSec = k; render(); window.scrollTo(0, 0); const p = document.getElementById('p-more'); if (p) p.scrollTop = 0; }
@@ -3341,7 +3341,9 @@ function resetLocal() {
   try { localStorage.removeItem(KEY); } catch(e) {}
   D = empty(); D.token = newToken(); D.api = DEFAULT_API; _sig = sigOf(); save(); ensureVol(); closeMore(); render();
 }
-function logout() { if (!confirm(T('로그아웃하면 이 기기의 기록이 지워져요. 계정에는 그대로 남아요.'))) return; resetLocal(); openLogin(); }
+async function logout() { if (!confirm(T('로그아웃하면 이 기기의 기록이 지워져요. 계정에는 그대로 남아요.'))) return; await pushState(); resetLocal(); openLogin(); }
+// 다른 계정으로 로그인: 지금 계정의 마지막 변경을 서버에 올린 뒤 이 기기를 비우고 로그인 창을 연다. 로그아웃과 하는 일은 같고, 무엇을 하려는지가 이름에 보이게 따로 둔다
+async function switchAccount() { if (!confirm(T('지금 계정에서 나가고 다른 계정으로 로그인할까요? 지금 계정의 기록은 계정에 그대로 남아요.'))) return; await pushState(); resetLocal(); openLogin(); }
 async function deleteAccount() {
   if (!confirm(T('계정과 모든 기록을 지울까요? 되돌릴 수 없어요.\n비서 연결 주소도 바뀌어요. 다시 가입한 뒤 비서에 새 주소를 넣어야 해요.'))) return;
   try { const r = await fetch(baseUrl() + '/auth/account', { method: 'DELETE', headers: { authorization: 'Bearer ' + D.token } }); if (!r.ok) throw 0; } catch(e) { toast(T('지우지 못했어요. 연결을 확인해 주세요')); return; }
@@ -3354,7 +3356,7 @@ function renderAccount() {
   if (a) {
     const pv = a.provider === 'apple' ? 'Apple' : 'Google';
     el.innerHTML = `<div class="lbl" style="padding-left:0">${T('계정')}</div><div class="acct"><div class="who"><b>${esc(a.name || a.email || T('{pv} 계정', { pv }))}</b><span>${pv}${a.email && a.name ? ' · ' + esc(a.email) : ''}</span></div></div>
-      <div class="acts"><button onclick="exportData()">${T('내 데이터 받기')}</button><button onclick="logout()">${T('로그아웃')}</button><button class="del" onclick="deleteAccount()">${T('계정 삭제')}</button></div>`;
+      <div class="acts"><button onclick="exportData()">${T('내 데이터 받기')}</button><button onclick="switchAccount()">${T('다른 계정으로 로그인')}</button><button onclick="logout()">${T('로그아웃')}</button><button class="del" onclick="deleteAccount()">${T('계정 삭제')}</button></div>`;
   } else if (hasProviders()) {
     el.innerHTML = `<div class="lbl" style="padding-left:0">${T('계정')}</div><button class="cta" style="margin-left:0;width:100%;height:40px" onclick="openLogin()">${T('로그인')}</button><div class="acts"><button onclick="exportData()">${T('내 데이터 받기')}</button></div>`;
   } else el.innerHTML = '';
