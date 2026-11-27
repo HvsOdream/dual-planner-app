@@ -763,7 +763,7 @@ async function photo(req, env, token, ds) {
 // 연결 창은 듀얼플래너 앱이다: /oauth/authorize가 요청을 적어 두고(rq:<rid>) 앱(APP_URL/?connect=rid)으로 보내면, 앱이 「허용」을 받아
 // /oauth/approve에 자기 플래너 열쇠와 함께 알린다. 앱을 못 쓰는 경우를 위해 연결 주소를 붙여 넣는 창(/oauth/link)도 남겨 둔다.
 // Claude 문서 기준: 401이어야 로그인이 시작되고, resource는 사용자가 넣는 주소와 같아야 하며, PKCE S256, 토큰 끝점은 form-urlencoded,
-// 공개 클라이언트(none), refresh 토큰은 쓸 때마다 바꾼다. 콜백은 https://claude.ai/api/mcp/auth_callback, Claude Code는 loopback.
+// 공개 클라이언트(none), refresh 토큰은 쓸 때마다 바꾼다. 콜백은 https://claude.ai/api/mcp/auth_callback, ChatGPT는 chatgpt.com, Claude Code는 loopback.
 const OA_ACCESS_TTL = 7 * 86400, OA_REFRESH_TTL = 180 * 86400, OA_CODE_TTL = 300;
 const oaStore = (env, body) => env.OAUTH.get(env.OAUTH.idFromName('v1')).fetch('https://oauth/', { method: 'POST', body: JSON.stringify(body) }).then(r => r.json());
 const oaRnd = p => p + [...crypto.getRandomValues(new Uint8Array(32))].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -773,7 +773,7 @@ const oaJson = (o, st, extra) => json(o, st || 200, Object.assign({ 'cache-contr
 const oaErr = (error, desc, st) => oaJson({ error, error_description: desc }, st || 400);
 function oaLoopback(u) { try { const x = new URL(u); return x.protocol === 'http:' && (x.hostname === 'localhost' || x.hostname === '127.0.0.1' || x.hostname === '[::1]'); } catch { return false; } }
 // 돌아갈 주소는 아는 비서만: 아무 주소나 등록할 수 있으면 "허용만 눌러 주세요" 식으로 남의 플래너 열쇠를 낚을 수 있다
-const OA_HOSTS = ['claude.ai', 'claude.com'];
+const OA_HOSTS = ['claude.ai', 'claude.com', 'chatgpt.com'];
 function oaOkRedirect(u, env) { try { const x = new URL(u); if (x.hash) return false; if (oaLoopback(u)) return true;
   const more = String((env && env.OAUTH_REDIRECT_HOSTS) || '').split(',').map(t => t.trim()).filter(Boolean);
   return x.protocol === 'https:' && [...OA_HOSTS, ...more].includes(x.hostname); } catch { return false; } }
