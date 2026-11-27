@@ -1691,8 +1691,8 @@ function kDate(ds) { const [y, m, d] = String(ds || '').split('-').map(Number); 
 function lockStop() { if (!dayLocked(today())) return false; toast(T('새로 적으려면 1년치 속지가 있어야 해요')); openSub(); return true; }
 function lockHtml() { const had = !!(D.sub && D.sub.until); return `<div class="stickies" style="padding-top:16px"><div class="sticky wide"><div class="who"><span>${T('비서')}</span><span>${T('속지 끝')}</span></div><div class="tx"><b>${had ? T('속지가 {until}에 끝났어요', { until: kDate(D.sub.until) }) : T('한 달치 속지를 다 썼어요')}</b><div class="hint" style="margin-top:4px">${T('적어 둔 할 일과 메모, 지난 기록은 그대로 볼 수 있어요. 오늘부터 다시 쓰려면 1년치 속지를 끼워 주세요')}</div></div><div class="act"><button onclick="openSub()">${T('1년치 속지 보기')}</button></div></div></div>`; }
 function subActive() { return !!(D.sub && D.sub.until && D.sub.until >= today()); }
-// 1.0은 전부 무료로 낸다: 구독 화면·무료 날짜 세기·구독 안내를 모두 숨긴다. 과금을 시작할 때 true로
-let SELL = false;
+// 속지 판매 스위치. 켜면 처음 켠 날부터 한 달치 속지를 세고, 속지 장·남은 날 포스트잇·속지 없는 날짜 잠금이 나온다. false면 전부 무료(속지 화면 숨김)
+let SELL = true;
 if (QA) { try { SELL = localStorage.getItem('dpa_qa_sell') === '1'; } catch (e) {} }
 function paid() {
   if (!SELL) return true;
